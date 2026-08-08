@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    bootstrap="src/TestCase/bootstrap.php"
+    testdox="true"
+    colors="true"
+    executionOrder="default"
+>
+    <php>
+        <!-- make sure Testbench runs in testing -->
+        <env name="APP_ENV" value="testing" force="true"/>
+        <env name="DB_CONNECTION" value="testing" force="true"/>
+
+        <env name="PACTTRACE_MYSQL_TEST_DB_HOST" value="mysql" force="true"/>
+        <env name="PACTTRACE_MYSQL_TEST_DB_PORT" value="3306" force="true"/>
+        <env name="PACTTRACE_MYSQL_TEST_DB_DATABASE" value="pacttrace_test" force="true"/>
+        <env name="PACTTRACE_MYSQL_TEST_DB_USERNAME" value="pacttrace_u" force="true"/>
+        <env name="PACTTRACE_MYSQL_TEST_DB_PASSWORD" value="p4cttr4cekamikalara0213" force="true"/>
+        <env name="PACTTRACE_MYSQL_TEST_DB_SNAPSHOT_PASSWORD" value="root" force="true"/>
+        <env name="PACTTRACE_MYSQL_TEST_DB_SNAPSHOT_FILE" value="src/TestCase/sqldumps/pacttrace.mysql.sql" force="true"/>
+    </php>
+
+    <testsuites>
+        <testsuite name="Modular Tests">
+            <directory suffix="Test.php">./src/Modules</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>

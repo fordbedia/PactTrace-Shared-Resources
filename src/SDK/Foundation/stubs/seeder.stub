@@ -1,0 +1,25 @@
+<?php
+
+namespace {{ namespace }};
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use PactTraceSDK\SharedResources\SDK\Database\MakeSeeder;
+
+class {{ class }} extends MakeSeeder
+{
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        //
+    }
+
+    /**
+     * Revert the database seeds.
+     */
+    public function revert(): void
+    {
+        //
+    }
+}
