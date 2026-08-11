@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PactTraceSDK\SharedResources\Modules\User\Tests;
 
-use App\Models\User;
+use PactTraceSDK\SharedResources\Modules\User\Models\User;
 use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
 use PactTraceSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;

@@ -2,7 +2,7 @@
 
 namespace PactTraceSDK\SharedResources\Modules\Messaging\Database\Factories;
 
-use App\Models\User;
+use PactTraceSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use PactTraceSDK\SharedResources\Modules\Messaging\Models\Message;
 use PactTraceSDK\SharedResources\Modules\Messaging\Models\MessageThread;

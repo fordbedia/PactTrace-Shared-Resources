@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PactTraceSDK\SharedResources\Modules\Workspace\Infrastructure\Context;
 
-use App\Models\User;
+use PactTraceSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Http\Request;

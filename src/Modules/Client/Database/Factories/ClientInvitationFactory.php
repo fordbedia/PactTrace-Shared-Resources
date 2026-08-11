@@ -2,7 +2,7 @@
 
 namespace PactTraceSDK\SharedResources\Modules\Client\Database\Factories;
 
-use App\Models\User;
+use PactTraceSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 use PactTraceSDK\SharedResources\Modules\Client\Models\Client;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PactTraceSDK\SharedResources\Modules\Notification\Policies;
 
-use App\Models\User;
+use PactTraceSDK\SharedResources\Modules\User\Models\User;
 use PactTraceSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTraceSDK\SharedResources\Modules\User\Application\Authorization\TenantScopedPolicy;
 use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;

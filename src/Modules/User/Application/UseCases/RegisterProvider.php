@@ -1,0 +1,114 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PactTraceSDK\SharedResources\Modules\User\Application\UseCases;
+
+use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
+use PactTraceSDK\SharedResources\Modules\User\Application\Services\UserRegistration;
+use PactTraceSDK\SharedResources\Modules\User\Domain\Services\SubdomainAllocator;
+use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
+use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
+use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
+use PactTraceSDK\SharedResources\SDK\Application\Ports\Transactional;
+
+/**
+ * Use case behind sign-up: turns a form submission into a tenant.
+ *
+ * This class knows *sequence* and nothing else. Every rule it depends on lives
+ * somewhere it can be reused and tested on its own:
+ *
+ *   - what a valid, unique subdomain is  -> Domain\ValueObjects\Subdomain,
+ *                                           Domain\Services\SubdomainAllocator
+ *   - how a login is created and rolled  -> Application\Services\UserRegistration
+ *   - how either is persisted            -> the repository ports
+ *
+ * What remains here is the part that genuinely belongs to signup: that these
+ * steps happen together or not at all, and in this order.
+ *
+ * The order is forced by the schema rather than chosen: `providers.owner_user_id`
+ * is a non-null FK to `users` while `users.provider_id` points back at
+ * `providers`, so the user is created first and attachToProvider() closes the
+ * loop. That cycle is exactly why the transaction is not decoration — a
+ * half-built signup leaves a `users` row with no `provider_id`, which
+ * authenticates fine but is denied by every TenantScopedPolicy. To the person
+ * who just signed up that reads as "my account exists but nothing works".
+ */
+class RegisterProvider
+{
+    /**
+     * Free trial length, in days.
+     *
+     * Borderline: arguably a billing policy rather than a registration detail.
+     * It stays here only because nothing else reads it yet — move it to
+     * config/pacttrace.php the moment a second caller (billing, marketing copy)
+     * needs the same number, or the two will drift.
+     */
+    private const TRIAL_DAYS = 14;
+
+    public function __construct(
+        private readonly UserRegistration $registration,
+        private readonly ProviderRepository $providers,
+        private readonly SubdomainAllocator $subdomains,
+        private readonly Transactional $transaction,
+    ) {
+    }
+
+    /**
+     * @param  string|null  $subdomain  Omit to derive one from the business
+     *                                  name. Pass a value only when the signup
+     *                                  form lets the user choose it — an
+     *                                  invalid choice throws, because at that
+     *                                  point it is a mistake worth reporting
+     *                                  rather than something to silently fix.
+     *
+     * @throws \RuntimeException         when the email is already registered
+     * @throws \InvalidArgumentException when an explicitly chosen subdomain is
+     *                                   malformed or reserved
+     */
+    public function handle(
+        string $name,
+        string $email,
+        string $password,
+        string $businessName,
+        ?string $subdomain = null,
+        string $plan = 'starter',
+    ): Provider {
+        // Resolved before the transaction opens: this is pure computation, and
+        // a malformed explicit subdomain should fail without having touched the
+        // database at all.
+        $desired = $subdomain !== null
+            ? Subdomain::fromString($subdomain)
+            : Subdomain::fromLabel($businessName);
+
+        return $this->transaction->run(function () use (
+            $name,
+            $email,
+            $password,
+            $businessName,
+            $desired,
+            $plan,
+        ): Provider {
+            $owner = $this->registration->register($name, $email, $password, Role::Owner);
+
+            $provider = $this->providers->create([
+                'owner_user_id' => $owner->getKey(),
+                'business_name' => $businessName,
+                'subdomain' => $this->subdomains->allocate($desired)->value,
+                'plan' => $plan,
+                'trial_ends_at' => now()->addDays(self::TRIAL_DAYS),
+            ]);
+
+            $this->registration->attachToProvider($owner, (int) $provider->getKey());
+
+            // TODO: create the provider's first Workspace here once sign-up
+            // collects a workspace_type. Until one exists, RequestWorkspaceContext
+            // resolves to null (a provider with 0 workspaces has no "sole"
+            // workspace), so WorkspaceScope narrows nothing — safe, because
+            // provider_id is still the tenancy barrier, but the labels fall back
+            // to the neutral `general` preset. See .claude/rules/workspace.md.
+
+            return $provider->setRelation('owner', $owner);
+        });
+    }
+}

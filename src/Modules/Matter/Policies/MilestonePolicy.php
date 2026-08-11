@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PactTraceSDK\SharedResources\Modules\Matter\Policies;
 
-use App\Models\User;
+use PactTraceSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use PactTraceSDK\SharedResources\Modules\Matter\Models\Milestone;
 use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;

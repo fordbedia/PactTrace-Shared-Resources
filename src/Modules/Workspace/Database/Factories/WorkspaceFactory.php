@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PactTraceSDK\SharedResources\Modules\Workspace\Database\Factories;
 
-use App\Models\User;
+use PactTraceSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
 use PactTraceSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;

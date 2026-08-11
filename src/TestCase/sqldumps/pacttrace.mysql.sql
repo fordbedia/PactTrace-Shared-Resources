@@ -1,20 +1,19 @@
-/*M!999999\- enable the sandbox mode */ 
--- MariaDB dump 10.19-11.8.6-MariaDB, for debian-linux-gnu (aarch64)
+-- MySQL dump 10.13  Distrib 9.6.0, for Linux (aarch64)
 --
--- Host: mysql    Database: pacttrace_test
+-- Host: localhost    Database: app_db
 -- ------------------------------------------------------
 -- Server version	9.6.0
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8mb4 */;
+/*!50503 SET NAMES utf8mb4 */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*M!100616 SET @OLD_NOTE_VERBOSITY=@@NOTE_VERBOSITY, NOTE_VERBOSITY=0 */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
 -- Table structure for table `audit_logs`
@@ -22,7 +21,7 @@
 
 DROP TABLE IF EXISTS `audit_logs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `audit_logs` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `provider_id` bigint unsigned DEFAULT NULL,
@@ -48,13 +47,10 @@ CREATE TABLE `audit_logs` (
 -- Dumping data for table `audit_logs`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `audit_logs` WRITE;
 /*!40000 ALTER TABLE `audit_logs` DISABLE KEYS */;
 /*!40000 ALTER TABLE `audit_logs` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `cache`
@@ -62,7 +58,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `cache`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `cache` (
   `key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `value` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -76,13 +72,10 @@ CREATE TABLE `cache` (
 -- Dumping data for table `cache`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `cache` WRITE;
 /*!40000 ALTER TABLE `cache` DISABLE KEYS */;
 /*!40000 ALTER TABLE `cache` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `cache_locks`
@@ -90,7 +83,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `cache_locks`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `cache_locks` (
   `key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `owner` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -104,13 +97,10 @@ CREATE TABLE `cache_locks` (
 -- Dumping data for table `cache_locks`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `cache_locks` WRITE;
 /*!40000 ALTER TABLE `cache_locks` DISABLE KEYS */;
 /*!40000 ALTER TABLE `cache_locks` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `client_invitations`
@@ -118,7 +108,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `client_invitations`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `client_invitations` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `provider_id` bigint unsigned NOT NULL,
@@ -145,13 +135,10 @@ CREATE TABLE `client_invitations` (
 -- Dumping data for table `client_invitations`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `client_invitations` WRITE;
 /*!40000 ALTER TABLE `client_invitations` DISABLE KEYS */;
 /*!40000 ALTER TABLE `client_invitations` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `clients`
@@ -159,7 +146,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `clients`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `clients` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `provider_id` bigint unsigned NOT NULL,
@@ -183,13 +170,10 @@ CREATE TABLE `clients` (
 -- Dumping data for table `clients`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `clients` WRITE;
 /*!40000 ALTER TABLE `clients` DISABLE KEYS */;
 /*!40000 ALTER TABLE `clients` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `document_versions`
@@ -197,7 +181,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `document_versions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `document_versions` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `document_id` bigint unsigned NOT NULL,
@@ -219,13 +203,10 @@ CREATE TABLE `document_versions` (
 -- Dumping data for table `document_versions`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `document_versions` WRITE;
 /*!40000 ALTER TABLE `document_versions` DISABLE KEYS */;
 /*!40000 ALTER TABLE `document_versions` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `documents`
@@ -233,7 +214,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `documents`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `documents` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `provider_id` bigint unsigned NOT NULL,
@@ -269,13 +250,10 @@ CREATE TABLE `documents` (
 -- Dumping data for table `documents`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `documents` WRITE;
 /*!40000 ALTER TABLE `documents` DISABLE KEYS */;
 /*!40000 ALTER TABLE `documents` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `envelopes`
@@ -283,7 +261,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `envelopes`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `envelopes` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `provider_id` bigint unsigned NOT NULL,
@@ -312,13 +290,10 @@ CREATE TABLE `envelopes` (
 -- Dumping data for table `envelopes`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `envelopes` WRITE;
 /*!40000 ALTER TABLE `envelopes` DISABLE KEYS */;
 /*!40000 ALTER TABLE `envelopes` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `failed_jobs`
@@ -326,7 +301,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `failed_jobs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `failed_jobs` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -345,13 +320,10 @@ CREATE TABLE `failed_jobs` (
 -- Dumping data for table `failed_jobs`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `failed_jobs` WRITE;
 /*!40000 ALTER TABLE `failed_jobs` DISABLE KEYS */;
 /*!40000 ALTER TABLE `failed_jobs` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `folders`
@@ -359,7 +331,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `folders`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `folders` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `provider_id` bigint unsigned NOT NULL,
@@ -385,13 +357,10 @@ CREATE TABLE `folders` (
 -- Dumping data for table `folders`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `folders` WRITE;
 /*!40000 ALTER TABLE `folders` DISABLE KEYS */;
 /*!40000 ALTER TABLE `folders` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `job_batches`
@@ -399,7 +368,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `job_batches`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `job_batches` (
   `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -419,13 +388,10 @@ CREATE TABLE `job_batches` (
 -- Dumping data for table `job_batches`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `job_batches` WRITE;
 /*!40000 ALTER TABLE `job_batches` DISABLE KEYS */;
 /*!40000 ALTER TABLE `job_batches` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `jobs`
@@ -433,7 +399,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `jobs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `jobs` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `queue` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -451,13 +417,10 @@ CREATE TABLE `jobs` (
 -- Dumping data for table `jobs`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `jobs` WRITE;
 /*!40000 ALTER TABLE `jobs` DISABLE KEYS */;
 /*!40000 ALTER TABLE `jobs` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `matters`
@@ -465,7 +428,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `matters`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `matters` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `provider_id` bigint unsigned NOT NULL,
@@ -492,13 +455,10 @@ CREATE TABLE `matters` (
 -- Dumping data for table `matters`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `matters` WRITE;
 /*!40000 ALTER TABLE `matters` DISABLE KEYS */;
 /*!40000 ALTER TABLE `matters` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `message_attachments`
@@ -506,7 +466,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `message_attachments`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `message_attachments` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `message_id` bigint unsigned NOT NULL,
@@ -527,13 +487,10 @@ CREATE TABLE `message_attachments` (
 -- Dumping data for table `message_attachments`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `message_attachments` WRITE;
 /*!40000 ALTER TABLE `message_attachments` DISABLE KEYS */;
 /*!40000 ALTER TABLE `message_attachments` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `message_threads`
@@ -541,7 +498,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `message_threads`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `message_threads` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `provider_id` bigint unsigned NOT NULL,
@@ -565,13 +522,10 @@ CREATE TABLE `message_threads` (
 -- Dumping data for table `message_threads`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `message_threads` WRITE;
 /*!40000 ALTER TABLE `message_threads` DISABLE KEYS */;
 /*!40000 ALTER TABLE `message_threads` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `messages`
@@ -579,7 +533,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `messages`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `messages` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `thread_id` bigint unsigned NOT NULL,
@@ -600,13 +554,10 @@ CREATE TABLE `messages` (
 -- Dumping data for table `messages`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `messages` WRITE;
 /*!40000 ALTER TABLE `messages` DISABLE KEYS */;
 /*!40000 ALTER TABLE `messages` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `migrations`
@@ -614,52 +565,24 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `migrations`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `migrations` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `migration` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `batch` int NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `migrations`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `migrations` WRITE;
 /*!40000 ALTER TABLE `migrations` DISABLE KEYS */;
-INSERT INTO `migrations` VALUES
-(1,'0001_01_01_000000_create_users_table',1),
-(2,'0001_01_01_000001_create_cache_table',1),
-(3,'0001_01_01_000002_create_jobs_table',1),
-(4,'2026_08_03_052200_create_providers_table',1),
-(5,'2026_08_03_052201_add_role_and_provider_to_users_table',1),
-(6,'2026_08_03_052202_create_clients_table',1),
-(7,'2026_08_03_052204_create_client_invitations_table',1),
-(8,'2026_08_03_052205_create_projects_table',1),
-(9,'2026_08_03_052206_create_milestones_table',1),
-(10,'2026_08_03_052219_create_folders_table',1),
-(11,'2026_08_03_052221_create_documents_table',1),
-(12,'2026_08_03_052222_create_document_versions_table',1),
-(13,'2026_08_03_052223_create_envelopes_table',1),
-(14,'2026_08_03_052224_create_signers_table',1),
-(15,'2026_08_03_052226_create_signature_fields_table',1),
-(16,'2026_08_03_052236_create_message_threads_table',1),
-(17,'2026_08_03_052237_create_messages_table',1),
-(18,'2026_08_03_052238_create_message_attachments_table',1),
-(19,'2026_08_03_052239_create_notifications_table',1),
-(20,'2026_08_03_052241_create_audit_logs_table',1),
-(21,'2026_08_04_080317_create_permission_tables',1),
-(22,'2026_08_04_080318_drop_role_from_users_table',1),
-(23,'2026_08_05_090000_rename_projects_to_matters',1),
-(24,'2026_08_05_090100_create_workspaces_table',1),
-(25,'2026_08_05_090200_add_workspace_id_to_scoped_tables',1);
+INSERT INTO `migrations` VALUES (1,'0001_01_01_000000_create_users_table',1),(2,'0001_01_01_000001_create_cache_table',1),(3,'0001_01_01_000002_create_jobs_table',1),(4,'2026_08_03_052200_create_providers_table',1),(5,'2026_08_03_052201_add_role_and_provider_to_users_table',1),(6,'2026_08_03_052202_create_clients_table',1),(7,'2026_08_03_052204_create_client_invitations_table',1),(8,'2026_08_03_052205_create_projects_table',1),(9,'2026_08_03_052206_create_milestones_table',1),(10,'2026_08_03_052219_create_folders_table',1),(11,'2026_08_03_052221_create_documents_table',1),(12,'2026_08_03_052222_create_document_versions_table',1),(13,'2026_08_03_052223_create_envelopes_table',1),(14,'2026_08_03_052224_create_signers_table',1),(15,'2026_08_03_052226_create_signature_fields_table',1),(16,'2026_08_03_052236_create_message_threads_table',1),(17,'2026_08_03_052237_create_messages_table',1),(18,'2026_08_03_052238_create_message_attachments_table',1),(19,'2026_08_03_052239_create_notifications_table',1),(20,'2026_08_03_052241_create_audit_logs_table',1),(21,'2026_08_04_080317_create_permission_tables',1),(22,'2026_08_04_080318_drop_role_from_users_table',1),(23,'2026_08_05_090000_rename_projects_to_matters',1),(24,'2026_08_05_090100_create_workspaces_table',1),(25,'2026_08_05_090200_add_workspace_id_to_scoped_tables',1),(26,'2026_08_09_012530_create_personal_access_tokens_table',1);
 /*!40000 ALTER TABLE `migrations` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `milestones`
@@ -667,7 +590,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `milestones`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `milestones` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `matter_id` bigint unsigned NOT NULL,
@@ -689,13 +612,10 @@ CREATE TABLE `milestones` (
 -- Dumping data for table `milestones`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `milestones` WRITE;
 /*!40000 ALTER TABLE `milestones` DISABLE KEYS */;
 /*!40000 ALTER TABLE `milestones` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `model_has_permissions`
@@ -703,7 +623,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `model_has_permissions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `model_has_permissions` (
   `permission_id` bigint unsigned NOT NULL,
   `model_type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -718,13 +638,10 @@ CREATE TABLE `model_has_permissions` (
 -- Dumping data for table `model_has_permissions`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `model_has_permissions` WRITE;
 /*!40000 ALTER TABLE `model_has_permissions` DISABLE KEYS */;
 /*!40000 ALTER TABLE `model_has_permissions` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `model_has_roles`
@@ -732,7 +649,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `model_has_roles`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `model_has_roles` (
   `role_id` bigint unsigned NOT NULL,
   `model_type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -747,13 +664,10 @@ CREATE TABLE `model_has_roles` (
 -- Dumping data for table `model_has_roles`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `model_has_roles` WRITE;
 /*!40000 ALTER TABLE `model_has_roles` DISABLE KEYS */;
 /*!40000 ALTER TABLE `model_has_roles` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `notifications`
@@ -761,7 +675,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `notifications`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `notifications` (
   `id` char(36) COLLATE utf8mb4_unicode_ci NOT NULL,
   `type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -780,13 +694,10 @@ CREATE TABLE `notifications` (
 -- Dumping data for table `notifications`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `notifications` WRITE;
 /*!40000 ALTER TABLE `notifications` DISABLE KEYS */;
 /*!40000 ALTER TABLE `notifications` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `password_reset_tokens`
@@ -794,7 +705,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `password_reset_tokens`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `password_reset_tokens` (
   `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `token` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -807,13 +718,10 @@ CREATE TABLE `password_reset_tokens` (
 -- Dumping data for table `password_reset_tokens`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `password_reset_tokens` WRITE;
 /*!40000 ALTER TABLE `password_reset_tokens` DISABLE KEYS */;
 /*!40000 ALTER TABLE `password_reset_tokens` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `permissions`
@@ -821,7 +729,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `permissions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `permissions` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -837,56 +745,45 @@ CREATE TABLE `permissions` (
 -- Dumping data for table `permissions`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `permissions` WRITE;
 /*!40000 ALTER TABLE `permissions` DISABLE KEYS */;
-INSERT INTO `permissions` VALUES
-(1,'provider.view','web','2026-08-05 22:46:59','2026-08-05 22:46:59'),
-(2,'provider.update','web','2026-08-05 22:46:59','2026-08-05 22:46:59'),
-(3,'provider.manage-branding','web','2026-08-05 22:46:59','2026-08-05 22:46:59'),
-(4,'provider.manage-billing','web','2026-08-05 22:46:59','2026-08-05 22:46:59'),
-(5,'user.view','web','2026-08-05 22:46:59','2026-08-05 22:46:59'),
-(6,'user.invite','web','2026-08-05 22:46:59','2026-08-05 22:46:59'),
-(7,'user.update','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(8,'user.delete','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(9,'client.view','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(10,'client.create','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(11,'client.update','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(12,'client.delete','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(13,'client.invite','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(14,'workspace.view','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(15,'workspace.create','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(16,'workspace.update','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(17,'workspace.delete','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(18,'matter.view','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(19,'matter.create','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(20,'matter.update','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(21,'matter.delete','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(22,'milestone.view','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(23,'milestone.create','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(24,'milestone.update','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(25,'milestone.delete','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(26,'document.view','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(27,'document.upload','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(28,'document.download','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(29,'document.update','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(30,'document.delete','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(31,'folder.view','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(32,'folder.create','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(33,'folder.update','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(34,'folder.delete','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(35,'envelope.view','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(36,'envelope.create','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(37,'envelope.send','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(38,'envelope.sign','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(39,'envelope.void','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(40,'message.view','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(41,'message.send','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(42,'audit-log.view','web','2026-08-05 22:47:00','2026-08-05 22:47:00');
+INSERT INTO `permissions` VALUES (1,'provider.view','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(2,'provider.update','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(3,'provider.manage-branding','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(4,'provider.manage-billing','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(5,'user.view','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(6,'user.invite','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(7,'user.update','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(8,'user.delete','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(9,'client.view','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(10,'client.create','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(11,'client.update','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(12,'client.delete','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(13,'client.invite','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(14,'workspace.view','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(15,'workspace.create','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(16,'workspace.update','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(17,'workspace.delete','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(18,'matter.view','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(19,'matter.create','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(20,'matter.update','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(21,'matter.delete','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(22,'milestone.view','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(23,'milestone.create','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(24,'milestone.update','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(25,'milestone.delete','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(26,'document.view','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(27,'document.upload','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(28,'document.download','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(29,'document.update','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(30,'document.delete','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(31,'folder.view','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(32,'folder.create','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(33,'folder.update','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(34,'folder.delete','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(35,'envelope.view','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(36,'envelope.create','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(37,'envelope.send','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(38,'envelope.sign','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(39,'envelope.void','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(40,'message.view','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(41,'message.send','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(42,'audit-log.view','web','2026-08-09 02:36:21','2026-08-09 02:36:21');
 /*!40000 ALTER TABLE `permissions` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `personal_access_tokens`
+--
+
+DROP TABLE IF EXISTS `personal_access_tokens`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `personal_access_tokens` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `tokenable_type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `tokenable_id` bigint unsigned NOT NULL,
+  `name` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `token` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `abilities` text COLLATE utf8mb4_unicode_ci,
+  `last_used_at` timestamp NULL DEFAULT NULL,
+  `expires_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `personal_access_tokens_token_unique` (`token`),
+  KEY `personal_access_tokens_tokenable_type_tokenable_id_index` (`tokenable_type`,`tokenable_id`),
+  KEY `personal_access_tokens_expires_at_index` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `personal_access_tokens`
+--
+
+LOCK TABLES `personal_access_tokens` WRITE;
+/*!40000 ALTER TABLE `personal_access_tokens` DISABLE KEYS */;
+/*!40000 ALTER TABLE `personal_access_tokens` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `providers`
@@ -894,7 +791,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `providers`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `providers` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `owner_user_id` bigint unsigned NOT NULL,
@@ -920,13 +817,10 @@ CREATE TABLE `providers` (
 -- Dumping data for table `providers`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `providers` WRITE;
 /*!40000 ALTER TABLE `providers` DISABLE KEYS */;
 /*!40000 ALTER TABLE `providers` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `role_has_permissions`
@@ -934,7 +828,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `role_has_permissions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `role_has_permissions` (
   `permission_id` bigint unsigned NOT NULL,
   `role_id` bigint unsigned NOT NULL,
@@ -949,95 +843,11 @@ CREATE TABLE `role_has_permissions` (
 -- Dumping data for table `role_has_permissions`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `role_has_permissions` WRITE;
 /*!40000 ALTER TABLE `role_has_permissions` DISABLE KEYS */;
-INSERT INTO `role_has_permissions` VALUES
-(1,1),
-(2,1),
-(3,1),
-(4,1),
-(5,1),
-(6,1),
-(7,1),
-(8,1),
-(9,1),
-(10,1),
-(11,1),
-(12,1),
-(13,1),
-(14,1),
-(15,1),
-(16,1),
-(17,1),
-(18,1),
-(19,1),
-(20,1),
-(21,1),
-(22,1),
-(23,1),
-(24,1),
-(25,1),
-(26,1),
-(27,1),
-(28,1),
-(29,1),
-(30,1),
-(31,1),
-(32,1),
-(33,1),
-(34,1),
-(35,1),
-(36,1),
-(37,1),
-(38,1),
-(39,1),
-(40,1),
-(41,1),
-(42,1),
-(1,2),
-(5,2),
-(9,2),
-(10,2),
-(11,2),
-(13,2),
-(14,2),
-(16,2),
-(18,2),
-(19,2),
-(20,2),
-(22,2),
-(23,2),
-(24,2),
-(25,2),
-(26,2),
-(27,2),
-(28,2),
-(29,2),
-(31,2),
-(32,2),
-(33,2),
-(35,2),
-(36,2),
-(37,2),
-(40,2),
-(41,2),
-(42,2),
-(9,3),
-(18,3),
-(22,3),
-(26,3),
-(27,3),
-(28,3),
-(31,3),
-(35,3),
-(38,3),
-(40,3),
-(41,3);
+INSERT INTO `role_has_permissions` VALUES (1,1),(2,1),(3,1),(4,1),(5,1),(6,1),(7,1),(8,1),(9,1),(10,1),(11,1),(12,1),(13,1),(14,1),(15,1),(16,1),(17,1),(18,1),(19,1),(20,1),(21,1),(22,1),(23,1),(24,1),(25,1),(26,1),(27,1),(28,1),(29,1),(30,1),(31,1),(32,1),(33,1),(34,1),(35,1),(36,1),(37,1),(38,1),(39,1),(40,1),(41,1),(42,1),(1,2),(5,2),(9,2),(10,2),(11,2),(13,2),(14,2),(16,2),(18,2),(19,2),(20,2),(22,2),(23,2),(24,2),(25,2),(26,2),(27,2),(28,2),(29,2),(31,2),(32,2),(33,2),(35,2),(36,2),(37,2),(40,2),(41,2),(42,2),(9,3),(18,3),(22,3),(26,3),(27,3),(28,3),(31,3),(35,3),(38,3),(40,3),(41,3);
 /*!40000 ALTER TABLE `role_has_permissions` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `roles`
@@ -1045,7 +855,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `roles`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `roles` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1061,17 +871,11 @@ CREATE TABLE `roles` (
 -- Dumping data for table `roles`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `roles` WRITE;
 /*!40000 ALTER TABLE `roles` DISABLE KEYS */;
-INSERT INTO `roles` VALUES
-(1,'owner','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(2,'staff','web','2026-08-05 22:47:00','2026-08-05 22:47:00'),
-(3,'client','web','2026-08-05 22:47:00','2026-08-05 22:47:00');
+INSERT INTO `roles` VALUES (1,'owner','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(2,'staff','web','2026-08-09 02:36:21','2026-08-09 02:36:21'),(3,'client','web','2026-08-09 02:36:21','2026-08-09 02:36:21');
 /*!40000 ALTER TABLE `roles` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `sessions`
@@ -1079,7 +883,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `sessions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sessions` (
   `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `user_id` bigint unsigned DEFAULT NULL,
@@ -1097,13 +901,11 @@ CREATE TABLE `sessions` (
 -- Dumping data for table `sessions`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `sessions` WRITE;
 /*!40000 ALTER TABLE `sessions` DISABLE KEYS */;
+INSERT INTO `sessions` VALUES ('a6Mp0wFWCAHou6zBFeFVAHQy76IZ9uCa224qd6VD',NULL,'142.250.114.95','Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36','eyJfdG9rZW4iOiJqRkl2ZEtva3pPaHo4Tk5HUmVXWFVuYTR2ZjIzdWZERnRIZzZFRTMzIiwiX3ByZXZpb3VzIjp7InVybCI6Imh0dHBzOlwvXC9pbnQucGFjdHRyYWNlLmNvbVwvc2FuY3R1bVwvY3NyZi1jb29raWUiLCJyb3V0ZSI6InNhbmN0dW0uY3NyZi1jb29raWUifSwiX2ZsYXNoIjp7Im9sZCI6W10sIm5ldyI6W119fQ==',1786258340);
 /*!40000 ALTER TABLE `sessions` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `signature_fields`
@@ -1111,7 +913,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `signature_fields`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `signature_fields` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `envelope_id` bigint unsigned NOT NULL,
@@ -1136,13 +938,10 @@ CREATE TABLE `signature_fields` (
 -- Dumping data for table `signature_fields`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `signature_fields` WRITE;
 /*!40000 ALTER TABLE `signature_fields` DISABLE KEYS */;
 /*!40000 ALTER TABLE `signature_fields` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `signers`
@@ -1150,7 +949,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `signers`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `signers` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `envelope_id` bigint unsigned NOT NULL,
@@ -1171,13 +970,10 @@ CREATE TABLE `signers` (
 -- Dumping data for table `signers`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `signers` WRITE;
 /*!40000 ALTER TABLE `signers` DISABLE KEYS */;
 /*!40000 ALTER TABLE `signers` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `users`
@@ -1185,7 +981,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `users`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `users` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1207,13 +1003,10 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
 -- Table structure for table `workspaces`
@@ -1221,7 +1014,7 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 DROP TABLE IF EXISTS `workspaces`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `workspaces` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `provider_id` bigint unsigned NOT NULL,
@@ -1245,20 +1038,17 @@ CREATE TABLE `workspaces` (
 -- Dumping data for table `workspaces`
 --
 
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `workspaces` WRITE;
 /*!40000 ALTER TABLE `workspaces` DISABLE KEYS */;
 /*!40000 ALTER TABLE `workspaces` ENABLE KEYS */;
 UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
--- Dumping events for database 'pacttrace_test'
+-- Dumping events for database 'app_db'
 --
 
 --
--- Dumping routines for database 'pacttrace_test'
+-- Dumping routines for database 'app_db'
 --
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -1268,6 +1058,6 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-05 22:47:04
+-- Dump completed on 2026-08-09 20:58:38

@@ -49,7 +49,7 @@ abstract class BaseTest extends Orchestra
 		]);
 		$app['config']->set('auth.providers.users', [
 			'driver' => 'eloquent',
-			'model' => \App\Models\User::class,
+			'model' => \PactTraceSDK\SharedResources\Modules\User\Models\User::class,
 		]);
 
 		$app['config']->set('database.default', 'testing');

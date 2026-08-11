@@ -5,10 +5,12 @@ declare(strict_types=1);
 /**
  * PHPUnit bootstrap for the shared-resources package.
  *
- * Module code legitimately references the host application's `App\Models\User`
- * — Laravel owns the auth identity, and the User module extends it rather than
- * replacing it (see .claude/rules/user.md). Testbench boots a bare skeleton app
- * that has no such class, so the backend's namespaces are registered here.
+ * `App\Models\User` no longer exists — the User model lives in this package at
+ * `Modules\User\Models\User` — but module code (e.g. controllers extending
+ * `App\Http\Controllers\Controller`, `App\Http\Concerns\ResolvesActingUser`)
+ * still legitimately references other classes the host `backend` app owns.
+ * Testbench boots a bare skeleton app that has none of those, so the
+ * backend's namespaces are registered here.
  *
  * This is done at bootstrap rather than as a composer `autoload-dev` path
  * because the two layouts disagree: on the host the backend sits beside this
@@ -29,7 +31,10 @@ $backendPath = (static function (): string {
     ]);
 
     foreach ($candidates as $candidate) {
-        if (is_dir($candidate . '/app/Models')) {
+        // `artisan` is present in every Laravel app root and, unlike
+        // `app/Models`, doesn't depend on the backend still owning any
+        // model classes (it no longer does — see the User model note above).
+        if (is_file($candidate . '/artisan')) {
             return rtrim($candidate, '/');
         }
     }

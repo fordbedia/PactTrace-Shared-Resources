@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PactTraceSDK\SharedResources\Modules\User\Policies;
 
-use App\Models\User;
+use PactTraceSDK\SharedResources\Modules\User\Models\User;
 use PactTraceSDK\SharedResources\Modules\User\Application\Authorization\TenantScopedPolicy;
 use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
 use PactTraceSDK\SharedResources\Modules\User\Models\Provider;

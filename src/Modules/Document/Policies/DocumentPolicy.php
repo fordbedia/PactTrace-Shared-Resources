@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PactTraceSDK\SharedResources\Modules\Document\Policies;
 
-use App\Models\User;
+use PactTraceSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
 use PactTraceSDK\SharedResources\Modules\User\Application\Authorization\TenantScopedPolicy;
