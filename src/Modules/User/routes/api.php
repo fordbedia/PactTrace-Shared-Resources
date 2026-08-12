@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use PactTraceSDK\SharedResources\Modules\User\Http\Controllers\RegistrationController;
 use PactTraceSDK\SharedResources\Modules\User\Http\Controllers\SessionController;
+use PactTraceSDK\SharedResources\Modules\User\Http\Controllers\UserController;
 
 /*
 | Loaded by SharedResourceServiceProvider under the `api` prefix and the `api`
@@ -18,15 +19,22 @@ use PactTraceSDK\SharedResources\Modules\User\Http\Controllers\SessionController
 | reporting. Whether an already-signed-in browser should be allowed to reach the
 | signup form is the SPA's routing question, not this endpoint's.
 */
+Route::prefix('v1')->group(function () {
+	Route::post('user/register', [RegistrationController::class, 'store'])
+		->name('user.register');
 
-Route::post('user/register', [RegistrationController::class, 'store'])
-    ->name('user.register');
-
-Route::post('login', [SessionController::class, 'store'])
-    ->name('login');
+	Route::prefix('auth')->name('auth.')->group(function () {
+		Route::post('login', [SessionController::class, 'store'])
+			->name('login');
+	});
 
 // Deliberately unauthenticated: signing out is idempotent, and a browser
 // holding an expired cookie asking to be signed out should be told "fine",
 // not 401'd into an error path it cannot recover from.
-Route::post('logout', [SessionController::class, 'destroy'])
-    ->name('logout');
+	Route::post('logout', [SessionController::class, 'destroy'])
+		->name('logout');
+
+	Route::middleware('auth:sanctum')->group(function () {
+		Route::apiResource('user', UserController::class);
+	});
+});
