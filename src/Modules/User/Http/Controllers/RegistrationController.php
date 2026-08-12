@@ -7,6 +7,7 @@ namespace PactTraceSDK\SharedResources\Modules\User\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use PactTraceSDK\SharedResources\Modules\User\Application\Services\UserAuthentication;
+use PactTraceSDK\SharedResources\Modules\User\Application\Services\UserHintCookie;
 use PactTraceSDK\SharedResources\Modules\User\Application\UseCases\RegisterProvider;
 use PactTraceSDK\SharedResources\Modules\User\Http\Requests\StoreRegistrationRequest;
 use PactTraceSDK\SharedResources\Modules\User\Http\Resources\UserResource;
@@ -22,6 +23,7 @@ class RegistrationController extends Controller
     public function __construct(
         private readonly RegisterProvider $registerProvider,
         private readonly UserAuthentication $authentication,
+        private readonly UserHintCookie $hintCookie,
     ) {
     }
 
@@ -44,9 +46,10 @@ class RegistrationController extends Controller
         );
 
         $this->authentication->login($provider->owner);
+        $this->hintCookie->attach($provider->owner);
 
         return response()->json([
-            'user' => new UserResource($provider->owner),
+            'user' => new UserResource($provider->owner->loadAuthPayload()),
             'provider' => [
                 'id' => $provider->id,
                 'business_name' => $provider->business_name,

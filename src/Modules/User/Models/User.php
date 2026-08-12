@@ -5,6 +5,7 @@ namespace PactTraceSDK\SharedResources\Modules\User\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -39,6 +40,43 @@ class User extends Authenticatable
     protected static function newFactory(): UserFactory
     {
         return UserFactory::new();
+    }
+
+    /**
+     * Everything UserResource serialises beyond the `users` row itself.
+     *
+     * `roles.permissions` and `permissions` are both needed: spatie's
+     * getAllPermissions() unions the role-derived set with any direct grants,
+     * and queries for whichever half is not already in memory.
+     *
+     * @var list<string>
+     */
+    public const AUTH_PAYLOAD_RELATIONS = [
+        'provider',
+        'client',
+        'roles.permissions',
+        'permissions',
+    ];
+
+    /**
+     * Eager-load the relations UserResource emits, for an instance already in
+     * hand (typically `$request->user()`).
+     *
+     * loadMissing() rather than load() so calling it twice in one request — say
+     * a controller that serialises the actor after acting on them — does not
+     * re-run the queries.
+     */
+    public function loadAuthPayload(): static
+    {
+        return $this->loadMissing(self::AUTH_PAYLOAD_RELATIONS);
+    }
+
+    /**
+     * The same set, applied to a query that has not run yet.
+     */
+    public function scopeWithAuthPayload(Builder $query): Builder
+    {
+        return $query->with(self::AUTH_PAYLOAD_RELATIONS);
     }
 
     public function provider(): BelongsTo

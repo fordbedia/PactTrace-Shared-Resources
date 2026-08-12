@@ -15,17 +15,20 @@ use PactTraceSDK\SharedResources\Modules\User\Models\User;
  *
  * Session-based, not token-based. The Next.js frontend and this API are served
  * from the same origin by nginx (`/api/` and `/sanctum/` are location blocks on
- * int.pacttrace.com), and frontend/src/lib/api.ts already sends
- * `withCredentials: true` after priming `/sanctum/csrf-cookie`. That is
- * Sanctum's SPA mode, where the session cookie is the credential and no bearer
- * token is ever issued.
+ * int.pacttrace.com), and frontend/src/lib/api.ts sends `withCredentials: true`
+ * after priming `/sanctum/csrf-cookie`. That is Sanctum's SPA mode, where an
+ * httpOnly, encrypted session cookie is the credential — it carries only a
+ * session id, never the user's name/email/permissions, so nothing sensitive is
+ * readable or forgeable from the client side. The user's actual data comes back
+ * from `GET /api/user`, which the SPA calls on every load (see AuthContext).
  *
  * The alternative — Sanctum personal access tokens (see Domain/Ports/
- * AccessTokenIssuer) — would mean storing a token in the browser, which is
- * strictly worse here: an httpOnly session cookie cannot be read by injected
- * script, and same-origin means none of the cross-domain problems that usually
- * push an SPA toward tokens. Keep that port for a future mobile or public API
- * client, where there is no cookie jar to rely on.
+ * AccessTokenIssuer) — would mean storing a bearer token in the browser
+ * (localStorage or a non-httpOnly cookie), which is strictly worse here: an
+ * httpOnly session cookie cannot be read by injected script, and same-origin
+ * means none of the cross-domain problems that usually push an SPA toward
+ * tokens. Keep that port for a future mobile or public API client, where there
+ * is no cookie jar to rely on.
  */
 class UserAuthentication
 {

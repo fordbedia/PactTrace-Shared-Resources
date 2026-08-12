@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use PactTraceSDK\SharedResources\Modules\User\Application\Services\UserAuthentication;
+use PactTraceSDK\SharedResources\Modules\User\Application\Services\UserHintCookie;
 use PactTraceSDK\SharedResources\Modules\User\Http\Resources\UserResource;
 
 /**
@@ -22,6 +23,7 @@ class SessionController extends Controller
 {
     public function __construct(
         private readonly UserAuthentication $authentication,
+        private readonly UserHintCookie $hintCookie,
     ) {
     }
 
@@ -53,8 +55,14 @@ class SessionController extends Controller
             ]);
         }
 
+        $this->hintCookie->attach($request->user());
+
         return response()->json([
-            'user' => new UserResource($request->user()),
+            // Same payload GET /api/user returns, so the SPA can seed its auth
+            // cache straight from the login response instead of round-tripping.
+            // No token is issued: the httpOnly session cookie Laravel just wrote
+            // is the credential from here on.
+            'user' => new UserResource($request->user()->loadAuthPayload()),
         ]);
     }
 
@@ -68,6 +76,7 @@ class SessionController extends Controller
     public function destroy(): JsonResponse
     {
         $this->authentication->logout();
+        $this->hintCookie->forget();
 
         return response()->json(null, 204);
     }
