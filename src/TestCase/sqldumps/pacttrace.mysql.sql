@@ -620,7 +620,7 @@ CREATE TABLE `migrations` (
   `migration` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `batch` int NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -657,7 +657,8 @@ INSERT INTO `migrations` VALUES
 (24,'2026_08_05_090100_create_workspaces_table',1),
 (25,'2026_08_05_090200_add_workspace_id_to_scoped_tables',1),
 (26,'2026_08_09_012530_create_personal_access_tokens_table',1),
-(27,'2026_08_13_035444_create_subscriptions_table',1);
+(27,'2026_08_13_035444_create_subscriptions_table',1),
+(28,'2026_08_13_043956_add_status_trial_index_to_subscriptions_table',1);
 /*!40000 ALTER TABLE `migrations` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -843,48 +844,48 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `permissions` WRITE;
 /*!40000 ALTER TABLE `permissions` DISABLE KEYS */;
 INSERT INTO `permissions` VALUES
-(1,'provider.view','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(2,'provider.update','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(3,'provider.manage-branding','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(4,'provider.manage-billing','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(5,'user.view','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(6,'user.invite','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(7,'user.update','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(8,'user.delete','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(9,'client.view','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(10,'client.create','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(11,'client.update','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(12,'client.delete','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(13,'client.invite','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(14,'workspace.view','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(15,'workspace.create','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(16,'workspace.update','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(17,'workspace.delete','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(18,'matter.view','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(19,'matter.create','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(20,'matter.update','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(21,'matter.delete','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(22,'milestone.view','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(23,'milestone.create','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(24,'milestone.update','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(25,'milestone.delete','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(26,'document.view','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(27,'document.upload','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(28,'document.download','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(29,'document.update','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(30,'document.delete','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(31,'folder.view','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(32,'folder.create','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(33,'folder.update','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(34,'folder.delete','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(35,'envelope.view','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(36,'envelope.create','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(37,'envelope.send','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(38,'envelope.sign','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(39,'envelope.void','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(40,'message.view','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(41,'message.send','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(42,'audit-log.view','web','2026-08-13 04:01:47','2026-08-13 04:01:47');
+(1,'provider.view','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(2,'provider.update','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(3,'provider.manage-branding','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(4,'provider.manage-billing','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(5,'user.view','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(6,'user.invite','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(7,'user.update','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(8,'user.delete','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(9,'client.view','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(10,'client.create','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(11,'client.update','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(12,'client.delete','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(13,'client.invite','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(14,'workspace.view','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(15,'workspace.create','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(16,'workspace.update','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(17,'workspace.delete','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(18,'matter.view','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(19,'matter.create','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(20,'matter.update','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(21,'matter.delete','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(22,'milestone.view','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(23,'milestone.create','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(24,'milestone.update','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(25,'milestone.delete','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(26,'document.view','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(27,'document.upload','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(28,'document.download','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(29,'document.update','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(30,'document.delete','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(31,'folder.view','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(32,'folder.create','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(33,'folder.update','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(34,'folder.delete','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(35,'envelope.view','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(36,'envelope.create','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(37,'envelope.send','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(38,'envelope.sign','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(39,'envelope.void','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(40,'message.view','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(41,'message.send','web','2026-08-13 04:42:20','2026-08-13 04:42:20'),
+(42,'audit-log.view','web','2026-08-13 04:42:21','2026-08-13 04:42:21');
 /*!40000 ALTER TABLE `permissions` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -1104,9 +1105,9 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `roles` WRITE;
 /*!40000 ALTER TABLE `roles` DISABLE KEYS */;
 INSERT INTO `roles` VALUES
-(1,'owner','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(2,'staff','web','2026-08-13 04:01:47','2026-08-13 04:01:47'),
-(3,'client','web','2026-08-13 04:01:47','2026-08-13 04:01:47');
+(1,'owner','web','2026-08-13 04:42:21','2026-08-13 04:42:21'),
+(2,'staff','web','2026-08-13 04:42:21','2026-08-13 04:42:21'),
+(3,'client','web','2026-08-13 04:42:21','2026-08-13 04:42:21');
 /*!40000 ALTER TABLE `roles` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -1242,6 +1243,7 @@ CREATE TABLE `subscriptions` (
   UNIQUE KEY `subscriptions_provider_id_unique` (`provider_id`),
   UNIQUE KEY `subscriptions_stripe_customer_id_unique` (`stripe_customer_id`),
   UNIQUE KEY `subscriptions_stripe_subscription_id_unique` (`stripe_subscription_id`),
+  KEY `subscriptions_status_trial_ends_at_index` (`status`,`trial_ends_at`),
   CONSTRAINT `subscriptions_provider_id_foreign` FOREIGN KEY (`provider_id`) REFERENCES `providers` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1349,4 +1351,4 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
 
--- Dump completed on 2026-08-13  4:01:48
+-- Dump completed on 2026-08-13  4:42:21

@@ -38,6 +38,12 @@ class ProviderResource extends JsonResource
             // Derived rather than stored: the SPA should not have to re-implement
             // "is this date in the past" to decide whether to show a trial banner.
             'on_trial' => $this->trial_ends_at !== null && $this->trial_ends_at->isFuture(),
+            // The authoritative billing state (trialing/active/past_due/canceled/
+            // expired) — see Models\Subscription and .claude/rules/user.md. The
+            // frontend's trial-gate modal (GatedModal/useTrialGate) keys off this,
+            // not `on_trial`: `on_trial` only reflects the cached trial_ends_at
+            // date, not whether a Stripe subscription has since made it moot.
+            'subscription_status' => $this->whenLoaded('subscription', fn () => $this->subscription?->status),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

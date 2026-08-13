@@ -4,6 +4,7 @@ namespace PactTraceSDK\SharedResources\Modules\User;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use PactTraceSDK\SharedResources\Modules\User\Console\Commands\NotifyTrialEnding;
 use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
 use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
 use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
@@ -71,6 +72,12 @@ class UserProvider extends ServiceProvider
     {
         foreach ($this->policies as $model => $policy) {
             Gate::policy($model, $policy);
+        }
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                NotifyTrialEnding::class,
+            ]);
         }
     }
 }

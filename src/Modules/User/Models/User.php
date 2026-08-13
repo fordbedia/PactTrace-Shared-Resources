@@ -52,7 +52,7 @@ class User extends Authenticatable
      * @var list<string>
      */
     public const AUTH_PAYLOAD_RELATIONS = [
-        'provider',
+        'provider.subscription',
         'client',
         'roles.permissions',
         'permissions',
