@@ -42,7 +42,7 @@ class RegistrationController extends Controller
             password: $request->string('password')->toString(),
             businessName: $request->string('business_name')->toString(),
             subdomain: $request->filled('subdomain') ? $request->string('subdomain')->toString() : null,
-            plan: $request->string('plan', 'starter')->toString(),
+            plan: $request->string('plan', 'professional')->toString(),
         );
 
         $this->authentication->login($provider->owner);

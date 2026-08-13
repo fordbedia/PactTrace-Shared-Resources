@@ -8,6 +8,7 @@ use PactTraceSDK\SharedResources\Modules\User\Application\Services\UserRegistrat
 use PactTraceSDK\SharedResources\Modules\User\Application\UseCases\RegisterProvider;
 use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
+use PactTraceSDK\SharedResources\Modules\User\Models\Subscription;
 use PactTraceSDK\SharedResources\Modules\User\Models\User;
 use PactTraceSDK\SharedResources\TestCase\Migrations\BaseTest;
 use RuntimeException;
@@ -107,12 +108,29 @@ class UserRegistrationTest extends BaseTest
         $owner = $provider->owner;
 
         $this->assertSame('doe-law', $provider->subdomain);
-        $this->assertSame('starter', $provider->plan);
+        $this->assertSame('professional', $provider->plan); // no plan passed -> defaults to Professional
         $this->assertSame(Role::Owner, $owner->primaryRole());
 
         // Both directions of the FK cycle: provider -> owner, and owner -> tenant.
         $this->assertSame((int) $owner->getKey(), (int) $provider->owner_user_id);
         $this->assertSame((int) $provider->getKey(), (int) $owner->fresh()->provider_id);
+
+        // The Subscription row is the authoritative billing record; provider.plan
+        // above is only its denormalized cache — assert both agree.
+        $subscription = Subscription::where('provider_id', $provider->getKey())->sole();
+        $this->assertSame('professional', $subscription->plan);
+        $this->assertSame('trialing', $subscription->status);
+        $this->assertNotNull($subscription->trial_ends_at);
+        $this->assertTrue($subscription->trial_ends_at->isFuture());
+    }
+
+    public function test_signup_honors_an_explicitly_chosen_plan(): void
+    {
+        $provider = $this->app->make(RegisterProvider::class)
+            ->handle('Jane Doe', 'jane@example.test', 'secret-password', 'Doe Law', plan: 'starter');
+
+        $this->assertSame('starter', $provider->plan);
+        $this->assertSame('starter', Subscription::where('provider_id', $provider->getKey())->sole()->plan);
     }
 
     public function test_signup_walks_past_a_taken_subdomain(): void

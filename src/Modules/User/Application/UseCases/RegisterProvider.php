@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PactTraceSDK\SharedResources\Modules\User\Application\UseCases;
 
 use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
+use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
 use PactTraceSDK\SharedResources\Modules\User\Application\Services\UserRegistration;
 use PactTraceSDK\SharedResources\Modules\User\Domain\Services\SubdomainAllocator;
 use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
@@ -49,6 +50,7 @@ class RegisterProvider
     public function __construct(
         private readonly UserRegistration $registration,
         private readonly ProviderRepository $providers,
+        private readonly SubscriptionRepository $subscriptions,
         private readonly SubdomainAllocator $subdomains,
         private readonly Transactional $transaction,
     ) {
@@ -72,7 +74,7 @@ class RegisterProvider
         string $password,
         string $businessName,
         ?string $subdomain = null,
-        string $plan = 'starter',
+        string $plan = 'professional',
     ): Provider {
         // Resolved before the transaction opens: this is pure computation, and
         // a malformed explicit subdomain should fail without having touched the
@@ -91,12 +93,26 @@ class RegisterProvider
         ): Provider {
             $owner = $this->registration->register($name, $email, $password, Role::Owner);
 
+            $trialEndsAt = now()->addDays(self::TRIAL_DAYS);
+
             $provider = $this->providers->create([
                 'owner_user_id' => $owner->getKey(),
                 'business_name' => $businessName,
                 'subdomain' => $this->subdomains->allocate($desired)->value,
+                // Denormalized cache of the Subscription row created below —
+                // see Models\Subscription and .claude/rules/user.md. Kept in
+                // sync here because this is the only place either changes today;
+                // once Stripe webhooks can update a subscription mid-lifecycle,
+                // that path must write both too.
                 'plan' => $plan,
-                'trial_ends_at' => now()->addDays(self::TRIAL_DAYS),
+                'trial_ends_at' => $trialEndsAt,
+            ]);
+
+            $this->subscriptions->create([
+                'provider_id' => $provider->getKey(),
+                'plan' => $plan,
+                'status' => 'trialing',
+                'trial_ends_at' => $trialEndsAt,
             ]);
 
             $this->registration->attachToProvider($owner, (int) $provider->getKey());

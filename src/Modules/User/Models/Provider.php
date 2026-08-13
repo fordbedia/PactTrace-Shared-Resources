@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
 use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
 use PactTraceSDK\SharedResources\Modules\Document\Models\Folder;
@@ -48,6 +49,15 @@ class Provider extends Model
     public function users(): HasMany
     {
         return $this->hasMany(User::class, 'provider_id');
+    }
+
+    /**
+     * The authoritative billing record. `plan`/`trial_ends_at` on this model
+     * are a denormalized cache of this row — see Models\Subscription.
+     */
+    public function subscription(): HasOne
+    {
+        return $this->hasOne(Subscription::class);
     }
 
     public function clients(): HasMany

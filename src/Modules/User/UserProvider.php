@@ -5,11 +5,13 @@ namespace PactTraceSDK\SharedResources\Modules\User;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
+use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
 use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
 use PactTraceSDK\SharedResources\Modules\User\Domain\Ports\AccessTokenIssuer;
 use PactTraceSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
 use PactTraceSDK\SharedResources\Modules\User\Infrastructure\Auth\SanctumTokenIssuer;
 use PactTraceSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentProviderRepository;
+use PactTraceSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentSubscriptionRepository;
 use PactTraceSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentUserRepository;
 use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
 use PactTraceSDK\SharedResources\Modules\User\Policies\ProviderPolicy;
@@ -50,6 +52,7 @@ class UserProvider extends ServiceProvider
         UserRepository::class => EloquentUserRepository::class,
         ProviderRepository::class => EloquentProviderRepository::class,
         SubdomainAvailability::class => EloquentProviderRepository::class,
+        SubscriptionRepository::class => EloquentSubscriptionRepository::class,
         AccessTokenIssuer::class => SanctumTokenIssuer::class,
     ];
 
