@@ -26,6 +26,7 @@ class ClientFormRequest extends FormRequest
 			'name' => 'required|string',
 			'company_name' => 'required|string',
 			'email' => 'required|email|max:255',
+			'phone' => 'nullable|string|max:20',
         ];
     }
 }

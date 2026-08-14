@@ -8,5 +8,7 @@ Route::prefix('v1')->group(function () {
 		Route::prefix('client')->group(function() {
 			Route::apiResource('/invite', ClientController::class);
 		});
+
+		Route::get('/clients', [ClientController::class, 'index']);
 	});
 });

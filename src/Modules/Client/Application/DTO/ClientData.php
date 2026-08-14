@@ -12,7 +12,8 @@ final readonly class ClientData
 		public int $user_id,
 		public string $name,
 		public string $company_name,
-		public string $email
+		public string $email,
+		public ?string $phone
 	)
 	{}
 
@@ -22,6 +23,6 @@ final readonly class ClientData
 		int $user_id
 	): self {
 		$payload = $request->validated();
-		return new self($provider_id, $user_id, $payload['name'], $payload['company_name'], $payload['email']);
+		return new self($provider_id, $user_id, $payload['name'], $payload['company_name'], $payload['email'], $payload['phone'] ?? null);
 	}
 }
