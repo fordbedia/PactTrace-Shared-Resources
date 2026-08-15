@@ -24,7 +24,7 @@ class ClientFormRequest extends FormRequest
         return [
             'user_id' => 'nullable|exists:users,id',
 			'name' => 'required|string',
-			'company_name' => 'required|string',
+			'company_name' => 'nullable|string',
 			'email' => 'required|email|max:255',
 			'phone' => 'nullable|string|max:20',
         ];

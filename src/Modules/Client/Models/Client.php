@@ -14,10 +14,11 @@ use PactTraceSDK\SharedResources\Modules\Messaging\Models\MessageThread;
 use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTraceSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
+use PactTraceSDK\SharedResources\Modules\Workspace\Models\Concerns\BelongsToWorkspace;
 
 class Client extends Model
 {
-    use HasFactory;
+    use BelongsToWorkspace, HasFactory;
 
     protected $fillable = [
         'provider_id',

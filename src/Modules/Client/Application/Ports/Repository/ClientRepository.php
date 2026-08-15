@@ -10,6 +10,13 @@ interface ClientRepository
 {
 	public function upsert(ClientData $data): Client;
 
+	/**
+	 * Links a client record to the login they just created by accepting
+	 * their portal invitation, and flips them from `invited` to `active` in
+	 * the same write — see AcceptClientInvitation.
+	 */
+	public function attachUser(int $clientId, int $userId): Client;
+
 	public function paginateAll(int $providerId, int $perPage, ?int $page): LengthAwarePaginator;
 
 	public function paginateActive(int $providerId, int $perPage, ?int $page): LengthAwarePaginator;

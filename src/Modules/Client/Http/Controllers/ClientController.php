@@ -5,8 +5,8 @@ namespace PactTraceSDK\SharedResources\Modules\Client\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
-use PactTraceSDK\SharedResources\Modules\Client\Application\Action\CreateClientHandler;
 use PactTraceSDK\SharedResources\Modules\Client\Application\Action\ListClientsHandler;
+use PactTraceSDK\SharedResources\Modules\Client\Application\UseCases\InviteClient;
 use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
 use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientListData;
 use PactTraceSDK\SharedResources\Modules\Client\Http\Resources\ClientResource;
@@ -34,16 +34,19 @@ class ClientController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(ClientFormRequest $request, CreateClientHandler $handler)
+    public function store(ClientFormRequest $request, InviteClient $handler)
     {
-		$data = ClientData::fromRequest($request, auth()->user()->provider_id, auth()->user()->id);
+		$data = ClientData::fromRequest($request, auth()->user()->provider_id);
 
-		$resource = new ClientResource($handler->handle($data));
+		[$client, $invitation] = $handler->handle($data, auth()->id());
+
+		$resource = new ClientResource($client);
 
 		$provider = auth()->user()->provider?->toArray();
 
-		// Email client that they've been invited
-		$invitationData = ClientInvitationData::fromClientData($data, auth()->user()->name);
+		// Email client that they've been invited, with a link carrying the
+		// token AcceptClientInvitation will need to let them set a password.
+		$invitationData = ClientInvitationData::fromClientData($data, auth()->user()->name, $invitation->token);
 		Mail::to($data->email)->send(new ClientInvitationEmail(ProviderData::fromArray($provider), $invitationData));
 
 		return $resource;

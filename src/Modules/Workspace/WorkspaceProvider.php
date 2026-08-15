@@ -8,10 +8,12 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use PactTraceSDK\SharedResources\Modules\Workspace\Application\Labels\WorkspaceLabelResolver;
+use PactTraceSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceRepository;
 use PactTraceSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
 use PactTraceSDK\SharedResources\Modules\Workspace\Domain\Ports\WorkspacePresets;
 use PactTraceSDK\SharedResources\Modules\Workspace\Infrastructure\Context\RequestWorkspaceContext;
 use PactTraceSDK\SharedResources\Modules\Workspace\Infrastructure\Presets\ConfigWorkspacePresets;
+use PactTraceSDK\SharedResources\Modules\Workspace\Infrastructure\Repositories\Eloquent\EloquentWorkspaceRepository;
 use PactTraceSDK\SharedResources\Modules\Workspace\Models\Workspace;
 use PactTraceSDK\SharedResources\Modules\Workspace\Policies\WorkspacePolicy;
 
@@ -52,6 +54,8 @@ class WorkspaceProvider extends ServiceProvider
                 $app->make(WorkspacePresets::class),
             );
         });
+
+        $this->app->singleton(WorkspaceRepository::class, EloquentWorkspaceRepository::class);
     }
 
     public function boot(): void

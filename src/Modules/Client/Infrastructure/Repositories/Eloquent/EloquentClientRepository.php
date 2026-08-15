@@ -12,15 +12,44 @@ class EloquentClientRepository extends BaseRepository implements ClientRepositor
 {
 	public function upsert(ClientData $data): Client
 	{
-		return $this->model->updateOrCreate([
+		// Matches the table's actual unique constraint (provider_id, email) —
+		// user_id is deliberately excluded from the match key. Matching on it
+		// too was the original bug: it silently accepted the caller's own
+		// user id as part of the identity of "this client," so re-inviting
+		// the same email as a different staff member could collide with the
+		// unique index instead of updating the existing row.
+		$attributes = [
 			'provider_id' => $data->provider_id,
-			'user_id' => $data->user_id,
 			'email' => $data->email,
-		],[
+		];
+
+		$values = [
 			'name' => $data->name,
 			'company_name' => $data->company_name,
-			'phone' => $data->phone
-		]);
+			'phone' => $data->phone,
+		];
+
+		// Only ever set when explicitly provided. In particular, never let a
+		// later invite/edit null out a user_id that AcceptClientInvitation
+		// already linked — ClientData::user_id is null on every ordinary
+		// invite, precisely so this can't happen.
+		if ($data->user_id !== null) {
+			$values['user_id'] = $data->user_id;
+		}
+
+		return $this->model->updateOrCreate($attributes, $values);
+	}
+
+	public function attachUser(int $clientId, int $userId): Client
+	{
+		$client = $this->model->newQuery()->findOrFail($clientId);
+
+		$client->forceFill([
+			'user_id' => $userId,
+			'status' => 'active',
+		])->save();
+
+		return $client;
 	}
 
 	public function paginateAll(int $providerId, int $perPage, ?int $page): LengthAwarePaginator

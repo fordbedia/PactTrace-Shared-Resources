@@ -14,13 +14,20 @@ class ClientInvitationData
 	)
 	{}
 
-	public static function fromClientData(ClientData $data, string $invitedByName): self
+	/**
+	 * @param  string  $token  The `client_invitations.token` just issued for
+	 *                         this invite — see InviteClient. Embedded as a
+	 *                         query param so `/accept-invitation` can look the
+	 *                         invitation up without requiring the client to be
+	 *                         signed in first (they have no account yet).
+	 */
+	public static function fromClientData(ClientData $data, string $invitedByName, string $token): self
 	{
 		return new self(
 			clientName: $data->name,
 			invitedByName: $invitedByName,
 			email: $data->email,
-			acceptUrl: rtrim(config('app.frontend_url'), '/') . '/sign-in',
+			acceptUrl: rtrim(config('app.frontend_url'), '/') . '/accept-invitation?token=' . $token,
 		);
 	}
 }

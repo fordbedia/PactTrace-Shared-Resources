@@ -30,6 +30,17 @@ class RolePermissionSeeder extends Seeder
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->syncPermissions($guard);
+
+        // syncRoles() below resolves permissions by name via the registrar's
+        // cache. That cache is normally kept fresh by a Permission::saved
+        // model-event listener, but this seeder is commonly invoked from
+        // DatabaseSeeder::run(), which uses Laravel's WithoutModelEvents
+        // trait — that suppresses model events (and therefore that listener)
+        // for the whole seeding run. Without this explicit refresh, the
+        // permissions just created above are invisible to syncRoles() and it
+        // fails with PermissionDoesNotExist on the very first permission.
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
         $this->syncRoles($guard);
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();

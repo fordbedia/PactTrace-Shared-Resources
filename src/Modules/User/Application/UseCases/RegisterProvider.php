@@ -11,6 +11,8 @@ use PactTraceSDK\SharedResources\Modules\User\Domain\Services\SubdomainAllocator
 use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
 use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
+use PactTraceSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceRepository;
+use PactTraceSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
 use PactTraceSDK\SharedResources\SDK\Application\Ports\Transactional;
 
 /**
@@ -51,6 +53,7 @@ class RegisterProvider
         private readonly UserRegistration $registration,
         private readonly ProviderRepository $providers,
         private readonly SubscriptionRepository $subscriptions,
+        private readonly WorkspaceRepository $workspaces,
         private readonly SubdomainAllocator $subdomains,
         private readonly Transactional $transaction,
     ) {
@@ -117,12 +120,22 @@ class RegisterProvider
 
             $this->registration->attachToProvider($owner, (int) $provider->getKey());
 
-            // TODO: create the provider's first Workspace here once sign-up
-            // collects a workspace_type. Until one exists, RequestWorkspaceContext
-            // resolves to null (a provider with 0 workspaces has no "sole"
-            // workspace), so WorkspaceScope narrows nothing — safe, because
-            // provider_id is still the tenancy barrier, but the labels fall back
-            // to the neutral `general` preset. See .claude/rules/workspace.md.
+            // Every provider needs at least one workspace the moment they sign
+            // up: RequestWorkspaceContext's "provider's sole workspace"
+            // fallback only ever resolves when exactly one exists, and until
+            // it resolves, WorkspaceScope narrows nothing on Matter/Document/
+            // Envelope/Client — not unsafe (provider_id is still the tenancy
+            // barrier) but not scoped either, which is the gap that let the
+            // clients list return every client regardless of workspace. Type
+            // defaults to General since sign-up doesn't collect a
+            // workspace_type yet; label columns are left blank so Workspace's
+            // own creating() hook fills them from that type's preset.
+            $this->workspaces->create([
+                'provider_id' => $provider->getKey(),
+                'owner_id' => $owner->getKey(),
+                'name' => $businessName,
+                'workspace_type' => WorkspaceType::General->value,
+            ]);
 
             return $provider->setRelation('owner', $owner);
         });
