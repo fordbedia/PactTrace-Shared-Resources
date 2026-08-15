@@ -4,6 +4,7 @@ namespace PactTraceSDK\SharedResources\Modules\Client\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use PactTraceSDK\SharedResources\Modules\Client\Application\Action\CreateClientHandler;
 use PactTraceSDK\SharedResources\Modules\Client\Application\Action\ListClientsHandler;
 use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
@@ -12,6 +13,9 @@ use PactTraceSDK\SharedResources\Modules\Client\Http\Resources\ClientResource;
 use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
 use Illuminate\Http\Request;
 use PactTraceSDK\SharedResources\Modules\Client\Http\Requests\ClientFormRequest;
+use PactTraceSDK\SharedResources\Modules\Notification\Application\DTO\ClientInvitationData;
+use PactTraceSDK\SharedResources\Modules\Notification\Mail\ClientInvitationEmail;
+use PactTraceSDK\SharedResources\Modules\Signature\Application\DTO\ProviderData;
 
 class ClientController extends Controller
 {
@@ -34,7 +38,15 @@ class ClientController extends Controller
     {
 		$data = ClientData::fromRequest($request, auth()->user()->provider_id, auth()->user()->id);
 
-		return new ClientResource($handler->handle($data));
+		$resource = new ClientResource($handler->handle($data));
+
+		$provider = auth()->user()->provider?->toArray();
+
+		// Email client that they've been invited
+		$invitationData = ClientInvitationData::fromClientData($data, auth()->user()->name);
+		Mail::to($data->email)->send(new ClientInvitationEmail(ProviderData::fromArray($provider), $invitationData));
+
+		return $resource;
     }
 
     /**
