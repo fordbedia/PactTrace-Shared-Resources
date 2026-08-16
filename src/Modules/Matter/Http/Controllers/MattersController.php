@@ -6,6 +6,10 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use PactTraceSDK\SharedResources\Modules\Client\Http\Resources\ClientResource;
+use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\CountActiveMattersHandler;
+use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\CountCompletedMattersHandler;
+use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\CountOnHoldMattersHandler;
+use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\CountTotalMattersHandler;
 use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\CreateMattersHandler;
 use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\ListMattersHandler;
 use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\SearchMatterClientsHandler;
@@ -47,6 +51,32 @@ class MattersController extends Controller
         $data = MattersListData::fromRequest($request, auth()->user()->provider_id);
 
         return MatterResource::collection($handler->handle($data));
+    }
+
+    /**
+     * The four stat cards on /dashboard/matters — "Total Matters", "Active",
+     * "On Hold", "Completed". One handler per card (CountTotalMattersHandler
+     * / CountActiveMattersHandler / CountOnHoldMattersHandler /
+     * CountCompletedMattersHandler), each backed by MatterStatsService. Uses
+     * the same `viewAny` gate as index() — a stat card is just a different
+     * shape of "can this actor list matters".
+     */
+    public function stats(
+        CountTotalMattersHandler $total,
+        CountActiveMattersHandler $active,
+        CountOnHoldMattersHandler $onHold,
+        CountCompletedMattersHandler $completed,
+    ) {
+        Gate::authorize('viewAny', Matter::class);
+
+        $providerId = auth()->user()->provider_id;
+
+        return response()->json([
+            'total' => $total->handle($providerId),
+            'active' => $active->handle($providerId),
+            'on_hold' => $onHold->handle($providerId),
+            'completed' => $completed->handle($providerId),
+        ]);
     }
 
     /**

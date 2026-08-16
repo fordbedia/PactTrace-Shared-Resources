@@ -35,4 +35,18 @@ interface MattersRepository
 	public function paginateCompleted(int $providerId, int $perPage, ?int $page): LengthAwarePaginator;
 
 	public function paginateCancelled(int $providerId, int $perPage, ?int $page): LengthAwarePaginator;
+
+	/**
+	 * Backs the "Total Matters"/"Active"/"On Hold"/"Completed" stat cards on
+	 * `/dashboard/matters` — see MatterStatsService. Plain `COUNT` queries
+	 * rather than reusing paginate*()->total(), which would page through a
+	 * full query just to discard the rows.
+	 */
+	public function countAll(int $providerId): int;
+
+	public function countActive(int $providerId): int;
+
+	public function countOnHold(int $providerId): int;
+
+	public function countCompleted(int $providerId): int;
 }

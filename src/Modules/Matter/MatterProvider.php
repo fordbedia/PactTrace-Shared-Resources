@@ -5,8 +5,10 @@ namespace PactTraceSDK\SharedResources\Modules\Matter;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use PactTraceSDK\SharedResources\Modules\Matter\Application\Ports\Repository\MattersRepository;
+use PactTraceSDK\SharedResources\Modules\Matter\Application\Ports\Service\MatterStatsService;
 use PactTraceSDK\SharedResources\Modules\Matter\Application\Ports\Service\MattersListingService;
 use PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Repositories\Eloquent\EloquentMattersRepository;
+use PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterStatsService as EloquentMatterStatsService;
 use PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Services\MattersListingService as EloquentMattersListingService;
 use PactTraceSDK\SharedResources\Modules\Matter\Models\Milestone;
 use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
@@ -32,6 +34,7 @@ class MatterProvider extends ServiceProvider
 
 		$this->app->singleton(MattersRepository::class, EloquentMattersRepository::class);
 		$this->app->singleton(MattersListingService::class, EloquentMattersListingService::class);
+		$this->app->singleton(MatterStatsService::class, EloquentMatterStatsService::class);
     }
 
     public function boot(): void

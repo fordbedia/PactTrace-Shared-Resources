@@ -112,4 +112,35 @@ class EloquentMattersRepository extends BaseRepository implements MattersReposit
 	{
 		return Milestone::query()->where('matter_id', $matterId)->orderBy('position')->get();
 	}
+
+	public function countAll(int $providerId): int
+	{
+		return $this->countByStatus($providerId, null);
+	}
+
+	public function countActive(int $providerId): int
+	{
+		return $this->countByStatus($providerId, 'active');
+	}
+
+	public function countOnHold(int $providerId): int
+	{
+		return $this->countByStatus($providerId, 'on_hold');
+	}
+
+	public function countCompleted(int $providerId): int
+	{
+		return $this->countByStatus($providerId, 'completed');
+	}
+
+	private function countByStatus(int $providerId, ?string $status): int
+	{
+		$query = $this->model->newQuery()->where('provider_id', $providerId);
+
+		if ($status !== null) {
+			$query->where('status', $status);
+		}
+
+		return $query->count();
+	}
 }
