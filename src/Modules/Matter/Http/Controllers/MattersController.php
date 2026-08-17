@@ -18,6 +18,7 @@ use PactTraceSDK\SharedResources\Modules\Matter\Application\DTO\MattersData;
 use PactTraceSDK\SharedResources\Modules\Matter\Application\DTO\MattersListData;
 use PactTraceSDK\SharedResources\Modules\Matter\Http\Requests\MattersRequest;
 use PactTraceSDK\SharedResources\Modules\Matter\Http\Resources\MatterResource;
+use PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterCountFormatter;
 use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTraceSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
 
@@ -59,23 +60,26 @@ class MattersController extends Controller
      * / CountActiveMattersHandler / CountOnHoldMattersHandler /
      * CountCompletedMattersHandler), each backed by MatterStatsService. Uses
      * the same `viewAny` gate as index() — a stat card is just a different
-     * shape of "can this actor list matters".
+     * shape of "can this actor list matters". Counts are abbreviated via
+     * MatterCountFormatter (1,234 -> "1.2k") before going out — the frontend
+     * renders the string as-is, no client-side formatting needed.
      */
     public function stats(
         CountTotalMattersHandler $total,
         CountActiveMattersHandler $active,
         CountOnHoldMattersHandler $onHold,
         CountCompletedMattersHandler $completed,
+        MatterCountFormatter $formatter,
     ) {
         Gate::authorize('viewAny', Matter::class);
 
         $providerId = auth()->user()->provider_id;
 
         return response()->json([
-            'total' => $total->handle($providerId),
-            'active' => $active->handle($providerId),
-            'on_hold' => $onHold->handle($providerId),
-            'completed' => $completed->handle($providerId),
+            'total' => $formatter->format($total->handle($providerId)),
+            'active' => $formatter->format($active->handle($providerId)),
+            'on_hold' => $formatter->format($onHold->handle($providerId)),
+            'completed' => $formatter->format($completed->handle($providerId)),
         ]);
     }
 
