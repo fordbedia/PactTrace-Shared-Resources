@@ -64,6 +64,17 @@ class EloquentMattersRepository extends BaseRepository implements MattersReposit
 		return $query->orderBy('name')->limit($limit)->get();
 	}
 
+	public function searchForSelection(int $providerId, string $search, int $limit): Collection
+	{
+		$query = $this->model->newQuery()->where('provider_id', $providerId);
+
+		if ($search !== '') {
+			$query->where('name', 'like', "%{$search}%");
+		}
+
+		return $query->orderBy('name')->limit($limit)->get();
+	}
+
 	public function paginateAll(int $providerId, int $perPage, ?int $page): LengthAwarePaginator
 	{
 		return $this->paginateByStatus($providerId, null, $perPage, $page);

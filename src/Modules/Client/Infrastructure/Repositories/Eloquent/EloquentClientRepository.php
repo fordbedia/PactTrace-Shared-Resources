@@ -3,6 +3,7 @@
 namespace PactTraceSDK\SharedResources\Modules\Client\Infrastructure\Repositories\Eloquent;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
 use PactTraceSDK\SharedResources\Modules\Client\Infrastructure\Repositories\BaseRepository;
 use PactTraceSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientRepository;
@@ -50,6 +51,21 @@ class EloquentClientRepository extends BaseRepository implements ClientRepositor
 		])->save();
 
 		return $client;
+	}
+
+	public function searchForSelection(int $providerId, string $search, int $limit): Collection
+	{
+		$query = $this->model->newQuery()->where('provider_id', $providerId);
+
+		if ($search !== '') {
+			$query->where(function ($clientQuery) use ($search) {
+				$clientQuery->where('name', 'like', "%{$search}%")
+					->orWhere('company_name', 'like', "%{$search}%")
+					->orWhere('email', 'like', "%{$search}%");
+			});
+		}
+
+		return $query->orderBy('name')->limit($limit)->get();
 	}
 
 	public function paginateAll(int $providerId, int $perPage, ?int $page): LengthAwarePaginator

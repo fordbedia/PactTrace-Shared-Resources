@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use PactTraceSDK\SharedResources\Modules\Client\Application\Action\ListClientsHandler;
+use PactTraceSDK\SharedResources\Modules\Client\Application\Action\SearchClientsHandler;
 use PactTraceSDK\SharedResources\Modules\Client\Application\UseCases\InviteClient;
 use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
 use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientListData;
+use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientSearchData;
 use PactTraceSDK\SharedResources\Modules\Client\Http\Resources\ClientResource;
 use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
 use Illuminate\Http\Request;
@@ -27,6 +29,23 @@ class ClientController extends Controller
         Gate::authorize('viewAny', Client::class);
 
         $data = ClientListData::fromRequest($request, auth()->user()->provider_id);
+
+        return ClientResource::collection($handler->handle($data));
+    }
+
+    /**
+     * Clients selectable when filing a document — backs the "Search or
+     * select client…" field on the Upload Documents modal
+     * (/dashboard/documents, see .claude/rules/document.md). Same `viewAny`
+     * gate as index() — a search is still just a read of the client list,
+     * capped to `limit` (default 10, max 20) instead of paginated, since
+     * this backs a live typeahead rather than a browsable table.
+     */
+    public function search(Request $request, SearchClientsHandler $handler)
+    {
+        Gate::authorize('viewAny', Client::class);
+
+        $data = ClientSearchData::fromRequest($request, auth()->user()->provider_id);
 
         return ClientResource::collection($handler->handle($data));
     }

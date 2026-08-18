@@ -21,6 +21,17 @@ interface MattersRepository
 	public function searchClientsForSelection(int $providerId, string $search, int $limit): Collection;
 
 	/**
+	 * Matters selectable as the destination for a document upload — the
+	 * "Search or select matter…" field on the Upload Documents modal (see
+	 * .claude/rules/document.md). Scoped to `provider_id` only, same as
+	 * index()/paginateAll — relies on BelongsToWorkspace's default fail-open
+	 * scope rather than searchClientsForSelection's explicit fail-closed
+	 * override, since that override exists for a higher-stakes write (which
+	 * workspace a new Matter permanently belongs to), not a read-only pick.
+	 */
+	public function searchForSelection(int $providerId, string $search, int $limit): Collection;
+
+	/**
 	 * Backs `/dashboard/matters`' filter chips (`all|active|on_hold|completed|
 	 * cancelled`) — same shape as `ClientRepository::paginateAll/Active/...`
 	 * (see .claude/rules/client.md). `provider_id` is the tenancy barrier;

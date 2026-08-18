@@ -12,6 +12,7 @@ use PactTraceSDK\SharedResources\Modules\Document\Http\Controllers\FolderControl
 | Loaded by SharedResourceServiceProvider under the `api` middleware group
 | and an `/api` prefix, so the routes below resolve to:
 |
+|     GET    /api/documents
 |     POST   /api/documents
 |     GET    /api/folders
 |     POST   /api/folders
@@ -22,6 +23,7 @@ use PactTraceSDK\SharedResources\Modules\Document\Http\Controllers\FolderControl
 | scaffolding exists.
 */
 
+Route::get('documents', [DocumentController::class, 'index']);
 Route::post('documents', [DocumentController::class, 'store']);
 
 Route::get('folders', [FolderController::class, 'index']);

@@ -13,7 +13,9 @@ use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\CountTotalMat
 use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\CreateMattersHandler;
 use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\ListMattersHandler;
 use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\SearchMatterClientsHandler;
+use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\SearchMattersHandler;
 use PactTraceSDK\SharedResources\Modules\Matter\Application\DTO\ClientSearchData;
+use PactTraceSDK\SharedResources\Modules\Matter\Application\DTO\MatterSearchData;
 use PactTraceSDK\SharedResources\Modules\Matter\Application\DTO\MattersData;
 use PactTraceSDK\SharedResources\Modules\Matter\Application\DTO\MattersListData;
 use PactTraceSDK\SharedResources\Modules\Matter\Http\Requests\MattersRequest;
@@ -37,6 +39,23 @@ class MattersController extends Controller
         $data = ClientSearchData::fromRequest($request, auth()->user()->provider_id);
 
         return ClientResource::collection($handler->handle($data));
+    }
+
+    /**
+     * Matters selectable when filing a document — backs the "Search or
+     * select matter…" field on the Upload Documents modal
+     * (/dashboard/documents, see .claude/rules/document.md). Gated on the
+     * bare `viewAny` permission like index() — this is a read, not a
+     * write, so `MatterCreate` (searchClients()'s gate) would be the wrong
+     * permission to require here.
+     */
+    public function search(Request $request, SearchMattersHandler $handler)
+    {
+        Gate::authorize('viewAny', Matter::class);
+
+        $data = MatterSearchData::fromRequest($request, auth()->user()->provider_id);
+
+        return MatterResource::collection($handler->handle($data));
     }
 
     /**

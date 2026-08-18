@@ -4,8 +4,10 @@ namespace PactTraceSDK\SharedResources\Modules\Document;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
 use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository\FolderRepository;
 use PactTraceSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
+use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentDocumentRepository;
 use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentFolderRepository;
 use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\S3\S3DocumentStorage;
 use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
@@ -38,6 +40,7 @@ class DocumentProvider extends ServiceProvider
         ));
 
 		$this->app->singleton(FolderRepository::class, EloquentFolderRepository::class);
+		$this->app->singleton(DocumentRepository::class, EloquentDocumentRepository::class);
     }
 
     public function boot(): void

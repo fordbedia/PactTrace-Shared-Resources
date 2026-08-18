@@ -23,7 +23,7 @@ use RuntimeException;
  *
  * Goes through the Document module's DocumentStorage port (see
  * .claude/rules/document.md) rather than the Storage facade directly, so
- * this always reads from the same disk UploadDocument wrote to —
+ * this always reads from the same disk DocumentUploadService wrote to —
  * previously this used `config('filesystems.default')` while uploads went
  * through `config('filesystems.document_disk')`, which happened to be the
  * same disk in local dev but would silently break the moment they diverged

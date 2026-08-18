@@ -21,9 +21,11 @@ class DocumentResource extends JsonResource
             'size' => $this->size,
             'version' => $this->version,
             'matter_id' => $this->matter_id,
+            'matter_name' => $this->whenLoaded('matter', fn () => $this->matter?->name),
             'client_id' => $this->client_id,
             'folder_id' => $this->folder_id,
             'uploaded_by' => $this->uploaded_by,
+            'uploaded_by_name' => $this->whenLoaded('uploader', fn () => $this->uploader?->name),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

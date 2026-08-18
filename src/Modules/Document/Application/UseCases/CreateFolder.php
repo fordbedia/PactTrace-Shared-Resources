@@ -10,7 +10,7 @@ use PactTraceSDK\SharedResources\Modules\Document\Models\Folder;
 
 /**
  * Use case behind the "+" (new folder) action on /dashboard/documents —
- * see .claude/rules/document.md. Mirrors UploadDocument's shape: thin,
+ * see .claude/rules/document.md. Mirrors UploadDocumentAction's shape: thin,
  * framework-adjacent orchestration only, persistence through the
  * FolderRepository port.
  */
