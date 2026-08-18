@@ -30,4 +30,16 @@ interface DocumentRepository
      * @return LengthAwarePaginator<int, Document>
      */
     public function forFolders(int $providerId, array $folderIds, ?int $clientId, int $perPage, ?int $page): LengthAwarePaginator;
+
+    /**
+     * Total bytes stored by a provider — `SUM(documents.size)`, optionally
+     * narrowed to one client. Backs the STORAGE indicator on
+     * /dashboard/documents through DocumentStorageUsageService.
+     *
+     * Aggregated in SQL rather than by summing a fetched collection: this is
+     * called on every page load of the document centre, and a tenant with
+     * thousands of documents must not have all of them hydrated into models
+     * just to add up one column.
+     */
+    public function totalSizeForProvider(int $providerId, ?int $clientId = null): int;
 }

@@ -13,6 +13,7 @@ use PactTraceSDK\SharedResources\Modules\Document\Http\Controllers\FolderControl
 | and an `/api` prefix, so the routes below resolve to:
 |
 |     GET    /api/documents
+|     GET    /api/documents/storage
 |     POST   /api/documents
 |     GET    /api/folders
 |     POST   /api/folders
@@ -24,6 +25,9 @@ use PactTraceSDK\SharedResources\Modules\Document\Http\Controllers\FolderControl
 */
 
 Route::get('documents', [DocumentController::class, 'index']);
+// Before any future `documents/{document}` route, so "storage" is never
+// swallowed as a document id.
+Route::get('documents/storage', [DocumentController::class, 'storage']);
 Route::post('documents', [DocumentController::class, 'store']);
 
 Route::get('folders', [FolderController::class, 'index']);

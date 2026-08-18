@@ -6,10 +6,14 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
 use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository\FolderRepository;
+use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Service\StorageUsageCalculator;
 use PactTraceSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
+use PactTraceSDK\SharedResources\Modules\Document\Domain\Ports\StorageQuotas;
+use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Quota\ConfigStorageQuotas;
 use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentDocumentRepository;
 use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentFolderRepository;
 use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\S3\S3DocumentStorage;
+use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Services\DocumentStorageUsageService;
 use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
 use PactTraceSDK\SharedResources\Modules\Document\Models\Folder;
 use PactTraceSDK\SharedResources\Modules\Document\Policies\DocumentPolicy;
@@ -41,6 +45,12 @@ class DocumentProvider extends ServiceProvider
 
 		$this->app->singleton(FolderRepository::class, EloquentFolderRepository::class);
 		$this->app->singleton(DocumentRepository::class, EloquentDocumentRepository::class);
+
+		// STORAGE indicator on /dashboard/documents. The quota adapter reads
+		// config/document.php; the calculator sums through the repository port
+		// above, so it never sees a query builder.
+		$this->app->singleton(StorageQuotas::class, fn ($app) => new ConfigStorageQuotas($app['config']));
+		$this->app->singleton(StorageUsageCalculator::class, DocumentStorageUsageService::class);
     }
 
     public function boot(): void

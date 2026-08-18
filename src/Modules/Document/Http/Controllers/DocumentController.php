@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace PactTraceSDK\SharedResources\Modules\Document\Http\Controllers;
 
 use App\Http\Concerns\ResolvesActingUser;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
+use PactTraceSDK\SharedResources\Modules\Document\Application\Action\GetStorageUsageAction;
 use PactTraceSDK\SharedResources\Modules\Document\Application\Action\ListDocumentsAction;
 use PactTraceSDK\SharedResources\Modules\Document\Application\Action\UploadDocumentAction;
+use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Services\ByteFormatter;
 use PactTraceSDK\SharedResources\Modules\Document\Application\DTO\DocumentData;
 use PactTraceSDK\SharedResources\Modules\Document\Application\DTO\DocumentListData;
 use PactTraceSDK\SharedResources\Modules\Document\Http\Requests\StoreDocumentRequest;
@@ -42,6 +45,8 @@ class DocumentController extends Controller
     public function __construct(
         private readonly UploadDocumentAction $uploadDocument,
         private readonly ListDocumentsAction $listDocuments,
+        private readonly GetStorageUsageAction $storageUsage,
+        private readonly ByteFormatter $bytes,
     ) {
     }
 
@@ -72,6 +77,44 @@ class DocumentController extends Controller
         return DocumentResource::collection(
             $this->listDocuments->handle($user, DocumentListData::fromRequest($request))
         );
+    }
+
+    /**
+     * GET /api/documents/storage
+     *
+     * The STORAGE indicator in the /dashboard/documents sidebar. Gated on
+     * `viewAny` like index() — this is the same read ("can this actor see
+     * this tenant's documents"), expressed as one aggregate instead of rows.
+     *
+     * Returns raw byte counts *and* pre-formatted labels: the raw numbers so
+     * the frontend can drive the progress bar (and so a future quota check
+     * has something exact to compare), the labels so "6.2 GB of 10 GB" is
+     * worded identically everywhere it appears (same reasoning as
+     * MatterCountFormatter on the matters stat cards).
+     */
+    public function storage(Request $request): JsonResponse
+    {
+        $user = $this->resolveActingUser($request);
+
+        if ($user === null || $user->provider_id === null) {
+            return response()->json([
+                'message' => 'You must be signed in to a provider account to view storage usage.',
+            ], 401);
+        }
+
+        Gate::forUser($user)->authorize('viewAny', Document::class);
+
+        $usage = $this->storageUsage->handle($user);
+
+        return response()->json([
+            'used_bytes' => $usage->usedBytes,
+            'limit_bytes' => $usage->limitBytes,
+            'remaining_bytes' => $usage->remainingBytes(),
+            'percentage' => $usage->percentage(),
+            'over_limit' => $usage->isOverLimit(),
+            'used_label' => $this->bytes->format($usage->usedBytes),
+            'limit_label' => $this->bytes->format($usage->limitBytes),
+        ]);
     }
 
     /**

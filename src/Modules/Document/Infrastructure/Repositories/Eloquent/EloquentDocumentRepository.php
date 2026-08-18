@@ -37,6 +37,16 @@ class EloquentDocumentRepository extends BaseRepository implements DocumentRepos
 		return $this->paginate($query, $perPage, ['*'], 'page', $page);
 	}
 
+	public function totalSizeForProvider(int $providerId, ?int $clientId = null): int
+	{
+		// sum() returns null on an empty set and a numeric string on some
+		// drivers — cast rather than trusting the return type.
+		return (int) $this->model->newQuery()
+			->where('provider_id', $providerId)
+			->when($clientId !== null, fn ($query) => $query->where('client_id', $clientId))
+			->sum('size');
+	}
+
 	public function makeModel(): string
 	{
 		return Document::class;
