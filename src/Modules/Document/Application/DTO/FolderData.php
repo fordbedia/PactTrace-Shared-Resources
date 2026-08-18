@@ -10,8 +10,8 @@ class FolderData
 		public ?int $id,
 		public ?int $parent_id,
 		public int $provider_id,
-		public int $client_id,
-		public int $matter_id,
+		public ?int $client_id,
+		public ?int $matter_id,
 		public string $name,
 	)
 	{}
@@ -19,8 +19,8 @@ class FolderData
 	public static function fromRequest(
 		?int $id,
 		int $provider_id,
-		int $client_id,
-		int $matter_id,
+		?int $client_id,
+		?int $matter_id,
 		?int $parent_id,
 		FormRequest $request
 	)
