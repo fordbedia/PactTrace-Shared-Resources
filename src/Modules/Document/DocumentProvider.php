@@ -4,7 +4,9 @@ namespace PactTraceSDK\SharedResources\Modules\Document;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository\FolderRepository;
 use PactTraceSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
+use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentFolderRepository;
 use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\S3\S3DocumentStorage;
 use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
 use PactTraceSDK\SharedResources\Modules\Document\Models\Folder;
@@ -34,6 +36,8 @@ class DocumentProvider extends ServiceProvider
         $this->app->bind(DocumentStorage::class, fn () => new S3DocumentStorage(
             disk: config('filesystems.document_disk', 's3'),
         ));
+
+		$this->app->singleton(FolderRepository::class, EloquentFolderRepository::class);
     }
 
     public function boot(): void
