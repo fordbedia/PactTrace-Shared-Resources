@@ -1,12 +1,12 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\SDK\Console\Config;
+namespace PactTrackSDK\SharedResources\SDK\Console\Config;
 
 use http\Exception\RuntimeException;
 
 abstract class ModularResetTestDataCommand extends ModularCommand
 {
-    protected $signature = 'pacttrace:reset 
+    protected $signature = 'pacttrack:reset 
         {--testonly : Refreshed only the test data and exclude stable data.}';
 
     protected $description = 'Restart all test data.';

@@ -3,7 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
 
 /**
  * Workspaces: a provider's branded space, and the words it uses.

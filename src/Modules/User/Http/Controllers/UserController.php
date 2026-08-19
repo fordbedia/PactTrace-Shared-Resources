@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\User\Http\Controllers;
+namespace PactTrackSDK\SharedResources\Modules\User\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;

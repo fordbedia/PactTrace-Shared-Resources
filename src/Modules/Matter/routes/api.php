@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use PactTraceSDK\SharedResources\Modules\Matter\Http\Controllers\MattersController;
+use PactTrackSDK\SharedResources\Modules\Matter\Http\Controllers\MattersController;
 
 Route::prefix('v1')->group(function () {
 	Route::middleware('auth:sanctum')->group(function () {

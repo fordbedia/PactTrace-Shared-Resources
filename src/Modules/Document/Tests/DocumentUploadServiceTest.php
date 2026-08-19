@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Tests;
+namespace PactTrackSDK\SharedResources\Modules\Document\Tests;
 
 use Illuminate\Http\UploadedFile;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
-use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Upload\DocumentUploadService;
-use PactTraceSDK\SharedResources\TestCase\Migrations\BaseTest;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Upload\DocumentUploadService;
+use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 
 /**
  * How an uploaded file becomes a storage key. The service owns exactly one

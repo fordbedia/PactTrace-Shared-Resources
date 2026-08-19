@@ -1,10 +1,10 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Infrastructure\Services;
+namespace PactTrackSDK\SharedResources\Modules\Client\Infrastructure\Services;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use PactTraceSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientRepository;
-use PactTraceSDK\SharedResources\Modules\Client\Application\Ports\Service\ClientListingService as ClientListingServiceContract;
+use PactTrackSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientRepository;
+use PactTrackSDK\SharedResources\Modules\Client\Application\Ports\Service\ClientListingService as ClientListingServiceContract;
 
 class ClientListingService implements ClientListingServiceContract
 {

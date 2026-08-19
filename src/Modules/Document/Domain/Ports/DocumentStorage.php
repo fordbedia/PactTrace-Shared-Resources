@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Domain\Ports;
+namespace PactTrackSDK\SharedResources\Modules\Document\Domain\Ports;
 
 /**
  * Outbound port to wherever document bytes actually live. Bound to an S3

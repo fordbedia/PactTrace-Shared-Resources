@@ -1,9 +1,9 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\SDK\Database;
+namespace PactTrackSDK\SharedResources\SDK\Database;
 
-use PactTraceSDK\SharedResources\Modules\Invoicing\Repository\Contracts\ClientsContract;
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\Invoicing\Repository\Contracts\ClientsContract;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 

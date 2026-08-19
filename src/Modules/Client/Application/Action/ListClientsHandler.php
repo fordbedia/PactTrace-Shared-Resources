@@ -1,10 +1,10 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Application\Action;
+namespace PactTrackSDK\SharedResources\Modules\Client\Application\Action;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientListData;
-use PactTraceSDK\SharedResources\Modules\Client\Application\Ports\Service\ClientListingService;
+use PactTrackSDK\SharedResources\Modules\Client\Application\DTO\ClientListData;
+use PactTrackSDK\SharedResources\Modules\Client\Application\Ports\Service\ClientListingService;
 
 class ListClientsHandler
 {

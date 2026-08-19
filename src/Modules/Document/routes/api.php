@@ -1,8 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use PactTraceSDK\SharedResources\Modules\Document\Http\Controllers\DocumentController;
-use PactTraceSDK\SharedResources\Modules\Document\Http\Controllers\FolderController;
+use PactTrackSDK\SharedResources\Modules\Document\Http\Controllers\DocumentController;
+use PactTrackSDK\SharedResources\Modules\Document\Http\Controllers\FolderController;
 
 /*
 |--------------------------------------------------------------------------

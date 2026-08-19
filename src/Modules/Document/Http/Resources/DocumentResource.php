@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Http\Resources;
+namespace PactTrackSDK\SharedResources\Modules\Document\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * @mixin \PactTraceSDK\SharedResources\Modules\Document\Models\Document
+ * @mixin \PactTrackSDK\SharedResources\Modules\Document\Models\Document
  */
 class DocumentResource extends JsonResource
 {

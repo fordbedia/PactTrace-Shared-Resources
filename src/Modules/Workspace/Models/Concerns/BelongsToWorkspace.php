@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Workspace\Models\Concerns;
+namespace PactTrackSDK\SharedResources\Modules\Workspace\Models\Concerns;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
-use PactTraceSDK\SharedResources\Modules\Workspace\Models\Scopes\WorkspaceScope;
-use PactTraceSDK\SharedResources\Modules\Workspace\Models\Workspace;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
+use PactTrackSDK\SharedResources\Modules\Workspace\Models\Scopes\WorkspaceScope;
+use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
 
 /**
  * Applied to every model carrying a denormalised `workspace_id`: Matter,

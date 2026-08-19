@@ -1,10 +1,10 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Database\Factories;
+namespace PactTrackSDK\SharedResources\Modules\Document\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Folder;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Folder;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<Folder>

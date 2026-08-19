@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Workspace\Models;
+namespace PactTrackSDK\SharedResources\Modules\Workspace\Models;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
-use PactTraceSDK\SharedResources\Modules\Signature\Models\Envelope;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
-use PactTraceSDK\SharedResources\Modules\Workspace\Database\Factories\WorkspaceFactory;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\Ports\WorkspacePresets;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceLabels;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\Workspace\Database\Factories\WorkspaceFactory;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\WorkspacePresets;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceLabels;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
 
 /**
  * A provider's branded space and the vocabulary it presents to clients.

@@ -1,10 +1,10 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Application\Action;
+namespace PactTrackSDK\SharedResources\Modules\Client\Application\Action;
 
 use Illuminate\Database\Eloquent\Collection;
-use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientSearchData;
-use PactTraceSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientRepository;
+use PactTrackSDK\SharedResources\Modules\Client\Application\DTO\ClientSearchData;
+use PactTrackSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientRepository;
 
 class SearchClientsHandler
 {

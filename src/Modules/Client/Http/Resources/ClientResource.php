@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Http\Resources;
+namespace PactTrackSDK\SharedResources\Modules\Client\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 
 /**
  * A provider's client record.

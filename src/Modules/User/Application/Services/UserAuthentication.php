@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Application\Services;
+namespace PactTrackSDK\SharedResources\Modules\User\Application\Services;
 
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Support\Str;
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 
 /**
  * Sign in and sign out — the sibling of UserRegistration in this folder.
  *
  * Session-based, not token-based. The Next.js frontend and this API are served
  * from the same origin by nginx (`/api/` and `/sanctum/` are location blocks on
- * int.pacttrace.com), and frontend/src/lib/api.ts sends `withCredentials: true`
+ * int.pacttrack.com), and frontend/src/lib/api.ts sends `withCredentials: true`
  * after priming `/sanctum/csrf-cookie`. That is Sanctum's SPA mode, where an
  * httpOnly, encrypted session cookie is the credential — it carries only a
  * session id, never the user's name/email/permissions, so nothing sensitive is

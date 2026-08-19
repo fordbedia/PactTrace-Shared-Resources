@@ -1,6 +1,6 @@
-# PactTrace Shared Resources
+# PactTrack Shared Resources
 
-Namespace: `PactTraceSDK\SharedResources\` → `src/`
+Namespace: `PactTrackSDK\SharedResources\` → `src/`
 
 ```
 src/
@@ -33,7 +33,7 @@ Or dump directly:
 ```shell
 docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T mysql \
   sh -lc "MYSQL_PWD='root' mysqldump -u 'root' app_db --single-transaction --routines --triggers --events --no-tablespaces --set-gtid-purged=OFF" \
-  > shared-resources/src/TestCase/sqldumps/pacttrace.mysql.sql
+  > shared-resources/src/TestCase/sqldumps/pacttrack.mysql.sql
 ```
 
 ## Run tests

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Application\DTO;
+namespace PactTrackSDK\SharedResources\Modules\Document\Application\DTO;
 
 use Illuminate\Http\Request;
 

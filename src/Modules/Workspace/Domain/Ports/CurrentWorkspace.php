@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Workspace\Domain\Ports;
+namespace PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports;
 
 /**
  * The workspace the current actor is working inside.

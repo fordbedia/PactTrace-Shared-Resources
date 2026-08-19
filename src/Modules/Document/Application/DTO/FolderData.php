@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Application\DTO;
+namespace PactTrackSDK\SharedResources\Modules\Document\Application\DTO;
 
 use Illuminate\Foundation\Http\FormRequest;
 

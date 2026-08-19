@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Infrastructure\S3;
+namespace PactTrackSDK\SharedResources\Modules\Document\Infrastructure\S3;
 
 use Illuminate\Support\Facades\Storage;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
 
 /**
  * Adapter implementing DocumentStorage against a Laravel filesystem disk.

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Workspace\Domain\Ports;
+namespace PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports;
 
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceLabels;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceLabels;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
 
 /**
  * Where the starting labels for a workspace type come from.

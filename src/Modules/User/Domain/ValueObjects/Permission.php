@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects;
+namespace PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects;
 
 /**
- * The full permission catalogue for PactTrace.
+ * The full permission catalogue for PactTrack.
  *
  * A permission answers "is this actor allowed to perform this kind of action at
  * all?" — never "on which record?". Record-level scoping (does this row belong

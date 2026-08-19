@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Application\UseCases;
+namespace PactTrackSDK\SharedResources\Modules\User\Application\UseCases;
 
 use Illuminate\Support\Carbon;
-use PactTraceSDK\SharedResources\Modules\Notification\Models\AuditLog;
-use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
-use PactTraceSDK\SharedResources\Modules\User\Models\Subscription;
+use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
+use PactTrackSDK\SharedResources\Modules\User\Models\Subscription;
 
 /**
  * Use case behind the daily `subscriptions:notify-trial-ending` scan (see

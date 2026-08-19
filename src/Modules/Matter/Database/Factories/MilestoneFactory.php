@@ -1,10 +1,10 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Database\Factories;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Milestone;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Milestone;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<Milestone>

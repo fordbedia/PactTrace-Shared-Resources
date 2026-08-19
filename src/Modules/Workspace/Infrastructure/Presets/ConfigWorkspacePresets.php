@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Workspace\Infrastructure\Presets;
+namespace PactTrackSDK\SharedResources\Modules\Workspace\Infrastructure\Presets;
 
 use Illuminate\Contracts\Config\Repository as Config;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\Ports\WorkspacePresets;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceLabels;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\WorkspacePresets;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceLabels;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
 
 /**
  * Reads presets from `config('workspace.presets')`.

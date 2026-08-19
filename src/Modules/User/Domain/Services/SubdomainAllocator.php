@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Domain\Services;
+namespace PactTrackSDK\SharedResources\Modules\User\Domain\Services;
 
-use PactTraceSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
 
 /**
  * Finds a free subdomain near the one a provider wants.

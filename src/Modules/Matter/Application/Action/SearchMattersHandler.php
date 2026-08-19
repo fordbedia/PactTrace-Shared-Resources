@@ -1,10 +1,10 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Application\Action;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Application\Action;
 
 use Illuminate\Database\Eloquent\Collection;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\DTO\MatterSearchData;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Ports\Repository\MattersRepository;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\MatterSearchData;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Repository\MattersRepository;
 
 class SearchMattersHandler
 {

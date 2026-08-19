@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Domain\Ports;
+namespace PactTrackSDK\SharedResources\Modules\User\Domain\Ports;
 
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
 
 /**
  * Tells the domain whether a subdomain is already spoken for.

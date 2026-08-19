@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Services;
+namespace PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Services;
 
-use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
-use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Service\StorageUsageCalculator;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Ports\StorageQuotas;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\ValueObjects\StorageUsage;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Service\StorageUsageCalculator;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\StorageQuotas;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\ValueObjects\StorageUsage;
 
 /**
  * The calculation behind the STORAGE indicator on /dashboard/documents (see

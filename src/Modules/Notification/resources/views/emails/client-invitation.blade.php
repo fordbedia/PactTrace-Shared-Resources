@@ -25,7 +25,7 @@
                                 </svg>
                             </td>
                             <td style="vertical-align:middle;">
-                                <span style="color:#ffffff; font-size:18px; font-weight:700; letter-spacing:-0.03em; font-family:'Inter',Arial,sans-serif;">PactTrace</span>
+                                <span style="color:#ffffff; font-size:18px; font-weight:700; letter-spacing:-0.03em; font-family:'Inter',Arial,sans-serif;">PactTrack</span>
                             </td>
                         </tr>
                     </table>
@@ -57,7 +57,7 @@
 
                                 <!-- Body copy -->
                                 <p style="font-size:14px; color:#334155; line-height:1.7; margin:0 0 24px; max-width:460px;">
-                                    <strong style="color:#0F172A;">{{ $invitedByName }}</strong> at <strong style="color:#0F172A;">{{ $providerName }}</strong> has invited you to a secure PactTrace portal, where you can view documents, track progress, and sign agreements online — all in one place.
+                                    <strong style="color:#0F172A;">{{ $invitedByName }}</strong> at <strong style="color:#0F172A;">{{ $providerName }}</strong> has invited you to a secure PactTrack portal, where you can view documents, track progress, and sign agreements online — all in one place.
                                 </p>
 
                                 <!-- Detail box -->
@@ -119,8 +119,8 @@
                     <table width="100%" cellpadding="0" cellspacing="0">
                         <tr>
                             <td style="text-align:center; padding:20px 16px; border-top:1px solid #E2E8F0;">
-                                <p style="font-size:13px; font-weight:700; color:#64748B; letter-spacing:-0.01em; margin:0 0 6px;">PactTrace</p>
-                                <p style="font-size:11px; color:#94A3B8; margin:0 0 8px; line-height:1.6;">Secure client portal for solo service professionals &middot; &copy; {{ date('Y') }} PactTrace, Inc.</p>
+                                <p style="font-size:13px; font-weight:700; color:#64748B; letter-spacing:-0.01em; margin:0 0 6px;">PactTrack</p>
+                                <p style="font-size:11px; color:#94A3B8; margin:0 0 8px; line-height:1.6;">Secure client portal for solo service professionals &middot; &copy; {{ date('Y') }} PactTrack, Inc.</p>
                                 <p style="font-size:11px; color:#94A3B8; margin:0 0 8px;">548 Market St, PMB 12345, San Francisco, CA 94104</p>
                                 <p style="font-size:11px; margin:0;">
                                     <a href="{{ $preferencesUrl ?? '#' }}" style="color:#94A3B8; text-decoration:underline; font-size:11px; margin-right:12px;">Notification Preferences</a>

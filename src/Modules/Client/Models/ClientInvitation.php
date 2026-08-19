@@ -1,13 +1,13 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Models;
+namespace PactTrackSDK\SharedResources\Modules\Client\Models;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use PactTraceSDK\SharedResources\Modules\Client\Database\Factories\ClientInvitationFactory;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\Client\Database\Factories\ClientInvitationFactory;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 
 class ClientInvitation extends Model
 {

@@ -25,7 +25,7 @@ require __DIR__ . '/../../vendor/autoload.php';
 
 $backendPath = (static function (): string {
     $candidates = array_filter([
-        getenv('PACTTRACE_BACKEND_PATH') ?: null,
+        getenv('PACTTRACK_BACKEND_PATH') ?: null,
         dirname(__DIR__, 3) . '/backend',
         '/var/www/html',
     ]);
@@ -41,7 +41,7 @@ $backendPath = (static function (): string {
 
     throw new RuntimeException(
         'Could not locate the backend application. Looked in: ' . implode(', ', $candidates) . '. '
-        . 'Set PACTTRACE_BACKEND_PATH to the Laravel app root.'
+        . 'Set PACTTRACK_BACKEND_PATH to the Laravel app root.'
     );
 })();
 

@@ -1,10 +1,10 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Signature\Database\Factories;
+namespace PactTrackSDK\SharedResources\Modules\Signature\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use PactTraceSDK\SharedResources\Modules\Signature\Models\Envelope;
-use PactTraceSDK\SharedResources\Modules\Signature\Models\Signer;
+use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
+use PactTrackSDK\SharedResources\Modules\Signature\Models\Signer;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<Signer>
@@ -22,6 +22,7 @@ class SignerFactory extends Factory
     {
         return [
             'envelope_id' => Envelope::factory(),
+            'provider_signer_id' => null,
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'routing_order' => 1,

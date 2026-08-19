@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Quota;
+namespace PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Quota;
 
 use Illuminate\Contracts\Config\Repository as Config;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Ports\StorageQuotas;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\StorageQuotas;
 
 /**
  * Reads plan allowances from `config('document.storage_quota_bytes')` — the

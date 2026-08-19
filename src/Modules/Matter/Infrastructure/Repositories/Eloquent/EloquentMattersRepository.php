@@ -1,16 +1,16 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Repositories\Eloquent;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Repositories\Eloquent;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
-use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\DTO\MattersData;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Ports\Repository\MattersRepository;
-use PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Repositories\BaseRepository;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Milestone;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\MattersData;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Repository\MattersRepository;
+use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Repositories\BaseRepository;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Milestone;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
 
 class EloquentMattersRepository extends BaseRepository implements MattersRepository
 {

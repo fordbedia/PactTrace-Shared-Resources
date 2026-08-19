@@ -1,13 +1,16 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Signature;
+namespace PactTrackSDK\SharedResources\Modules\Signature;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use PactTraceSDK\SharedResources\Modules\Signature\Domain\Ports\ESignatureProvider;
-use PactTraceSDK\SharedResources\Modules\Signature\Infrastructure\Documenso\DocumensoClient;
-use PactTraceSDK\SharedResources\Modules\Signature\Models\Envelope;
-use PactTraceSDK\SharedResources\Modules\Signature\Policies\EnvelopePolicy;
+use PactTrackSDK\SharedResources\Modules\Signature\Domain\Ports\ESignatureProvider;
+use PactTrackSDK\SharedResources\Modules\Signature\Infrastructure\Docusign\DocusignSignatureProvider;
+use PactTrackSDK\SharedResources\Modules\Signature\Infrastructure\Docusign\JwtGrantAuthenticator;
+use PactTrackSDK\SharedResources\Modules\Signature\Infrastructure\Fake\FakeSignatureProvider;
+use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
+use PactTrackSDK\SharedResources\Modules\Signature\Policies\EnvelopePolicy;
+use RuntimeException;
 
 class SignatureProvider extends ServiceProvider
 {
@@ -25,17 +28,41 @@ class SignatureProvider extends ServiceProvider
             $this->app->register($provider);
         }
 
-        // Bind the e-signature port to the Documenso adapter. Swapping
-        // providers (HelloSign/DocuSign) means adding a new adapter class
-        // and changing only this binding — nothing in Domain/ or
-        // Application/ references Documenso by name.
-        $this->app->bind(ESignatureProvider::class, function () {
-            $config = config('services.documenso', []);
+        // Bind the e-signature port to the DocuSign adapter (or the Fake,
+        // via SIGNATURE_PROVIDER=fake — see config/services.php). Swapping
+        // providers means adding a new adapter class and changing only this
+        // binding — nothing in Domain/ or Application/ references DocuSign
+        // by name.
+        //
+        // singleton() (not bind()) is deliberate: DocusignSignatureProvider
+        // memoizes its JWT Grant session for its own lifetime, and a JWT
+        // Grant access token is valid for 10 minutes — sharing one instance
+        // for the life of a request (the normal PHP-FPM/artisan-serve
+        // lifecycle) is exactly the "cache only within a request lifecycle"
+        // behavior the feature calls for, with no separate cache store.
+        $this->app->singleton(ESignatureProvider::class, function () {
+            $config = config('services.docusign', []);
 
-            return new DocumensoClient(
-                apiBaseUrl: $config['api_url'] ?? '',
-                publicBaseUrl: $config['public_url'] ?? '',
-                apiKey: $config['api_key'] ?? '',
+            if (($config['driver'] ?? 'docusign') === 'fake') {
+                return new FakeSignatureProvider();
+            }
+
+            $authenticator = new JwtGrantAuthenticator(
+                clientId: $config['client_id'] ?? '',
+                impersonatedUserGuid: $config['impersonated_user_guid'] ?? '',
+                accountId: $config['account_id'] ?? '',
+                authServer: $config['auth_server'] ?? 'account-d.docusign.com',
+                privateKeyPem: $this->resolvePrivateKey($config['private_key_path'] ?? null),
+                // Must be registered as a Redirect URI on the DocuSign app itself
+                // (Settings > Apps and Keys) — DocuSign rejects any redirect_uri
+                // on the one-time consent grant that isn't pre-registered there,
+                // regardless of what domain it points to.
+                consentRedirectUri: rtrim((string) config('app.frontend_url'), '/') . '/docusign-return',
+            );
+
+            return new DocusignSignatureProvider(
+                auth: $authenticator,
+                webhookHmacKey: $config['connect_hmac_key'] ?? '',
             );
         });
     }
@@ -45,5 +72,23 @@ class SignatureProvider extends ServiceProvider
         foreach ($this->policies as $model => $policy) {
             Gate::policy($model, $policy);
         }
+    }
+
+    private function resolvePrivateKey(?string $path): string
+    {
+        if ($path === null || $path === '') {
+            return '';
+        }
+
+        $fullPath = str_starts_with($path, '/') ? $path : storage_path($path);
+
+        if (! is_readable($fullPath)) {
+            throw new RuntimeException(
+                "DocuSign private key not found or not readable at [{$fullPath}] — check "
+                . 'DOCUSIGN_PRIVATE_KEY_PATH.'
+            );
+        }
+
+        return (string) file_get_contents($fullPath);
     }
 }

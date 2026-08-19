@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Signature\Policies;
+namespace PactTrackSDK\SharedResources\Modules\Signature\Policies;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
-use PactTraceSDK\SharedResources\Modules\Signature\Models\Envelope;
-use PactTraceSDK\SharedResources\Modules\User\Application\Authorization\TenantScopedPolicy;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
+use PactTrackSDK\SharedResources\Modules\User\Application\Authorization\TenantScopedPolicy;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
 
 class EnvelopePolicy extends TenantScopedPolicy
 {

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Http\Resources;
+namespace PactTrackSDK\SharedResources\Modules\User\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use PactTraceSDK\SharedResources\Modules\Client\Http\Resources\ClientResource;
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\Client\Http\Resources\ClientResource;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 
 /**
  * The authenticated user, as the SPA sees them.

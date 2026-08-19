@@ -1,7 +1,7 @@
 <?php
-namespace PactTraceSDK\SharedResources\SDK\Console\Helpers\Traits;
+namespace PactTrackSDK\SharedResources\SDK\Console\Helpers\Traits;
 
-use PactTraceSDK\SharedResources\SDK\Foundation\Enums\StubsPathEnum;
+use PactTrackSDK\SharedResources\SDK\Foundation\Enums\StubsPathEnum;
 
 trait ResolveStubPath
 {

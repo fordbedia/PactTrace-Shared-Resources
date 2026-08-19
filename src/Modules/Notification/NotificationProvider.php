@@ -1,11 +1,11 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Notification;
+namespace PactTrackSDK\SharedResources\Modules\Notification;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use PactTraceSDK\SharedResources\Modules\Notification\Models\AuditLog;
-use PactTraceSDK\SharedResources\Modules\Notification\Policies\AuditLogPolicy;
+use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
+use PactTrackSDK\SharedResources\Modules\Notification\Policies\AuditLogPolicy;
 
 class NotificationProvider extends ServiceProvider
 {

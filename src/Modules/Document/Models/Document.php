@@ -1,21 +1,21 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Models;
+namespace PactTrackSDK\SharedResources\Modules\Document\Models;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
-use PactTraceSDK\SharedResources\Modules\Document\Database\Factories\DocumentFactory;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
-use PactTraceSDK\SharedResources\Modules\Messaging\Models\MessageAttachment;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
-use PactTraceSDK\SharedResources\Modules\Signature\Models\Envelope;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
-use PactTraceSDK\SharedResources\Modules\Workspace\Models\Concerns\BelongsToWorkspace;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
+use PactTrackSDK\SharedResources\Modules\Document\Database\Factories\DocumentFactory;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
+use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageAttachment;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\Workspace\Models\Concerns\BelongsToWorkspace;
 
 class Document extends Model
 {

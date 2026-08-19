@@ -1,13 +1,13 @@
 {
-  "name": "pacttrace/shared-resources",
-  "description": "Shared Laravel module with modular support for PactTrace (User, Clients, Documents, Signatures, etc.).",
+  "name": "pacttrack/shared-resources",
+  "description": "Shared Laravel module with modular support for PactTrack (User, Clients, Documents, Signatures, etc.).",
   "type": "library",
   "version": "1.0.0",
   "license": "MIT",
   "autoload": {
     "psr-4": {
-      "PactTraceSDK\\SharedResources\\": "src/",
-       "PactTraceSDK\\SharedResources\\TestCase\\": "src/TestCase/"
+      "PactTrackSDK\\SharedResources\\": "src/",
+       "PactTrackSDK\\SharedResources\\TestCase\\": "src/TestCase/"
     }
   },
   "scripts": {
@@ -16,7 +16,7 @@
   "extra": {
     "laravel": {
       "providers": [
-        "PactTraceSDK\\SharedResources\\SharedResourceServiceProvider"
+        "PactTrackSDK\\SharedResources\\SharedResourceServiceProvider"
       ]
     }
   },

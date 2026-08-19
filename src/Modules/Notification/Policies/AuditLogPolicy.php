@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Notification\Policies;
+namespace PactTrackSDK\SharedResources\Modules\Notification\Policies;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
-use PactTraceSDK\SharedResources\Modules\Notification\Models\AuditLog;
-use PactTraceSDK\SharedResources\Modules\User\Application\Authorization\TenantScopedPolicy;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
+use PactTrackSDK\SharedResources\Modules\User\Application\Authorization\TenantScopedPolicy;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
 
 /**
  * The audit trail is read-only by design — there is no update or delete gate

@@ -1,20 +1,20 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Models;
+namespace PactTrackSDK\SharedResources\Modules\Client\Models;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use PactTraceSDK\SharedResources\Modules\Client\Database\Factories\ClientFactory;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Folder;
-use PactTraceSDK\SharedResources\Modules\Messaging\Models\MessageThread;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
-use PactTraceSDK\SharedResources\Modules\Signature\Models\Envelope;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
-use PactTraceSDK\SharedResources\Modules\Workspace\Models\Concerns\BelongsToWorkspace;
+use PactTrackSDK\SharedResources\Modules\Client\Database\Factories\ClientFactory;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Folder;
+use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\Workspace\Models\Concerns\BelongsToWorkspace;
 
 class Client extends Model
 {

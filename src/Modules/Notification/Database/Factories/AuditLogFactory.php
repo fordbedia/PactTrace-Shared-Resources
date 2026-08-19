@@ -1,11 +1,11 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Notification\Database\Factories;
+namespace PactTrackSDK\SharedResources\Modules\Notification\Database\Factories;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use PactTraceSDK\SharedResources\Modules\Notification\Models\AuditLog;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<AuditLog>

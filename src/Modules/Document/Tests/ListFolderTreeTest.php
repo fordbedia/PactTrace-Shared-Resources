@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Tests;
+namespace PactTrackSDK\SharedResources\Modules\Document\Tests;
 
 use Illuminate\Support\Facades\DB;
-use PactTraceSDK\SharedResources\Modules\Document\Application\UseCases\ListFolderTree;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Folder;
-use PactTraceSDK\SharedResources\TestCase\Migrations\BaseTest;
-use PactTraceSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
-use PactTraceSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
+use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\ListFolderTree;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Folder;
+use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
+use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
+use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
 
 /**
  * Turns the flat `folders` rows into the nested shape FolderTreeItem renders

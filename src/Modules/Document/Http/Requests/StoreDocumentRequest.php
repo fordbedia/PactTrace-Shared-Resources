@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Http\Requests;
+namespace PactTrackSDK\SharedResources\Modules\Document\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 

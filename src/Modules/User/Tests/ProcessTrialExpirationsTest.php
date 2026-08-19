@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Tests;
+namespace PactTrackSDK\SharedResources\Modules\User\Tests;
 
-use PactTraceSDK\SharedResources\Modules\Notification\Models\AuditLog;
-use PactTraceSDK\SharedResources\Modules\User\Application\UseCases\ProcessTrialExpirations;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
-use PactTraceSDK\SharedResources\Modules\User\Models\Subscription;
-use PactTraceSDK\SharedResources\TestCase\Migrations\BaseTest;
+use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\ProcessTrialExpirations;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\User\Models\Subscription;
+use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 
 /**
  * Covers the daily scan behind `subscriptions:notify-trial-ending`
@@ -96,7 +96,7 @@ class ProcessTrialExpirationsTest extends BaseTest
         $provider = Provider::factory()->create();
         $subscription = Subscription::factory()->for($provider)->create(['status' => 'active']);
 
-        app(\PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository::class)
+        app(\PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository::class)
             ->markExpired([$subscription->id]);
 
         $this->assertSame('active', $subscription->fresh()->status);

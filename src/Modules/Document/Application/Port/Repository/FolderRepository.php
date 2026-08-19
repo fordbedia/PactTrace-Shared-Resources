@@ -1,9 +1,9 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository;
+namespace PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository;
 
 use Illuminate\Support\Collection;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Folder;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Folder;
 
 interface FolderRepository
 {

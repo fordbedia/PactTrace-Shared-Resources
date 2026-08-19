@@ -1,10 +1,10 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Application\Action;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Application\Action;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\DTO\MattersListData;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Ports\Service\MattersListingService;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\MattersListData;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Service\MattersListingService;
 
 class ListMattersHandler
 {

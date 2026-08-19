@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Http\Resources;
+namespace PactTrackSDK\SharedResources\Modules\User\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 
 /**
  * The tenant a user belongs to, as the SPA sees it.

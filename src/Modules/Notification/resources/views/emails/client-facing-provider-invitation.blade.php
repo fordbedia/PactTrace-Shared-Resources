@@ -15,7 +15,7 @@
 <div style="max-width:600px; margin:0 auto;">
     <div style="background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(15,23,42,0.07); border:1px solid #E2E8F0;">
 
-        <!-- Header: provider's own branding, not PactTrace's -->
+        <!-- Header: provider's own branding, not PactTrack's -->
         <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC; border-bottom:1px solid #E2E8F0;">
             <tr>
                 <td style="padding:20px 28px;">
@@ -123,9 +123,9 @@
                     <table width="100%" cellpadding="0" cellspacing="0">
                         <tr>
                             <td style="text-align:center; padding:18px 12px; border-top:1px solid #E2E8F0;">
-                                <p style="font-size:11px; color:#94A3B8; margin:0 0 6px; line-height:1.7;">{{ $providerName }} uses PactTrace to manage client documents and communication.</p>
+                                <p style="font-size:11px; color:#94A3B8; margin:0 0 6px; line-height:1.7;">{{ $providerName }} uses PactTrack to manage client documents and communication.</p>
                                 <p style="font-size:11px; color:#94A3B8; margin:0 0 8px; line-height:1.7;">This invitation was sent through a secure, logged channel. This email was sent to <strong style="color:#64748B;">{{ $email }}</strong>.</p>
-                                <p style="font-size:11px; color:#94A3B8; margin:0 0 8px;">Powered by <a href="#" style="color:#64748B; text-decoration:underline; font-weight:600;">PactTrace</a></p>
+                                <p style="font-size:11px; color:#94A3B8; margin:0 0 8px;">Powered by <a href="#" style="color:#64748B; text-decoration:underline; font-weight:600;">PactTrack</a></p>
                                 <p style="font-size:10px; margin:0;">
                                     <a href="{{ $preferencesUrl ?? '#' }}" style="color:#94A3B8; text-decoration:underline; font-size:10px; margin-right:10px;">Notification Settings</a>
                                     <a href="{{ $unsubscribeUrl ?? '#' }}" style="color:#94A3B8; text-decoration:underline; font-size:10px;">Unsubscribe</a>

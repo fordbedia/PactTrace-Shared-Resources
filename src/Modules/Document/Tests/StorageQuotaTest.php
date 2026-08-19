@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Tests;
+namespace PactTrackSDK\SharedResources\Modules\Document\Tests;
 
 use InvalidArgumentException;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Ports\StorageQuotas;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\ValueObjects\StorageUsage;
-use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Quota\ConfigStorageQuotas;
-use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Services\ByteFormatter;
-use PactTraceSDK\SharedResources\TestCase\Migrations\BaseTest;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\StorageQuotas;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\ValueObjects\StorageUsage;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Quota\ConfigStorageQuotas;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Services\ByteFormatter;
+use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**

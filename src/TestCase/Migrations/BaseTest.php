@@ -1,9 +1,9 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\TestCase\Migrations;
+namespace PactTrackSDK\SharedResources\TestCase\Migrations;
 
-use PactTraceSDK\SharedResources\TestCase\BaseTest as PackageBaseTest;
-use PactTraceSDK\SharedResources\TestCase\Extras\RefreshDatabase;
+use PactTrackSDK\SharedResources\TestCase\BaseTest as PackageBaseTest;
+use PactTrackSDK\SharedResources\TestCase\Extras\RefreshDatabase;
 
 abstract class BaseTest extends PackageBaseTest
 {

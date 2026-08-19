@@ -1,11 +1,11 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Models;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use PactTraceSDK\SharedResources\Modules\Matter\Database\Factories\MilestoneFactory;
+use PactTrackSDK\SharedResources\Modules\Matter\Database\Factories\MilestoneFactory;
 
 class Milestone extends Model
 {

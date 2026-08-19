@@ -1,9 +1,9 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository;
+namespace PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 
 interface DocumentRepository
 {

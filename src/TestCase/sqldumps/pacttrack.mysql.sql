@@ -1,7 +1,7 @@
 /*M!999999\- enable the sandbox mode */ 
 -- MariaDB dump 10.19-11.8.6-MariaDB, for debian-linux-gnu (aarch64)
 --
--- Host: mysql    Database: pacttrace_test
+-- Host: mysql    Database: pacttrack_test
 -- ------------------------------------------------------
 -- Server version	9.6.0
 
@@ -296,8 +296,9 @@ CREATE TABLE `envelopes` (
   `workspace_id` bigint unsigned DEFAULT NULL,
   `document_id` bigint unsigned NOT NULL,
   `client_id` bigint unsigned NOT NULL,
+  `provider` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'docusign',
   `provider_envelope_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `status` enum('draft','sent','viewed','signed','declined','voided') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
+  `status` enum('draft','sent','viewed','partially_signed','completed','declined','voided','expired') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
   `sent_at` timestamp NULL DEFAULT NULL,
   `completed_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
@@ -626,7 +627,7 @@ CREATE TABLE `migrations` (
   `migration` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `batch` int NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -666,7 +667,12 @@ INSERT INTO `migrations` VALUES
 (27,'2026_08_13_035444_create_subscriptions_table',1),
 (28,'2026_08_13_043956_add_status_trial_index_to_subscriptions_table',1),
 (29,'2026_08_15_000000_add_workspace_id_to_clients_table',1),
-(30,'2026_08_18_120000_add_status_archived_at_and_soft_deletes_to_documents_table',1);
+(30,'2026_08_18_120000_add_status_archived_at_and_soft_deletes_to_documents_table',1),
+(31,'2026_08_18_150000_add_provider_and_extend_status_on_envelopes_table',1),
+(32,'2026_08_18_150001_add_provider_signer_id_to_signers_table',1),
+(33,'2026_08_18_150002_create_signature_webhook_events_table',1),
+(34,'2026_08_19_090000_switch_envelopes_provider_default_to_docusign',1),
+(35,'2026_08_19_090001_add_docusign_brand_id_to_providers_table',1);
 /*!40000 ALTER TABLE `migrations` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -852,48 +858,48 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `permissions` WRITE;
 /*!40000 ALTER TABLE `permissions` DISABLE KEYS */;
 INSERT INTO `permissions` VALUES
-(1,'provider.view','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(2,'provider.update','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(3,'provider.manage-branding','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(4,'provider.manage-billing','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(5,'user.view','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(6,'user.invite','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(7,'user.update','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(8,'user.delete','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(9,'client.view','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(10,'client.create','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(11,'client.update','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(12,'client.delete','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(13,'client.invite','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(14,'workspace.view','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(15,'workspace.create','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(16,'workspace.update','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(17,'workspace.delete','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(18,'matter.view','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(19,'matter.create','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(20,'matter.update','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(21,'matter.delete','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(22,'milestone.view','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(23,'milestone.create','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(24,'milestone.update','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(25,'milestone.delete','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(26,'document.view','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(27,'document.upload','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(28,'document.download','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(29,'document.update','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(30,'document.delete','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(31,'folder.view','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(32,'folder.create','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(33,'folder.update','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(34,'folder.delete','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(35,'envelope.view','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(36,'envelope.create','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(37,'envelope.send','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(38,'envelope.sign','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(39,'envelope.void','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(40,'message.view','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(41,'message.send','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(42,'audit-log.view','web','2026-08-18 23:40:05','2026-08-18 23:40:05');
+(1,'provider.view','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(2,'provider.update','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(3,'provider.manage-branding','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(4,'provider.manage-billing','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(5,'user.view','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(6,'user.invite','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(7,'user.update','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(8,'user.delete','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(9,'client.view','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(10,'client.create','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(11,'client.update','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(12,'client.delete','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(13,'client.invite','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(14,'workspace.view','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(15,'workspace.create','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(16,'workspace.update','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(17,'workspace.delete','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(18,'matter.view','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(19,'matter.create','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(20,'matter.update','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(21,'matter.delete','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(22,'milestone.view','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(23,'milestone.create','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(24,'milestone.update','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(25,'milestone.delete','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(26,'document.view','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(27,'document.upload','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(28,'document.download','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(29,'document.update','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(30,'document.delete','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(31,'folder.view','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(32,'folder.create','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(33,'folder.update','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(34,'folder.delete','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(35,'envelope.view','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(36,'envelope.create','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(37,'envelope.send','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(38,'envelope.sign','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(39,'envelope.void','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(40,'message.view','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(41,'message.send','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(42,'audit-log.view','web','2026-08-19 05:46:47','2026-08-19 05:46:47');
 /*!40000 ALTER TABLE `permissions` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -953,6 +959,7 @@ CREATE TABLE `providers` (
   `primary_color` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `secondary_color` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `plan` enum('starter','professional','firm') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'starter',
+  `docusign_brand_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `trial_ends_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -1113,9 +1120,9 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `roles` WRITE;
 /*!40000 ALTER TABLE `roles` DISABLE KEYS */;
 INSERT INTO `roles` VALUES
-(1,'owner','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(2,'staff','web','2026-08-18 23:40:05','2026-08-18 23:40:05'),
-(3,'client','web','2026-08-18 23:40:05','2026-08-18 23:40:05');
+(1,'owner','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(2,'staff','web','2026-08-19 05:46:47','2026-08-19 05:46:47'),
+(3,'client','web','2026-08-19 05:46:47','2026-08-19 05:46:47');
 /*!40000 ALTER TABLE `roles` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -1193,6 +1200,43 @@ COMMIT;
 SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
+-- Table structure for table `signature_webhook_events`
+--
+
+DROP TABLE IF EXISTS `signature_webhook_events`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `signature_webhook_events` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `provider` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'documenso',
+  `event_type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `provider_envelope_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `envelope_id` bigint unsigned DEFAULT NULL,
+  `payload` json NOT NULL,
+  `payload_hash` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `processed_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `signature_webhook_events_payload_hash_unique` (`payload_hash`),
+  KEY `signature_webhook_events_envelope_id_foreign` (`envelope_id`),
+  CONSTRAINT `signature_webhook_events_envelope_id_foreign` FOREIGN KEY (`envelope_id`) REFERENCES `envelopes` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `signature_webhook_events`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `signature_webhook_events` WRITE;
+/*!40000 ALTER TABLE `signature_webhook_events` DISABLE KEYS */;
+/*!40000 ALTER TABLE `signature_webhook_events` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
 -- Table structure for table `signers`
 --
 
@@ -1202,6 +1246,7 @@ DROP TABLE IF EXISTS `signers`;
 CREATE TABLE `signers` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `envelope_id` bigint unsigned NOT NULL,
+  `provider_signer_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `routing_order` int unsigned NOT NULL DEFAULT '1',
@@ -1343,11 +1388,11 @@ COMMIT;
 SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
--- Dumping events for database 'pacttrace_test'
+-- Dumping events for database 'pacttrack_test'
 --
 
 --
--- Dumping routines for database 'pacttrace_test'
+-- Dumping routines for database 'pacttrack_test'
 --
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -1359,4 +1404,4 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
 
--- Dump completed on 2026-08-18 23:40:08
+-- Dump completed on 2026-08-19  5:46:48

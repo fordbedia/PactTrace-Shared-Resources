@@ -1,9 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use PactTraceSDK\SharedResources\Modules\User\Http\Controllers\RegistrationController;
-use PactTraceSDK\SharedResources\Modules\User\Http\Controllers\SessionController;
-use PactTraceSDK\SharedResources\Modules\User\Http\Controllers\UserController;
+use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\RegistrationController;
+use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\SessionController;
+use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\UserController;
 
 /*
 | Loaded by SharedResourceServiceProvider under the `api` prefix and the `api`

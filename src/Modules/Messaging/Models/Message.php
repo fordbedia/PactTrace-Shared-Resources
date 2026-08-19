@@ -1,13 +1,13 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Messaging\Models;
+namespace PactTrackSDK\SharedResources\Modules\Messaging\Models;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use PactTraceSDK\SharedResources\Modules\Messaging\Database\Factories\MessageFactory;
+use PactTrackSDK\SharedResources\Modules\Messaging\Database\Factories\MessageFactory;
 
 class Message extends Model
 {

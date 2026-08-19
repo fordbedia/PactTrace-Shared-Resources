@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Tests;
+namespace PactTrackSDK\SharedResources\Modules\Document\Tests;
 
-use PactTraceSDK\SharedResources\Modules\Document\Application\UseCases\DeleteDocumentHandler;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Exceptions\DocumentCannotBeDeletedException;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
-use PactTraceSDK\SharedResources\TestCase\Migrations\BaseTest;
-use PactTraceSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
-use PactTraceSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
+use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\DeleteDocumentHandler;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Exceptions\DocumentCannotBeDeletedException;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
+use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
+use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
 
 /**
  * See .claude/rules/document.md, "Document Deletion & Archival Rules": only

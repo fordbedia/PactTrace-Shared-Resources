@@ -1,8 +1,8 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Notification\Application\DTO;
+namespace PactTrackSDK\SharedResources\Modules\Notification\Application\DTO;
 
-use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
+use PactTrackSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
 
 class ClientInvitationData
 {

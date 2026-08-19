@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Domain\Exceptions;
+namespace PactTrackSDK\SharedResources\Modules\Document\Domain\Exceptions;
 
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use RuntimeException;
 
 final class DocumentCannotBeDeletedException extends RuntimeException

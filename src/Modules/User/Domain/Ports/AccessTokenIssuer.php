@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Domain\Ports;
+namespace PactTrackSDK\SharedResources\Modules\User\Domain\Ports;
 
 /**
  * Issues the API credential a freshly registered user signs in with.

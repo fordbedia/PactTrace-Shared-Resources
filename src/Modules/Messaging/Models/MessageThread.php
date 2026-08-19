@@ -1,15 +1,15 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Messaging\Models;
+namespace PactTrackSDK\SharedResources\Modules\Messaging\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
-use PactTraceSDK\SharedResources\Modules\Messaging\Database\Factories\MessageThreadFactory;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
+use PactTrackSDK\SharedResources\Modules\Messaging\Database\Factories\MessageThreadFactory;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 
 class MessageThread extends Model
 {

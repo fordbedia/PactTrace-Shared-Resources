@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Workspace\Domain\ValueObjects;
+namespace PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects;
 
 use InvalidArgumentException;
 

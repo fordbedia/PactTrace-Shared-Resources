@@ -1,12 +1,12 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Models;
+namespace PactTrackSDK\SharedResources\Modules\Document\Models;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use PactTraceSDK\SharedResources\Modules\Document\Database\Factories\DocumentVersionFactory;
+use PactTrackSDK\SharedResources\Modules\Document\Database\Factories\DocumentVersionFactory;
 
 class DocumentVersion extends Model
 {

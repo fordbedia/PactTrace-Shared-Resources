@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Application\UseCases;
+namespace PactTrackSDK\SharedResources\Modules\Document\Application\UseCases;
 
-use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Exceptions\DocumentCannotBeDeletedException;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Services\DocumentDeletionPolicy;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
-use PactTraceSDK\SharedResources\Modules\Notification\Models\AuditLog;
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Exceptions\DocumentCannotBeDeletedException;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Services\DocumentDeletionPolicy;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 
 /**
  * The only path allowed to soft-delete a Document — see

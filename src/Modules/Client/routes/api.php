@@ -1,8 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use PactTraceSDK\SharedResources\Modules\Client\Http\Controllers\ClientController;
-use PactTraceSDK\SharedResources\Modules\Client\Http\Controllers\ClientInvitationController;
+use PactTrackSDK\SharedResources\Modules\Client\Http\Controllers\ClientController;
+use PactTrackSDK\SharedResources\Modules\Client\Http\Controllers\ClientInvitationController;
 
 Route::prefix('v1')->group(function () {
 	// Deliberately outside auth:sanctum — the whole point is that the person

@@ -1,23 +1,23 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Document;
+namespace PactTrackSDK\SharedResources\Modules\Document;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
-use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository\FolderRepository;
-use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Service\StorageUsageCalculator;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Ports\StorageQuotas;
-use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Quota\ConfigStorageQuotas;
-use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentDocumentRepository;
-use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentFolderRepository;
-use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\S3\S3DocumentStorage;
-use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Services\DocumentStorageUsageService;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Folder;
-use PactTraceSDK\SharedResources\Modules\Document\Policies\DocumentPolicy;
-use PactTraceSDK\SharedResources\Modules\Document\Policies\FolderPolicy;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\FolderRepository;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Service\StorageUsageCalculator;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\StorageQuotas;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Quota\ConfigStorageQuotas;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentDocumentRepository;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentFolderRepository;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\S3\S3DocumentStorage;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Services\DocumentStorageUsageService;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Folder;
+use PactTrackSDK\SharedResources\Modules\Document\Policies\DocumentPolicy;
+use PactTrackSDK\SharedResources\Modules\Document\Policies\FolderPolicy;
 
 class DocumentProvider extends ServiceProvider
 {

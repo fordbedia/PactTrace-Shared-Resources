@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Policies;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Policies;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Model;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Milestone;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
-use PactTraceSDK\SharedResources\Modules\User\Application\Authorization\TenantScopedPolicy;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Milestone;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\User\Application\Authorization\TenantScopedPolicy;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
 
 /**
  * Milestones carry no `provider_id` or `client_id` of their own — they inherit

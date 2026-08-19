@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\SDK\Database;
+namespace PactTrackSDK\SharedResources\SDK\Database;
 
 use Illuminate\Database\Seeder;
 

@@ -1,21 +1,21 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\User;
+namespace PactTrackSDK\SharedResources\Modules\User;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use PactTraceSDK\SharedResources\Modules\User\Console\Commands\NotifyTrialEnding;
-use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
-use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
-use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
-use PactTraceSDK\SharedResources\Modules\User\Domain\Ports\AccessTokenIssuer;
-use PactTraceSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
-use PactTraceSDK\SharedResources\Modules\User\Infrastructure\Auth\SanctumTokenIssuer;
-use PactTraceSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentProviderRepository;
-use PactTraceSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentSubscriptionRepository;
-use PactTraceSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentUserRepository;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
-use PactTraceSDK\SharedResources\Modules\User\Policies\ProviderPolicy;
+use PactTrackSDK\SharedResources\Modules\User\Console\Commands\NotifyTrialEnding;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\AccessTokenIssuer;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Auth\SanctumTokenIssuer;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentProviderRepository;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentSubscriptionRepository;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentUserRepository;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\User\Policies\ProviderPolicy;
 
 class UserProvider extends ServiceProvider
 {

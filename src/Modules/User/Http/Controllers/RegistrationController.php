@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Http\Controllers;
+namespace PactTrackSDK\SharedResources\Modules\User\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
-use PactTraceSDK\SharedResources\Modules\User\Application\Services\UserAuthentication;
-use PactTraceSDK\SharedResources\Modules\User\Application\Services\UserHintCookie;
-use PactTraceSDK\SharedResources\Modules\User\Application\UseCases\RegisterProvider;
-use PactTraceSDK\SharedResources\Modules\User\Http\Requests\StoreRegistrationRequest;
-use PactTraceSDK\SharedResources\Modules\User\Http\Resources\UserResource;
+use PactTrackSDK\SharedResources\Modules\User\Application\Services\UserAuthentication;
+use PactTrackSDK\SharedResources\Modules\User\Application\Services\UserHintCookie;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\RegisterProvider;
+use PactTrackSDK\SharedResources\Modules\User\Http\Requests\StoreRegistrationRequest;
+use PactTrackSDK\SharedResources\Modules\User\Http\Resources\UserResource;
 
 /**
  * Inbound adapter for signup. Translates HTTP into one call against the

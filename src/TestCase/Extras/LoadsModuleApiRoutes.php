@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\TestCase\Extras;
+namespace PactTrackSDK\SharedResources\TestCase\Extras;
 
 use Illuminate\Routing\Middleware\SubstituteBindings;
 

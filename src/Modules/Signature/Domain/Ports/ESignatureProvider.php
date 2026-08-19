@@ -2,43 +2,98 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Signature\Domain\Ports;
+namespace PactTrackSDK\SharedResources\Modules\Signature\Domain\Ports;
+
+use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\EnvelopeRecipient;
+use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\SigningToken;
+use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\WebhookEvent;
 
 /**
- * Outbound port to whatever e-signature provider is configured
- * (Documenso today; HelloSign/DocuSign are swappable adapters behind this
- * same interface per the hexagonal rule in the top-level CLAUDE.md).
+ * Outbound port to whatever e-signature provider is configured (DocuSign
+ * today, via JWT Grant — see Infrastructure/Docusign/). Swappable behind
+ * this same interface per the hexagonal rule in the top-level CLAUDE.md.
  *
- * Deliberately narrow: PactTrace only uses this port to get a document into
- * the provider and hand a human a link to the provider's own native
- * prepare/tag UI. Recipient and field-placement APIs are intentionally NOT
- * wrapped here — the attorney tags fields and adds recipients directly in
- * the provider's own dashboard (see Signature module rules doc, "field
- * placement" section), so PactTrace's domain code never needs to model
- * field coordinates itself. If that decision changes (e.g. PactTrace builds
- * its own coordinate-based tagger), extend this port with
- * createRecipients()/createFields() methods rather than reaching for the
- * provider's SDK/HTTP client outside of Infrastructure/.
+ * Wider than the original Documenso-era port on purpose: DocuSign's
+ * embedded model needs a distinct sender view (tenant tags fields + sends,
+ * inside PactTrack) and recipient view (client signs, inside PactTrack) —
+ * see .claude/rules/signature.md, "Flow A" / "Flow B". PactTrack still never
+ * models field/tab coordinates itself: both views are DocuSign's own hosted
+ * UI, rendered in an iframe; this port only gets a document in, gets a URL
+ * to embed, and reads status back out.
  */
 interface ESignatureProvider
 {
     /**
-     * Create a draft envelope in the provider and upload the document's
-     * bytes to it. Returns the provider's own envelope/document identifier
-     * (persisted locally as Envelope::provider_envelope_id).
+     * Create a draft envelope in the provider, upload the document's bytes
+     * to it, and add the one recipient it will be sent to (required up
+     * front — DocuSign's embedded views can't resolve a recipient that
+     * isn't already on the envelope). Returns the provider's own envelope
+     * identifier (persisted locally as Envelope::provider_envelope_id).
      */
     public function createDraftEnvelope(
         string $title,
         string $fileName,
         string $fileContents,
+        EnvelopeRecipient $recipient,
         ?string $externalId = null,
     ): string;
 
     /**
-     * Build a URL to the provider's own hosted "prepare" UI for this
-     * envelope — where a human drags signature/date/text fields onto the
-     * document and adds recipients, using the provider's native editor.
-     * Not embedded in PactTrace; opened in a new tab/window.
+     * Build a URL to the provider's own hosted "prepare and send" UI for
+     * this envelope, embedded in an iframe inside PactTrack — where the
+     * tenant/staff drags on signature/date/text fields and sends. Not a
+     * new-tab link-out; see .claude/rules/signature.md, "Flow A".
      */
-    public function editorUrl(string $providerEnvelopeId): string;
+    public function senderViewUrl(string $providerEnvelopeId, string $returnUrl): string;
+
+    /**
+     * Build a URL to the provider's own hosted signing UI for the given
+     * recipient, embedded in an iframe inside the client portal. Returned
+     * wrapped in a SigningToken for response-shape stability with the
+     * pre-DocuSign contract (frontend/backend already speak `signing_url`);
+     * DocuSign's recipient view has no separate reusable "token" the way
+     * embedding tokens in other providers do, so `token` here is an opaque
+     * value carried along for audit/debugging only — never re-used to mint
+     * a second view.
+     */
+    public function recipientViewUrl(
+        string $providerEnvelopeId,
+        EnvelopeRecipient $recipient,
+        string $returnUrl,
+    ): SigningToken;
+
+    /**
+     * Apply a Signing Brand (logo/colors/email templates) to a draft
+     * envelope. `$brandId === null` is a normal, non-error "send unbranded"
+     * outcome — not every plan/tenant has one configured — so this is a
+     * no-op when null, not a caller-side branch; see
+     * Application/Services/ResolveEnvelopeBrand and
+     * .claude/rules/signature.md.
+     */
+    public function applyBrand(string $providerEnvelopeId, ?string $brandId): void;
+
+    /**
+     * Read the envelope's current status directly from the provider — used
+     * only for optimistic, read-only UI feedback right after an embedded
+     * view's returnUrl fires (see Application/UseCases/CheckEnvelopeProviderStatus).
+     * Never the basis for a persisted Envelope status change — that's the
+     * webhook's job exclusively (RecordSignatureCompletionUseCase).
+     */
+    public function fetchEnvelopeStatus(string $providerEnvelopeId): string;
+
+    /**
+     * Verify an inbound webhook (DocuSign Connect) actually came from the
+     * provider before anything in its payload is trusted.
+     * `$signatureHeader` is whatever header the provider signs the payload
+     * with — see DocusignWebhookController.
+     */
+    public function verifyWebhookSignature(string $rawPayload, ?string $signatureHeader): bool;
+
+    /**
+     * Normalize a provider-shaped webhook payload into PactTrack's own
+     * vocabulary. Kept on the port (rather than inlined in the webhook
+     * controller) so a future provider swap can supply its own mapping
+     * without touching RecordSignatureCompletionUseCase.
+     */
+    public function normalizeWebhookEvent(array $payload): WebhookEvent;
 }

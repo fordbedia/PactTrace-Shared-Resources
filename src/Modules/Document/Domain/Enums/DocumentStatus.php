@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Domain\Enums;
+namespace PactTrackSDK\SharedResources\Modules\Document\Domain\Enums;
 
 /**
  * A document's position in the send/sign lifecycle — see

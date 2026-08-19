@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Signature\Application\DTO;
+namespace PactTrackSDK\SharedResources\Modules\Signature\Application\DTO;
 
 class ProviderData
 {

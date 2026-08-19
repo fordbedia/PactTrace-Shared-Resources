@@ -1,8 +1,8 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Application\Ports\Repository;
+namespace PactTrackSDK\SharedResources\Modules\Client\Application\Ports\Repository;
 
-use PactTraceSDK\SharedResources\Modules\Client\Models\ClientInvitation;
+use PactTrackSDK\SharedResources\Modules\Client\Models\ClientInvitation;
 
 interface ClientInvitationRepository
 {

@@ -1,12 +1,12 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Signature\Models;
+namespace PactTrackSDK\SharedResources\Modules\Signature\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use PactTraceSDK\SharedResources\Modules\Signature\Database\Factories\SignerFactory;
+use PactTrackSDK\SharedResources\Modules\Signature\Database\Factories\SignerFactory;
 
 class Signer extends Model
 {
@@ -14,6 +14,7 @@ class Signer extends Model
 
     protected $fillable = [
         'envelope_id',
+        'provider_signer_id',
         'name',
         'email',
         'routing_order',

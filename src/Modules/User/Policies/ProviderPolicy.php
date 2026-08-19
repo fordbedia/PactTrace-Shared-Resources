@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Policies;
+namespace PactTrackSDK\SharedResources\Modules\User\Policies;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
-use PactTraceSDK\SharedResources\Modules\User\Application\Authorization\TenantScopedPolicy;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Application\Authorization\TenantScopedPolicy;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 
 class ProviderPolicy extends TenantScopedPolicy
 {

@@ -1,11 +1,11 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\User\Models;
+namespace PactTrackSDK\SharedResources\Modules\User\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use PactTraceSDK\SharedResources\Modules\User\Database\Factories\SubscriptionFactory;
+use PactTrackSDK\SharedResources\Modules\User\Database\Factories\SubscriptionFactory;
 
 /**
  * The authoritative billing/plan record for a Provider (tenant). Created at

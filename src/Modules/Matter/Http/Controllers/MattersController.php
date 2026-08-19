@@ -1,28 +1,28 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Http\Controllers;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use PactTraceSDK\SharedResources\Modules\Client\Http\Resources\ClientResource;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\CountActiveMattersHandler;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\CountCompletedMattersHandler;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\CountOnHoldMattersHandler;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\CountTotalMattersHandler;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\CreateMattersHandler;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\ListMattersHandler;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\SearchMatterClientsHandler;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Action\SearchMattersHandler;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\DTO\ClientSearchData;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\DTO\MatterSearchData;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\DTO\MattersData;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\DTO\MattersListData;
-use PactTraceSDK\SharedResources\Modules\Matter\Http\Requests\MattersRequest;
-use PactTraceSDK\SharedResources\Modules\Matter\Http\Resources\MatterResource;
-use PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterCountFormatter;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
+use PactTrackSDK\SharedResources\Modules\Client\Http\Resources\ClientResource;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\CountActiveMattersHandler;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\CountCompletedMattersHandler;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\CountOnHoldMattersHandler;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\CountTotalMattersHandler;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\CreateMattersHandler;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\ListMattersHandler;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\SearchMatterClientsHandler;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\SearchMattersHandler;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\ClientSearchData;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\MatterSearchData;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\MattersData;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\MattersListData;
+use PactTrackSDK\SharedResources\Modules\Matter\Http\Requests\MattersRequest;
+use PactTrackSDK\SharedResources\Modules\Matter\Http\Resources\MatterResource;
+use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterCountFormatter;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
 
 class MattersController extends Controller
 {

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Application\Services;
+namespace PactTrackSDK\SharedResources\Modules\User\Application\Services;
 
 use Illuminate\Support\Str;
-use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use RuntimeException;
 
 /**

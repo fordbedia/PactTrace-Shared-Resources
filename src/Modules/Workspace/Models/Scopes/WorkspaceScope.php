@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Workspace\Models\Scopes;
+namespace PactTrackSDK\SharedResources\Modules\Workspace\Models\Scopes;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
 
 /**
  * Constrains every query on a workspace-scoped model to the current workspace.

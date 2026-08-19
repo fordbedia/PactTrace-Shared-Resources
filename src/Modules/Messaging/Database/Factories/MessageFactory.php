@@ -1,11 +1,11 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Messaging\Database\Factories;
+namespace PactTrackSDK\SharedResources\Modules\Messaging\Database\Factories;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use PactTraceSDK\SharedResources\Modules\Messaging\Models\Message;
-use PactTraceSDK\SharedResources\Modules\Messaging\Models\MessageThread;
+use PactTrackSDK\SharedResources\Modules\Messaging\Models\Message;
+use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<Message>

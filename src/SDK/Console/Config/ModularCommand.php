@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\SDK\Console\Config;
+namespace PactTrackSDK\SharedResources\SDK\Console\Config;
 
 use Illuminate\Console\Command;
 use ReflectionClass;

@@ -1,10 +1,10 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Infrastructure\Repositories\Eloquent;
+namespace PactTrackSDK\SharedResources\Modules\Client\Infrastructure\Repositories\Eloquent;
 
-use PactTraceSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientInvitationRepository;
-use PactTraceSDK\SharedResources\Modules\Client\Infrastructure\Repositories\BaseRepository;
-use PactTraceSDK\SharedResources\Modules\Client\Models\ClientInvitation;
+use PactTrackSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientInvitationRepository;
+use PactTrackSDK\SharedResources\Modules\Client\Infrastructure\Repositories\BaseRepository;
+use PactTrackSDK\SharedResources\Modules\Client\Models\ClientInvitation;
 
 class EloquentClientInvitationRepository extends BaseRepository implements ClientInvitationRepository
 {

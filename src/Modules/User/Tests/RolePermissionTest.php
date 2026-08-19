@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Tests;
+namespace PactTrackSDK\SharedResources\Modules\User\Tests;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
-use PactTraceSDK\SharedResources\TestCase\Migrations\BaseTest;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
+use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 use Spatie\Permission\Models\Permission as SpatiePermission;
 use Spatie\Permission\Models\Role as SpatieRole;
 

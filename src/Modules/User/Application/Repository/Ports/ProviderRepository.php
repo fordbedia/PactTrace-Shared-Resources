@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports;
+namespace PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 
 /**
  * Port for persisting the tenant record.

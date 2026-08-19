@@ -1,8 +1,8 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Application\Action;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Application\Action;
 
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Ports\Repository\MattersRepository;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Repository\MattersRepository;
 
 class CreateMattersHandler
 {

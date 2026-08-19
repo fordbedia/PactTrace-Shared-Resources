@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Policies;
+namespace PactTrackSDK\SharedResources\Modules\Document\Policies;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Model;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Folder;
-use PactTraceSDK\SharedResources\Modules\User\Application\Authorization\TenantScopedPolicy;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Folder;
+use PactTrackSDK\SharedResources\Modules\User\Application\Authorization\TenantScopedPolicy;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
 
 class FolderPolicy extends TenantScopedPolicy
 {

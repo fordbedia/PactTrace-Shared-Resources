@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Application\Authorization;
+namespace PactTrackSDK\SharedResources\Modules\User\Application\Authorization;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Model;
-use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 
 /**
- * Base class for every PactTrace policy.
+ * Base class for every PactTrack policy.
  *
  * Authorising an action here is always two separate questions:
  *

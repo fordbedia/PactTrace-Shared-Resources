@@ -1,9 +1,9 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\User\Console\Commands;
+namespace PactTrackSDK\SharedResources\Modules\User\Console\Commands;
 
 use Illuminate\Console\Command;
-use PactTraceSDK\SharedResources\Modules\User\Application\UseCases\ProcessTrialExpirations;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\ProcessTrialExpirations;
 
 /**
  * Thin console adapter — same rule as an HTTP controller (see top-level

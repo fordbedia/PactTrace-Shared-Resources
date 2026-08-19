@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Workspace\Database\Factories;
+namespace PactTrackSDK\SharedResources\Modules\Workspace\Database\Factories;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
-use PactTraceSDK\SharedResources\Modules\Workspace\Models\Workspace;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
+use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<Workspace>

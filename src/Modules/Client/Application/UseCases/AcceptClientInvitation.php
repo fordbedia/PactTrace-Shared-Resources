@@ -1,14 +1,14 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Application\UseCases;
+namespace PactTrackSDK\SharedResources\Modules\Client\Application\UseCases;
 
-use PactTraceSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientInvitationRepository;
-use PactTraceSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientRepository;
-use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
-use PactTraceSDK\SharedResources\Modules\User\Application\Services\UserRegistration;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
-use PactTraceSDK\SharedResources\SDK\Application\Ports\Transactional;
+use PactTrackSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientInvitationRepository;
+use PactTrackSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientRepository;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
+use PactTrackSDK\SharedResources\Modules\User\Application\Services\UserRegistration;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\SDK\Application\Ports\Transactional;
 use RuntimeException;
 
 /**

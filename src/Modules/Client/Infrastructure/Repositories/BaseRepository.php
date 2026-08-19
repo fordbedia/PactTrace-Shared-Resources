@@ -1,8 +1,8 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Infrastructure\Repositories;
+namespace PactTrackSDK\SharedResources\Modules\Client\Infrastructure\Repositories;
 
-use PactTraceSDK\SharedResources\SDK\Database\RepositoryLayer;
+use PactTrackSDK\SharedResources\SDK\Database\RepositoryLayer;
 
 abstract class BaseRepository extends RepositoryLayer
 {

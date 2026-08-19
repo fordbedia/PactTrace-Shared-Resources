@@ -1,9 +1,9 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Services;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Services;
 
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Ports\Repository\MattersRepository;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Ports\Service\MatterStatsService as MatterStatsServiceContract;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Repository\MattersRepository;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Service\MatterStatsService as MatterStatsServiceContract;
 
 class MatterStatsService implements MatterStatsServiceContract
 {

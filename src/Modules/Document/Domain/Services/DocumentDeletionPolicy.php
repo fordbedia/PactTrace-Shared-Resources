@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Domain\Services;
+namespace PactTrackSDK\SharedResources\Modules\Document\Domain\Services;
 
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 
 /**
  * Whether a document may be permanently (soft-)deleted at all — see

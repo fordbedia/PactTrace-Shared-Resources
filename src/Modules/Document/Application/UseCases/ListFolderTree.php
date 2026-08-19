@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Application\UseCases;
+namespace PactTrackSDK\SharedResources\Modules\Document\Application\UseCases;
 
 use Illuminate\Support\Collection;
-use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository\FolderRepository;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Folder;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\FolderRepository;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Folder;
 
 /**
  * Turns a provider's flat `folders` rows into the nested `{ id, name,

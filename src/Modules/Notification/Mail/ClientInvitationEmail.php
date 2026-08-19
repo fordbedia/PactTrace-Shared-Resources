@@ -1,15 +1,15 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Notification\Mail;
+namespace PactTrackSDK\SharedResources\Modules\Notification\Mail;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use PactTraceSDK\SharedResources\Modules\Notification\Application\DTO\ClientInvitationData;
-use PactTraceSDK\SharedResources\Modules\Signature\Application\DTO\ProviderData;
-use PactTraceSDK\SharedResources\Modules\User\Domain\Enum\SubscriptionPlan;
+use PactTrackSDK\SharedResources\Modules\Notification\Application\DTO\ClientInvitationData;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\DTO\ProviderData;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Enum\SubscriptionPlan;
 
 class ClientInvitationEmail extends Mailable
 {

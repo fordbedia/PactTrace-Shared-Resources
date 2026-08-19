@@ -1,10 +1,10 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Application\Action;
+namespace PactTrackSDK\SharedResources\Modules\Client\Application\Action;
 
-use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
-use PactTraceSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientRepository;
-use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
+use PactTrackSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
+use PactTrackSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientRepository;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 
 class CreateClientHandler
 {

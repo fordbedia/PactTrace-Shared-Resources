@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Tests;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Tests;
 
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Milestone;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
-use PactTraceSDK\SharedResources\TestCase\Migrations\BaseTest;
-use PactTraceSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
-use PactTraceSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Milestone;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
+use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
+use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
 
 /**
  * Milestones are the one model whose tenancy is indirect — the row has no

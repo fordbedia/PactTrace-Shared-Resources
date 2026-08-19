@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent;
+namespace PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
-use PactTraceSDK\SharedResources\Modules\User\Infrastructure\Repositories\BaseRepository;
-use PactTraceSDK\SharedResources\Modules\User\Models\Subscription;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\BaseRepository;
+use PactTrackSDK\SharedResources\Modules\User\Models\Subscription;
 
 class EloquentSubscriptionRepository extends BaseRepository implements SubscriptionRepository
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Application\Ports\Repository;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Repository;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;

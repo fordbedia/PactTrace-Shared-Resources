@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Domain\Ports;
+namespace PactTrackSDK\SharedResources\Modules\Document\Domain\Ports;
 
 /**
  * Outbound port for "how many bytes does this plan allow". Implemented by

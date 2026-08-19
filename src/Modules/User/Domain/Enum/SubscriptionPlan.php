@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\User\Domain\Enum;
+namespace PactTrackSDK\SharedResources\Modules\User\Domain\Enum;
 
 enum SubscriptionPlan: string
 {

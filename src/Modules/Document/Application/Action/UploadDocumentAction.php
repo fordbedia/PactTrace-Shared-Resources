@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Application\Action;
+namespace PactTrackSDK\SharedResources\Modules\Document\Application\Action;
 
-use PactTraceSDK\SharedResources\Modules\Document\Application\DTO\DocumentData;
-use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
-use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Upload\DocumentUploadService;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Document\Application\DTO\DocumentData;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Upload\DocumentUploadService;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 
 /**
  * Orchestration behind the "Upload Documents" modal on /dashboard/documents

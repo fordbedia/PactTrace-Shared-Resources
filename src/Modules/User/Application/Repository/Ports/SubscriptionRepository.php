@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports;
+namespace PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use PactTraceSDK\SharedResources\Modules\User\Models\Subscription;
+use PactTrackSDK\SharedResources\Modules\User\Models\Subscription;
 
 /**
  * Port for persisting and querying a provider's billing record.

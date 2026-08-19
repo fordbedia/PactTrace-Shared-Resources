@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\SDK\Console\Config;
+namespace PactTrackSDK\SharedResources\SDK\Console\Config;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 
 class CreateModule extends Command
 {
-    protected $signature = 'pacttrace:createmodule {moduleName : Module name, e.g. AdvancedFilter}';
+    protected $signature = 'pacttrack:createmodule {moduleName : Module name, e.g. AdvancedFilter}';
 
     protected $description = 'Create a shared-resources module scaffold';
 
@@ -94,7 +94,7 @@ class CreateModule extends Command
         File::put($providerPath, <<<PHP
 <?php
 
-namespace PactTraceSDK\\SharedResources\\Modules\\{$moduleName};
+namespace PactTrackSDK\\SharedResources\\Modules\\{$moduleName};
 
 use Illuminate\\Support\\ServiceProvider;
 
@@ -123,7 +123,7 @@ PHP);
     protected function registerModuleProvider(string $moduleName, string $providerClass, string $serviceProviderPath): bool
     {
         $contents = File::get($serviceProviderPath);
-        $providerFqn = "PactTraceSDK\\SharedResources\\Modules\\{$moduleName}\\{$providerClass}";
+        $providerFqn = "PactTrackSDK\\SharedResources\\Modules\\{$moduleName}\\{$providerClass}";
         $useStatement = "use {$providerFqn};";
         $providerEntry = "{$providerClass}::class,";
         $updated = $contents;
@@ -164,7 +164,7 @@ PHP);
         }
 
         return preg_replace(
-            '/^(namespace PactTraceSDK\\\\SharedResources;\R)/m',
+            '/^(namespace PactTrackSDK\\\\SharedResources;\R)/m',
             "$1\n{$useStatement}\n",
             $contents,
             1

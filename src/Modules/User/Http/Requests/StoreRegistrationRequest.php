@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Http\Requests;
+namespace PactTrackSDK\SharedResources\Modules\User\Http\Requests;
 
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
 
 /**
  * Validation for `POST /api/user/register`.

@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\SDK\Application\Ports;
+namespace PactTrackSDK\SharedResources\SDK\Application\Ports;
 
 interface Transactional
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\SDK\Foundation\Enums;
+namespace PactTrackSDK\SharedResources\SDK\Foundation\Enums;
 
 enum StubsPathEnum: string
 {
@@ -32,6 +32,6 @@ enum StubsPathEnum: string
 
     public function getFullPath()
     {
-        return '/vendor/pacttrace/shared-resources/src/SDK/Foundation/stubs/' . $this->value;
+        return '/vendor/pacttrack/shared-resources/src/SDK/Foundation/stubs/' . $this->value;
     }
 }

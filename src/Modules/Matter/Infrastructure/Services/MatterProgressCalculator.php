@@ -1,9 +1,9 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Services;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Services;
 
-use PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Repositories\Eloquent\EloquentMattersRepository;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Repositories\Eloquent\EloquentMattersRepository;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 
 /**
  * Backs the "Progress" column/bar on `/dashboard/matters` and the matter

@@ -3,7 +3,7 @@
 namespace {{ namespace }};
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use PactTraceSDK\SharedResources\SDK\Database\MakeSeeder;
+use PactTrackSDK\SharedResources\SDK\Database\MakeSeeder;
 
 class {{ class }} extends MakeSeeder
 {

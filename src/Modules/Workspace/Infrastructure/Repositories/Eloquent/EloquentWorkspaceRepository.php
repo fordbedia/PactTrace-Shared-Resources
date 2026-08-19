@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Workspace\Infrastructure\Repositories\Eloquent;
+namespace PactTrackSDK\SharedResources\Modules\Workspace\Infrastructure\Repositories\Eloquent;
 
-use PactTraceSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceRepository;
-use PactTraceSDK\SharedResources\Modules\Workspace\Infrastructure\Repositories\BaseRepository;
-use PactTraceSDK\SharedResources\Modules\Workspace\Models\Workspace;
+use PactTrackSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceRepository;
+use PactTrackSDK\SharedResources\Modules\Workspace\Infrastructure\Repositories\BaseRepository;
+use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
 
 class EloquentWorkspaceRepository extends BaseRepository implements WorkspaceRepository
 {

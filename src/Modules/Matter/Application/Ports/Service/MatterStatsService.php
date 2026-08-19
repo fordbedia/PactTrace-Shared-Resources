@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Application\Ports\Service;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Service;
 
 /**
  * Backs the four stat cards on `/dashboard/matters` ("Total Matters",

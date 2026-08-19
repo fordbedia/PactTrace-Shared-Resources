@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Http\Controllers;
+namespace PactTrackSDK\SharedResources\Modules\Document\Http\Controllers;
 
 use App\Http\Concerns\ResolvesActingUser;
 use Illuminate\Http\JsonResponse;
@@ -10,23 +10,25 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
-use PactTraceSDK\SharedResources\Modules\Document\Application\Action\GetStorageUsageAction;
-use PactTraceSDK\SharedResources\Modules\Document\Application\Action\ListDocumentsAction;
-use PactTraceSDK\SharedResources\Modules\Document\Application\Action\UploadDocumentAction;
-use PactTraceSDK\SharedResources\Modules\Document\Application\UseCases\ArchiveDocumentHandler;
-use PactTraceSDK\SharedResources\Modules\Document\Application\UseCases\DeleteDocumentHandler;
-use PactTraceSDK\SharedResources\Modules\Document\Application\UseCases\UnarchiveDocumentHandler;
-use PactTraceSDK\SharedResources\Modules\Document\Application\UseCases\VoidDocumentHandler;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Exceptions\DocumentCannotBeDeletedException;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Exceptions\DocumentCannotBeVoidedException;
-use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Services\ByteFormatter;
-use PactTraceSDK\SharedResources\Modules\Document\Application\DTO\DocumentData;
-use PactTraceSDK\SharedResources\Modules\Document\Application\DTO\DocumentListData;
-use PactTraceSDK\SharedResources\Modules\Document\Http\Requests\StoreDocumentRequest;
-use PactTraceSDK\SharedResources\Modules\Document\Http\Resources\DocumentResource;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Action\GetStorageUsageAction;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Action\ListDocumentsAction;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Action\UploadDocumentAction;
+use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\ArchiveDocumentHandler;
+use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\DeleteDocumentHandler;
+use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\UnarchiveDocumentHandler;
+use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\VoidDocumentHandler;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Exceptions\DocumentCannotBeDeletedException;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Exceptions\DocumentCannotBeVoidedException;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Services\ByteFormatter;
+use PactTrackSDK\SharedResources\Modules\Document\Application\DTO\DocumentData;
+use PactTrackSDK\SharedResources\Modules\Document\Application\DTO\DocumentListData;
+use PactTrackSDK\SharedResources\Modules\Document\Http\Requests\StoreDocumentRequest;
+use PactTrackSDK\SharedResources\Modules\Document\Http\Resources\DocumentResource;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\PrepareEnvelopeForSignature;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 /**
  * Inbound adapter for the Document Center on /dashboard/documents. Thin by
@@ -57,6 +59,7 @@ class DocumentController extends Controller
         private readonly ArchiveDocumentHandler $archiveDocument,
         private readonly UnarchiveDocumentHandler $unarchiveDocument,
         private readonly VoidDocumentHandler $voidDocument,
+        private readonly PrepareEnvelopeForSignature $prepareEnvelopeForSignature,
     ) {
     }
 
@@ -129,6 +132,24 @@ class DocumentController extends Controller
 
     /**
      * POST /api/documents
+     *
+     * When the upload is attached to a client, this also fires the
+     * signature-prep step immediately — creating a draft DocuSign envelope
+     * and returning a URL to its embedded Sender View — rather than leaving
+     * the document in a dead-end state until someone remembers to click
+     * "Prepare for Signature" (see PrepareEnvelopeForSignature and the
+     * frontend's submitUpload, which opens `envelope.sender_view_url` in
+     * PrepareSignatureModal when present). A client-less upload (internal
+     * filing, no recipient yet) skips this — there's no one to send it to.
+     * A non-PDF upload also skips this: DocuSign only accepts PDF
+     * (PrepareEnvelopeForSignature::handle throws
+     * UnsupportedDocumentFormatException otherwise), and there's no point
+     * making that call — and logging its failure — for a file type we
+     * already know it will reject. Provider failures are still wrapped in
+     * try/catch so an outage never fails the upload itself; the document is
+     * still saved and the tenant can retry via the existing manual
+     * "Prepare for Signature" row action, which is idempotent (see
+     * PrepareEnvelopeForSignature::handle).
      */
     public function store(StoreDocumentRequest $request): DocumentResource|Response
     {
@@ -155,7 +176,23 @@ class DocumentController extends Controller
             request: $request,
         ));
 
-        return DocumentResource::make($document);
+        $envelopeData = null;
+
+        if ($document->client_id !== null && $document->mime_type === 'application/pdf') {
+            try {
+                $envelope = $this->prepareEnvelopeForSignature->handle($document);
+
+                $envelopeData = [
+                    'id' => $envelope->id,
+                    'status' => $envelope->status->value,
+                    'sender_view_url' => $this->prepareEnvelopeForSignature->senderViewUrlFor($envelope),
+                ];
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
+
+        return DocumentResource::make($document)->additional(['envelope' => $envelopeData]);
     }
 
     /**

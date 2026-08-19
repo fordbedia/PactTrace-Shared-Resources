@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Tests;
+namespace PactTrackSDK\SharedResources\Modules\User\Tests;
 
 use InvalidArgumentException;
-use PactTraceSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
-use PactTraceSDK\SharedResources\Modules\User\Domain\Services\SubdomainAllocator;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
-use PactTraceSDK\SharedResources\TestCase\Migrations\BaseTest;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Services\SubdomainAllocator;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
+use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**

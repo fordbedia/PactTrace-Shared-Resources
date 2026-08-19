@@ -1,11 +1,11 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Application\Ports\Repository;
+namespace PactTrackSDK\SharedResources\Modules\Client\Application\Ports\Repository;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
-use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
-use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
+use PactTrackSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 
 interface ClientRepository
 {

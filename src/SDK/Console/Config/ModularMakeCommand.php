@@ -1,10 +1,10 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\SDK\Console\Config;
+namespace PactTrackSDK\SharedResources\SDK\Console\Config;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
-use PactTraceSDK\SharedResources\SDK\Console\Helpers\Traits\ResolveStubPath;
+use PactTrackSDK\SharedResources\SDK\Console\Helpers\Traits\ResolveStubPath;
 
 abstract class ModularMakeCommand extends ModularCommand
 {

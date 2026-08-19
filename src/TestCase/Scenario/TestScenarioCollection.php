@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\TestCase\Scenario;
+namespace PactTrackSDK\SharedResources\TestCase\Scenario;
 
 use Illuminate\Support\Collection;
 

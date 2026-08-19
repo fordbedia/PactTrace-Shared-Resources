@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Application\Port\Service;
+namespace PactTrackSDK\SharedResources\Modules\Document\Application\Port\Service;
 
-use PactTraceSDK\SharedResources\Modules\Document\Domain\ValueObjects\StorageUsage;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\ValueObjects\StorageUsage;
 
 /**
  * Inbound port for the STORAGE indicator's numbers. Implemented by

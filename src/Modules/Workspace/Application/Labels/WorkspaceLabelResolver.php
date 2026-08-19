@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Workspace\Application\Labels;
+namespace PactTrackSDK\SharedResources\Modules\Workspace\Application\Labels;
 
 use InvalidArgumentException;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\Ports\WorkspacePresets;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceLabels;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
-use PactTraceSDK\SharedResources\Modules\Workspace\Models\Workspace;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\WorkspacePresets;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceLabels;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
+use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
 
 /**
  * Turns "what does this workspace call an engagement?" into a string.

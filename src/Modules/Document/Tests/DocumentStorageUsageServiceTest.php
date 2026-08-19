@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Tests;
+namespace PactTrackSDK\SharedResources\Modules\Document\Tests;
 
-use PactTraceSDK\SharedResources\Modules\Document\Application\Action\GetStorageUsageAction;
-use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Service\StorageUsageCalculator;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Ports\StorageQuotas;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\ValueObjects\StorageUsage;
-use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentDocumentRepository;
-use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Services\DocumentStorageUsageService;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
-use PactTraceSDK\SharedResources\TestCase\Migrations\BaseTest;
-use PactTraceSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
-use PactTraceSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Action\GetStorageUsageAction;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Service\StorageUsageCalculator;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\StorageQuotas;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\ValueObjects\StorageUsage;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentDocumentRepository;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Services\DocumentStorageUsageService;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
+use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
+use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
 
 /**
  * The calculation behind the STORAGE indicator on /dashboard/documents — a

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Workspace\Application\Repository\Ports;
+namespace PactTrackSDK\SharedResources\Modules\Workspace\Application\Repository\Ports;
 
-use PactTraceSDK\SharedResources\Modules\Workspace\Models\Workspace;
+use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
 
 /**
  * Port for persisting a workspace.

@@ -1,11 +1,11 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Signature\Models;
+namespace PactTrackSDK\SharedResources\Modules\Signature\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use PactTraceSDK\SharedResources\Modules\Signature\Database\Factories\SignatureFieldFactory;
+use PactTrackSDK\SharedResources\Modules\Signature\Database\Factories\SignatureFieldFactory;
 
 class SignatureField extends Model
 {

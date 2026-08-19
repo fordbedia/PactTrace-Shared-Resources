@@ -1,24 +1,24 @@
 <?php
 
-namespace PactTraceSDK\SharedResources;
+namespace PactTrackSDK\SharedResources;
 
-use PactTraceSDK\SharedResources\SDK\Application\Ports\Transactional;
-use PactTraceSDK\SharedResources\SDK\Console\Config\CreateModule;
-use PactTraceSDK\SharedResources\SDK\Console\Config\Make;
-use PactTraceSDK\SharedResources\SDK\Console\Config\ResetTestData;
-use PactTraceSDK\SharedResources\SDK\Infrastructure\Transactions\EloquentDBTransaction;
-use PactTraceSDK\SharedResources\TestCase\Command\SnapshotTestDatabase;
+use PactTrackSDK\SharedResources\SDK\Application\Ports\Transactional;
+use PactTrackSDK\SharedResources\SDK\Console\Config\CreateModule;
+use PactTrackSDK\SharedResources\SDK\Console\Config\Make;
+use PactTrackSDK\SharedResources\SDK\Console\Config\ResetTestData;
+use PactTrackSDK\SharedResources\SDK\Infrastructure\Transactions\EloquentDBTransaction;
+use PactTrackSDK\SharedResources\TestCase\Command\SnapshotTestDatabase;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\File;
-use PactTraceSDK\SharedResources\Modules\User\UserProvider;
-use PactTraceSDK\SharedResources\Modules\Client\ClientProvider;
-use PactTraceSDK\SharedResources\Modules\Matter\MatterProvider;
-use PactTraceSDK\SharedResources\Modules\Document\DocumentProvider;
-use PactTraceSDK\SharedResources\Modules\Signature\SignatureProvider;
-use PactTraceSDK\SharedResources\Modules\Messaging\MessagingProvider;
-use PactTraceSDK\SharedResources\Modules\Notification\NotificationProvider;
-use PactTraceSDK\SharedResources\Modules\Workspace\WorkspaceProvider;
+use PactTrackSDK\SharedResources\Modules\User\UserProvider;
+use PactTrackSDK\SharedResources\Modules\Client\ClientProvider;
+use PactTrackSDK\SharedResources\Modules\Matter\MatterProvider;
+use PactTrackSDK\SharedResources\Modules\Document\DocumentProvider;
+use PactTrackSDK\SharedResources\Modules\Signature\SignatureProvider;
+use PactTrackSDK\SharedResources\Modules\Messaging\MessagingProvider;
+use PactTrackSDK\SharedResources\Modules\Notification\NotificationProvider;
+use PactTrackSDK\SharedResources\Modules\Workspace\WorkspaceProvider;
 
 class SharedResourceServiceProvider extends ServiceProvider
 {
@@ -26,7 +26,7 @@ class SharedResourceServiceProvider extends ServiceProvider
 	 * Module service providers.
 	 *
 	 * Register each module's provider here as you scaffold it, e.g.
-	 *   \PactTraceSDK\SharedResources\Modules\User\UserProvider::class,
+	 *   \PactTrackSDK\SharedResources\Modules\User\UserProvider::class,
 	 */
     protected array $providers = [
 		UserProvider::class,
@@ -37,6 +37,7 @@ class SharedResourceServiceProvider extends ServiceProvider
 		MessagingProvider::class,
 		NotificationProvider::class,
 		WorkspaceProvider::class,
+
     ];
 
     public function boot()
@@ -86,7 +87,7 @@ class SharedResourceServiceProvider extends ServiceProvider
 				if (file_exists($api)) {
 					Route::prefix('api')
 						->middleware('api')
-						->namespace('PactTraceSDK\\SharedResources\\Modules\\'
+						->namespace('PactTrackSDK\\SharedResources\\Modules\\'
 							. $moduleName
 							. '\\Http\\Controllers')
 						->group($api);

@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Http\Controllers;
+namespace PactTrackSDK\SharedResources\Modules\Document\Http\Controllers;
 
 use App\Http\Concerns\ResolvesActingUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
-use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
-use PactTraceSDK\SharedResources\Modules\Document\Application\DTO\FolderData;
-use PactTraceSDK\SharedResources\Modules\Document\Application\UseCases\CreateFolder;
-use PactTraceSDK\SharedResources\Modules\Document\Application\UseCases\ListFolderTree;
-use PactTraceSDK\SharedResources\Modules\Document\Http\Requests\StoreFolderRequest;
-use PactTraceSDK\SharedResources\Modules\Document\Http\Resources\FolderResource;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Folder;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
+use PactTrackSDK\SharedResources\Modules\Document\Application\DTO\FolderData;
+use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\CreateFolder;
+use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\ListFolderTree;
+use PactTrackSDK\SharedResources\Modules\Document\Http\Requests\StoreFolderRequest;
+use PactTrackSDK\SharedResources\Modules\Document\Http\Resources\FolderResource;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Folder;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use Symfony\Component\HttpFoundation\Response;
 
 /**

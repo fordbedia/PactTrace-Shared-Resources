@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Services;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Services;
 
 /**
  * Abbreviates a raw stat-card count (Total Matters/Active/On Hold/Completed,

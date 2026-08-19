@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Http\Resources;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use PactTraceSDK\SharedResources\Modules\Client\Http\Resources\ClientResource;
-use PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterProgressCalculator;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Client\Http\Resources\ClientResource;
+use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterProgressCalculator;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 
 /**
  * A provider's matter record, backing `/dashboard/matters` (see

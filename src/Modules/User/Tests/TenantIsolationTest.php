@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Tests;
+namespace PactTrackSDK\SharedResources\Modules\User\Tests;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
-use PactTraceSDK\SharedResources\Modules\Notification\Models\AuditLog;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
-use PactTraceSDK\SharedResources\TestCase\Migrations\BaseTest;
-use PactTraceSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
-use PactTraceSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
+use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
+use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
+use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use PactTraceSDK\SharedResources\Modules\Workspace\Application\Labels\WorkspaceLabelResolver;
+use PactTrackSDK\SharedResources\Modules\Workspace\Application\Labels\WorkspaceLabelResolver;
 
 /**
  * Global helpers for the Workspace module.

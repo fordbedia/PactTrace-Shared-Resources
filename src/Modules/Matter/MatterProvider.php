@@ -1,19 +1,19 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Matter;
+namespace PactTrackSDK\SharedResources\Modules\Matter;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Ports\Repository\MattersRepository;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Ports\Service\MatterStatsService;
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Ports\Service\MattersListingService;
-use PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Repositories\Eloquent\EloquentMattersRepository;
-use PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterStatsService as EloquentMatterStatsService;
-use PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Services\MattersListingService as EloquentMattersListingService;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Milestone;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
-use PactTraceSDK\SharedResources\Modules\Matter\Policies\MilestonePolicy;
-use PactTraceSDK\SharedResources\Modules\Matter\Policies\MatterPolicy;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Repository\MattersRepository;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Service\MatterStatsService;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Service\MattersListingService;
+use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Repositories\Eloquent\EloquentMattersRepository;
+use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterStatsService as EloquentMatterStatsService;
+use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Services\MattersListingService as EloquentMattersListingService;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Milestone;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Matter\Policies\MilestonePolicy;
+use PactTrackSDK\SharedResources\Modules\Matter\Policies\MatterPolicy;
 
 class MatterProvider extends ServiceProvider
 {

@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Application\UseCases;
+namespace PactTrackSDK\SharedResources\Modules\User\Application\UseCases;
 
-use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
-use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
-use PactTraceSDK\SharedResources\Modules\User\Application\Services\UserRegistration;
-use PactTraceSDK\SharedResources\Modules\User\Domain\Services\SubdomainAllocator;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
-use PactTraceSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceRepository;
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
-use PactTraceSDK\SharedResources\SDK\Application\Ports\Transactional;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
+use PactTrackSDK\SharedResources\Modules\User\Application\Services\UserRegistration;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Services\SubdomainAllocator;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceRepository;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
+use PactTrackSDK\SharedResources\SDK\Application\Ports\Transactional;
 
 /**
  * Use case behind sign-up: turns a form submission into a tenant.
@@ -44,7 +44,7 @@ class RegisterProvider
      *
      * Borderline: arguably a billing policy rather than a registration detail.
      * It stays here only because nothing else reads it yet — move it to
-     * config/pacttrace.php the moment a second caller (billing, marketing copy)
+     * config/pacttrack.php the moment a second caller (billing, marketing copy)
      * needs the same number, or the two will drift.
      */
     private const TRIAL_DAYS = 14;

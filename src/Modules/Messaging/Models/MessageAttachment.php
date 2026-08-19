@@ -1,12 +1,12 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Messaging\Models;
+namespace PactTrackSDK\SharedResources\Modules\Messaging\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
-use PactTraceSDK\SharedResources\Modules\Messaging\Database\Factories\MessageAttachmentFactory;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Messaging\Database\Factories\MessageAttachmentFactory;
 
 class MessageAttachment extends Model
 {

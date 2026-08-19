@@ -1,14 +1,14 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Application\UseCases;
+namespace PactTrackSDK\SharedResources\Modules\Client\Application\UseCases;
 
 use Illuminate\Support\Str;
-use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
-use PactTraceSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientInvitationRepository;
-use PactTraceSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientRepository;
-use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
-use PactTraceSDK\SharedResources\Modules\Client\Models\ClientInvitation;
-use PactTraceSDK\SharedResources\SDK\Application\Ports\Transactional;
+use PactTrackSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
+use PactTrackSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientInvitationRepository;
+use PactTrackSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientRepository;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
+use PactTrackSDK\SharedResources\Modules\Client\Models\ClientInvitation;
+use PactTrackSDK\SharedResources\SDK\Application\Ports\Transactional;
 
 /**
  * Use case behind "Invite Client": creates/updates the CRM record and issues

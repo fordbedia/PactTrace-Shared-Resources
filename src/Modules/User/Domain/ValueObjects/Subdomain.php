@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects;
+namespace PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects;
 
 use InvalidArgumentException;
 
@@ -14,7 +14,7 @@ use InvalidArgumentException;
  * bound by DNS's grammar (a-z, 0-9, hyphen; must not start or end with a
  * hyphen; 63 characters max), and it shares a namespace with the hostnames the
  * product itself needs. A tenant who registers "Api Consulting" must not end up
- * owning `api.pacttrace.com`.
+ * owning `api.pacttrack.com`.
  *
  * Framework-free per the hexagonal rule in CLAUDE.md — hence hand-rolled
  * normalisation instead of Str::slug().
@@ -36,7 +36,7 @@ final class Subdomain
         'www', 'api', 'app', 'admin', 'dashboard', 'portal', 'auth', 'login',
         'signup', 'register', 'billing', 'support', 'help', 'status', 'docs',
         'mail', 'smtp', 'imap', 'ftp', 'cdn', 'static', 'assets', 'blog',
-        'test', 'staging', 'dev', 'demo', 'pacttrace',
+        'test', 'staging', 'dev', 'demo', 'pacttrack',
     ];
 
     private function __construct(

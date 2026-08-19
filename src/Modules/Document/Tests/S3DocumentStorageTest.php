@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Tests;
+namespace PactTrackSDK\SharedResources\Modules\Document\Tests;
 
 use Illuminate\Support\Facades\Storage;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
-use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\S3\S3DocumentStorage;
-use PactTraceSDK\SharedResources\TestCase\Migrations\BaseTest;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\S3\S3DocumentStorage;
+use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 
 /**
  * The DocumentStorage adapter. Exercised against `Storage::fake()` rather

@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Tests;
+namespace PactTrackSDK\SharedResources\Modules\Client\Tests;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
-use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
-use PactTraceSDK\SharedResources\TestCase\Migrations\BaseTest;
-use PactTraceSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
-use PactTraceSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
+use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
+use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
+use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
 
 /**
  * What a client-role user can reach inside their provider's portal.
@@ -74,7 +74,7 @@ class ClientPortalAccessTest extends BaseTest
 
     public function test_a_client_cannot_read_the_audit_trail(): void
     {
-        $this->assertFalse($this->tenant['clientUser']->can('viewAny', \PactTraceSDK\SharedResources\Modules\Notification\Models\AuditLog::class));
+        $this->assertFalse($this->tenant['clientUser']->can('viewAny', \PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog::class));
     }
 
     public function test_provider_internal_documents_are_hidden_from_clients(): void
@@ -102,7 +102,7 @@ class ClientPortalAccessTest extends BaseTest
         // Mid-invitation: the login exists and carries the client role, but is
         // not linked to a Client row yet. It must not inherit the whole tenant.
         $dangling = User::factory()->create([
-            'email' => 'dangling@pacttrace.test',
+            'email' => 'dangling@pacttrack.test',
             'provider_id' => $this->tenant['provider']->id,
         ]);
         $dangling->assignRole(Role::Client->value);

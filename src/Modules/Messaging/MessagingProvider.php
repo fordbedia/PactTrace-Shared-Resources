@@ -1,11 +1,11 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Messaging;
+namespace PactTrackSDK\SharedResources\Modules\Messaging;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use PactTraceSDK\SharedResources\Modules\Messaging\Models\MessageThread;
-use PactTraceSDK\SharedResources\Modules\Messaging\Policies\MessageThreadPolicy;
+use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
+use PactTrackSDK\SharedResources\Modules\Messaging\Policies\MessageThreadPolicy;
 
 class MessagingProvider extends ServiceProvider
 {

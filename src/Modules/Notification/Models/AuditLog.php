@@ -1,14 +1,14 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Notification\Models;
+namespace PactTrackSDK\SharedResources\Modules\Notification\Models;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use PactTraceSDK\SharedResources\Modules\Notification\Database\Factories\AuditLogFactory;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\Notification\Database\Factories\AuditLogFactory;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 
 class AuditLog extends Model
 {

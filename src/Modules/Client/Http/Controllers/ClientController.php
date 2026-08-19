@@ -1,23 +1,23 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Http\Controllers;
+namespace PactTrackSDK\SharedResources\Modules\Client\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
-use PactTraceSDK\SharedResources\Modules\Client\Application\Action\ListClientsHandler;
-use PactTraceSDK\SharedResources\Modules\Client\Application\Action\SearchClientsHandler;
-use PactTraceSDK\SharedResources\Modules\Client\Application\UseCases\InviteClient;
-use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
-use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientListData;
-use PactTraceSDK\SharedResources\Modules\Client\Application\DTO\ClientSearchData;
-use PactTraceSDK\SharedResources\Modules\Client\Http\Resources\ClientResource;
-use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
+use PactTrackSDK\SharedResources\Modules\Client\Application\Action\ListClientsHandler;
+use PactTrackSDK\SharedResources\Modules\Client\Application\Action\SearchClientsHandler;
+use PactTrackSDK\SharedResources\Modules\Client\Application\UseCases\InviteClient;
+use PactTrackSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
+use PactTrackSDK\SharedResources\Modules\Client\Application\DTO\ClientListData;
+use PactTrackSDK\SharedResources\Modules\Client\Application\DTO\ClientSearchData;
+use PactTrackSDK\SharedResources\Modules\Client\Http\Resources\ClientResource;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 use Illuminate\Http\Request;
-use PactTraceSDK\SharedResources\Modules\Client\Http\Requests\ClientFormRequest;
-use PactTraceSDK\SharedResources\Modules\Notification\Application\DTO\ClientInvitationData;
-use PactTraceSDK\SharedResources\Modules\Notification\Mail\ClientInvitationEmail;
-use PactTraceSDK\SharedResources\Modules\Signature\Application\DTO\ProviderData;
+use PactTrackSDK\SharedResources\Modules\Client\Http\Requests\ClientFormRequest;
+use PactTrackSDK\SharedResources\Modules\Notification\Application\DTO\ClientInvitationData;
+use PactTrackSDK\SharedResources\Modules\Notification\Mail\ClientInvitationEmail;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\DTO\ProviderData;
 
 class ClientController extends Controller
 {

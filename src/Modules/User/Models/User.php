@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\User\Models;
+namespace PactTrackSDK\SharedResources\Modules\User\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -12,9 +12,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
-use PactTraceSDK\SharedResources\Modules\User\Database\Factories\UserFactory;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
+use PactTrackSDK\SharedResources\Modules\User\Database\Factories\UserFactory;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable(['name', 'email', 'password', 'provider_id'])]
@@ -95,7 +95,7 @@ class User extends Authenticatable
     }
 
     /**
-     * The user's PactTrace role as a domain value object.
+     * The user's PactTrack role as a domain value object.
      *
      * A user is expected to hold exactly one of owner/staff/client; if several
      * are somehow assigned, the most privileged wins so authorisation never

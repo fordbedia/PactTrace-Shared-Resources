@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Application\Ports\Service;
+namespace PactTrackSDK\SharedResources\Modules\Client\Application\Ports\Service;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 

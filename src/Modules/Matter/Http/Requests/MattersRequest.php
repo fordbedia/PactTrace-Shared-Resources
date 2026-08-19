@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Http\Requests;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 

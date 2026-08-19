@@ -1,8 +1,8 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Application\Action;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Application\Action;
 
-use PactTraceSDK\SharedResources\Modules\Matter\Application\Ports\Service\MatterStatsService;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Service\MatterStatsService;
 
 /** Backs the "Completed" stat card on /dashboard/matters. */
 class CountCompletedMattersHandler

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Database\Seeders;
+namespace PactTrackSDK\SharedResources\Modules\User\Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Permission;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use Spatie\Permission\Models\Permission as SpatiePermission;
 use Spatie\Permission\Models\Role as SpatieRole;
 use Spatie\Permission\PermissionRegistrar;

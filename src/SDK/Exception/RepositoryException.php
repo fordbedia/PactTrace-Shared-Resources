@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\SDK\Exception;
+namespace PactTrackSDK\SharedResources\SDK\Exception;
 
 use Exception;
 

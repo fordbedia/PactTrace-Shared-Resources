@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Infrastructure\Auth;
+namespace PactTrackSDK\SharedResources\Modules\User\Infrastructure\Auth;
 
-use PactTraceSDK\SharedResources\Modules\User\Domain\Ports\AccessTokenIssuer;
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\AccessTokenIssuer;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use RuntimeException;
 
 /**
@@ -31,7 +31,7 @@ final class SanctumTokenIssuer implements AccessTokenIssuer
             throw new RuntimeException("Cannot issue a token: user [{$userId}] does not exist.");
         }
 
-        // Abilities are intentionally left as ['*']: PactTrace authorises
+        // Abilities are intentionally left as ['*']: PactTrack authorises
         // through spatie permissions and TenantScopedPolicy, so encoding a
         // second, parallel permission model into the token would give two
         // sources of truth for the same question. See .claude/rules/user.md.

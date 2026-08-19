@@ -14,7 +14,7 @@
  * this file will not reach back and change workspaces that already exist.
  */
 
-use PactTraceSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
 
 return [
 

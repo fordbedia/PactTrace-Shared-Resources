@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects;
+namespace PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects;
 
 /**
- * The three actor types in PactTrace.
+ * The three actor types in PactTrack.
  *
  * Roles are global rather than per-tenant (spatie's `teams` feature is
  * deliberately off): a `users` row carries a single `provider_id`, so a user

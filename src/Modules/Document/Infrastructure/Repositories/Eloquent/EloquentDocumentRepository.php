@@ -1,11 +1,11 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent;
+namespace PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
-use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Repositories\BaseRepository;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Repositories\BaseRepository;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 
 class EloquentDocumentRepository extends BaseRepository implements DocumentRepository
 {

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Application\Action;
+namespace PactTrackSDK\SharedResources\Modules\Document\Application\Action;
 
-use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Service\StorageUsageCalculator;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\ValueObjects\StorageUsage;
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Service\StorageUsageCalculator;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\ValueObjects\StorageUsage;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 
 /**
  * Orchestration behind the STORAGE indicator on /dashboard/documents —

@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\TestCase\Scenario;
+namespace PactTrackSDK\SharedResources\TestCase\Scenario;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
-use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Milestone;
-use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
-use PactTraceSDK\SharedResources\Modules\Signature\Models\Envelope;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
-use PactTraceSDK\SharedResources\Modules\Workspace\Models\Workspace;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Milestone;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
 
 /**
  * One fully populated provider tenant: an owner, a staff member, one workspace,
@@ -44,7 +44,7 @@ class ProviderTenantScenario extends BaseScenario
     {
         // Owner before provider, so the factory does not mint a throwaway user
         // for `owner_user_id` that we would immediately replace.
-        $owner = User::factory()->create(['email' => "{$this->prefix}-owner@pacttrace.test"]);
+        $owner = User::factory()->create(['email' => "{$this->prefix}-owner@pacttrack.test"]);
         $provider = Provider::factory()->create(['owner_user_id' => $owner->id]);
 
         $owner->forceFill(['provider_id' => $provider->id])->save();
@@ -121,7 +121,7 @@ class ProviderTenantScenario extends BaseScenario
     private function userFor(Provider $provider, string $slug, Role $role): User
     {
         $user = User::factory()->create([
-            'email' => "{$this->prefix}-{$slug}@pacttrace.test",
+            'email' => "{$this->prefix}-{$slug}@pacttrack.test",
             'provider_id' => $provider->id,
         ]);
 

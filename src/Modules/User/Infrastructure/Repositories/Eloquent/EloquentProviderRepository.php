@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent;
+namespace PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent;
 
-use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
-use PactTraceSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
-use PactTraceSDK\SharedResources\Modules\User\Infrastructure\Repositories\BaseRepository;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\BaseRepository;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 
 /**
  * Serves two ports against the same table: the application's write port and

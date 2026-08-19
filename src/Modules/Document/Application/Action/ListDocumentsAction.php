@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Application\Action;
+namespace PactTrackSDK\SharedResources\Modules\Document\Application\Action;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
-use PactTraceSDK\SharedResources\Modules\Document\Application\DTO\DocumentListData;
-use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
-use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository\FolderRepository;
-use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\Document\Application\DTO\DocumentListData;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\FolderRepository;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 
 /**
  * Orchestration behind the document table on /dashboard/documents (see
@@ -54,7 +54,7 @@ class ListDocumentsAction
     }
 
     /**
-     * @param Collection<int, \PactTraceSDK\SharedResources\Modules\Document\Models\Folder> $allFolders
+     * @param Collection<int, \PactTrackSDK\SharedResources\Modules\Document\Models\Folder> $allFolders
      * @return array<int, int>
      */
     private function folderAndDescendantIds(int $folderId, Collection $allFolders): array

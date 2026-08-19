@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\TestCase\Command;
+namespace PactTrackSDK\SharedResources\TestCase\Command;
 
 use Illuminate\Console\Command;
 use Symfony\Component\Process\Process;
@@ -12,7 +12,7 @@ class SnapshotTestDatabase extends Command
 		{--user=root : DB username}
 		{--host=mysql : DB host}
 		{--port=3306 : DB port}
-		{--file=src/TestCase/sqldumps/pacttrace.mysql.sql : Output dump path (relative to shared-resources root)}';
+		{--file=src/TestCase/sqldumps/pacttrack.mysql.sql : Output dump path (relative to shared-resources root)}';
 
     protected $description = 'Create a MySQL SQL dump used by Testbench/RefreshDatabase for fast resets.';
 

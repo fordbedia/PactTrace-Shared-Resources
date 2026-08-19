@@ -1,6 +1,6 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\SDK\Traits;
+namespace PactTrackSDK\SharedResources\SDK\Traits;
 
 trait AttributesCallable
 {

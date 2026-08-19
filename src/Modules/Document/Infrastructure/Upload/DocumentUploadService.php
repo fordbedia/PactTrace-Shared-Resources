@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Upload;
+namespace PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Upload;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
-use PactTraceSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
 
 /**
  * Turns an uploaded file into a stored object and the path that points at

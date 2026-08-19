@@ -1,13 +1,13 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Database\Factories;
+namespace PactTrackSDK\SharedResources\Modules\Client\Database\Factories;
 
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
-use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
-use PactTraceSDK\SharedResources\Modules\Client\Models\ClientInvitation;
-use PactTraceSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
+use PactTrackSDK\SharedResources\Modules\Client\Models\ClientInvitation;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<ClientInvitation>

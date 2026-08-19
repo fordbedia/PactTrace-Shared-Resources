@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Matter\Tests;
+namespace PactTrackSDK\SharedResources\Modules\Matter\Tests;
 
-use PactTraceSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterCountFormatter;
-use PactTraceSDK\SharedResources\TestCase\Migrations\BaseTest;
+use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterCountFormatter;
+use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**

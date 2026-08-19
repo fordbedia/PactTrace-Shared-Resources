@@ -1,8 +1,10 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\TestCase;
+namespace PactTrackSDK\SharedResources\TestCase;
 
-use PactTraceSDK\SharedResources\SharedResourceServiceProvider;
+use PactTrackSDK\SharedResources\Modules\Signature\Domain\Ports\ESignatureProvider;
+use PactTrackSDK\SharedResources\Modules\Signature\Infrastructure\Fake\FakeSignatureProvider;
+use PactTrackSDK\SharedResources\SharedResourceServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Spatie\Permission\PermissionServiceProvider;
 
@@ -24,15 +26,23 @@ abstract class BaseTest extends Orchestra
         parent::setUp();
 
         // Restore the snapshot dump only when the test opts in with
-        // PactTraceSDK\SharedResources\TestCase\Extras\RefreshDatabase.
+        // PactTrackSDK\SharedResources\TestCase\Extras\RefreshDatabase.
         if (method_exists($this, 'refreshDatabase')) {
             $this->refreshDatabase();
         }
+
+        // Never let the test suite reach the real DocuSign API — see
+        // .claude/rules/signature.md and the feature spec's NFR "Use the
+        // FakeSignatureProvider in tests". Individual tests that need to
+        // assert against a specific DocuSign HTTP call (e.g.
+        // DocusignSignatureProviderTest) rebind this locally with
+        // Http::fake() instead of relying on this default.
+        $this->app->bind(ESignatureProvider::class, FakeSignatureProvider::class);
     }
 
 	protected function getEnvironmentSetUp($app): void
 	{
-		$testingDatabase = env('PACTTRACE_MYSQL_TEST_DB_DATABASE', 'pacttrace_test');
+		$testingDatabase = env('PACTTRACK_MYSQL_TEST_DB_DATABASE', 'pacttrack_test');
 		$applicationDatabase = env('DB_DATABASE');
 
 		$this->assertTestingDatabaseIsSafe($testingDatabase, $applicationDatabase);
@@ -49,17 +59,17 @@ abstract class BaseTest extends Orchestra
 		]);
 		$app['config']->set('auth.providers.users', [
 			'driver' => 'eloquent',
-			'model' => \PactTraceSDK\SharedResources\Modules\User\Models\User::class,
+			'model' => \PactTrackSDK\SharedResources\Modules\User\Models\User::class,
 		]);
 
 		$app['config']->set('database.default', 'testing');
 		$app['config']->set('database.connections.testing', [
 			'driver' => 'mysql',
-			'host' => env('PACTTRACE_MYSQL_TEST_DB_HOST', 'mysql'),
-			'port' => env('PACTTRACE_MYSQL_TEST_DB_PORT', '3306'),
+			'host' => env('PACTTRACK_MYSQL_TEST_DB_HOST', 'mysql'),
+			'port' => env('PACTTRACK_MYSQL_TEST_DB_PORT', '3306'),
 			'database' => $testingDatabase,
-			'username' => env('PACTTRACE_MYSQL_TEST_DB_USERNAME', 'pacttrace_u'),
-			'password' => env('PACTTRACE_MYSQL_TEST_DB_PASSWORD', 'p4cttr4cekamikalara0213'),
+			'username' => env('PACTTRACK_MYSQL_TEST_DB_USERNAME', 'pacttrack_u'),
+			'password' => env('PACTTRACK_MYSQL_TEST_DB_PASSWORD', 'p4cttr4cekamikalara0213'),
 
 			'charset' => 'utf8mb4',
 			'collation' => 'utf8mb4_unicode_ci',
@@ -77,13 +87,13 @@ abstract class BaseTest extends Orchestra
 	private function assertTestingDatabaseIsSafe(string $testingDatabase, ?string $applicationDatabase): void
 	{
 		if ($testingDatabase === '') {
-			throw new \RuntimeException('PACTTRACE_MYSQL_TEST_DB_DATABASE must name a dedicated test database.');
+			throw new \RuntimeException('PACTTRACK_MYSQL_TEST_DB_DATABASE must name a dedicated test database.');
 		}
 
 		if ($applicationDatabase !== null && $testingDatabase === $applicationDatabase) {
 			throw new \RuntimeException(
 				"Refusing to run tests against application database [{$testingDatabase}]. " .
-				'Set PACTTRACE_MYSQL_TEST_DB_DATABASE to a dedicated test database.'
+				'Set PACTTRACK_MYSQL_TEST_DB_DATABASE to a dedicated test database.'
 			);
 		}
 

@@ -1,13 +1,13 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\TestCase\Extras;
+namespace PactTrackSDK\SharedResources\TestCase\Extras;
 
 trait RefreshDatabase
 {
 	protected function refreshDatabase(): void
 	{
 		$root = dirname(__DIR__, 3);
-		$dumpRelPath = env('PACTTRACE_MYSQL_TEST_DB_SNAPSHOT_FILE', 'src/TestCase/sqldumps/pacttrace.mysql.sql');
+		$dumpRelPath = env('PACTTRACK_MYSQL_TEST_DB_SNAPSHOT_FILE', 'src/TestCase/sqldumps/pacttrack.mysql.sql');
 		$dumpPath = $root . '/' . ltrim($dumpRelPath, '/');
 
 		if (!$dumpPath || !file_exists($dumpPath)) {

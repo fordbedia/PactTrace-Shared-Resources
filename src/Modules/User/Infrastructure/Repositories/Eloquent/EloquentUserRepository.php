@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent;
+namespace PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent;
 
-use PactTraceSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
-use PactTraceSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
-use PactTraceSDK\SharedResources\Modules\User\Infrastructure\Repositories\BaseRepository;
-use PactTraceSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\BaseRepository;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 
 class EloquentUserRepository extends BaseRepository implements UserRepository
 {

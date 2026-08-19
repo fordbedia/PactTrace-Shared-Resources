@@ -1,11 +1,11 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Signature\Database\Factories;
+namespace PactTrackSDK\SharedResources\Modules\Signature\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use PactTraceSDK\SharedResources\Modules\Signature\Models\Envelope;
-use PactTraceSDK\SharedResources\Modules\Signature\Models\SignatureField;
-use PactTraceSDK\SharedResources\Modules\Signature\Models\Signer;
+use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
+use PactTrackSDK\SharedResources\Modules\Signature\Models\SignatureField;
+use PactTrackSDK\SharedResources\Modules\Signature\Models\Signer;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<SignatureField>

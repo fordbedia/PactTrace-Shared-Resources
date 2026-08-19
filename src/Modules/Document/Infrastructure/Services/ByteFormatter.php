@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Services;
+namespace PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Services;
 
 /**
  * Formats a byte count for display — 6,657,199,308 -> "6.2 GB", 512,000 ->

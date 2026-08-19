@@ -1,13 +1,13 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\SDK\Console\Config;
+namespace PactTrackSDK\SharedResources\SDK\Console\Config;
 
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 class Make extends ModularMakeCommand
 {
-    protected $signature = 'pacttrace:make {what} {className}
+    protected $signature = 'pacttrack:make {what} {className}
         {--module= : Module Name}
         {--table= : Name of table to derive model or migration from}
         {--create= : Create a migration file for the model}
@@ -23,7 +23,7 @@ class Make extends ModularMakeCommand
     protected function makeInModule(string $command, array $args): int
     {
         // Define the module root directory
-        $modulePath = base_path("vendor/pacttrace/shared-resources/src/Modules/{$this->module}");
+        $modulePath = base_path("vendor/pacttrack/shared-resources/src/Modules/{$this->module}");
 
         // Define subpaths based on component type
         $paths = [
@@ -110,36 +110,36 @@ class Make extends ModularMakeCommand
         switch($this->what) {
             case 'controller':
                 // Example: Vendor\Package\Modules\User\Http\Controllers
-                return 'PactTraceSDK\\SharedResources\\Modules\\' . $this->module . '\\Http\\Controllers';
+                return 'PactTrackSDK\\SharedResources\\Modules\\' . $this->module . '\\Http\\Controllers';
                 break;
             case 'model':
-                return 'PactTraceSDK\\SharedResources\\Modules\\' . $this->module . '\\Models';
+                return 'PactTrackSDK\\SharedResources\\Modules\\' . $this->module . '\\Models';
             case 'factory':
-                return 'PactTraceSDK\\SharedResources\\Modules\\' . $this->module . '\\Database\\Factories';
+                return 'PactTrackSDK\\SharedResources\\Modules\\' . $this->module . '\\Database\\Factories';
             case 'seeder':
-                 return 'PactTraceSDK\\SharedResources\\Modules\\' . $this->module . '\\Database\\Seeders';
+                 return 'PactTrackSDK\\SharedResources\\Modules\\' . $this->module . '\\Database\\Seeders';
 			case 'resource':
-				return 'PactTraceSDK\\SharedResources\\Modules\\' . $this->module . '\\Http\\Resources';
+				return 'PactTrackSDK\\SharedResources\\Modules\\' . $this->module . '\\Http\\Resources';
 			case 'provider':
-				return 'PactTraceSDK\\SharedResources\\Modules\\' . $this->module . '\\Providers';
+				return 'PactTrackSDK\\SharedResources\\Modules\\' . $this->module . '\\Providers';
 			case 'request':
-				return 'PactTraceSDK\\SharedResources\\Modules\\' . $this->module . '\\Http\\Requests';
+				return 'PactTrackSDK\\SharedResources\\Modules\\' . $this->module . '\\Http\\Requests';
 			case 'observer':
-				return 'PactTraceSDK\\SharedResources\\Modules\\' . $this->module . '\\Observers';
+				return 'PactTrackSDK\\SharedResources\\Modules\\' . $this->module . '\\Observers';
 			case 'mail':
-				return 'PactTraceSDK\\SharedResources\\Modules\\' . $this->module . '\\Mail';
+				return 'PactTrackSDK\\SharedResources\\Modules\\' . $this->module . '\\Mail';
 			case 'job':
-				return 'PactTraceSDK\\SharedResources\\Modules\\' . $this->module . '\\Jobs';
+				return 'PactTrackSDK\\SharedResources\\Modules\\' . $this->module . '\\Jobs';
 			case 'middleware':
-				return 'PactTraceSDK\\SharedResources\\Modules\\' . $this->module . '\\Http\\Middleware';
+				return 'PactTrackSDK\\SharedResources\\Modules\\' . $this->module . '\\Http\\Middleware';
 			case 'policy':
-				return 'PactTraceSDK\\SharedResources\\Modules\\' . $this->module . '\\Policies';
+				return 'PactTrackSDK\\SharedResources\\Modules\\' . $this->module . '\\Policies';
 			case 'scope':
-				return 'PactTraceSDK\\SharedResources\\Modules\\' . $this->module . '\\Scopes';
+				return 'PactTrackSDK\\SharedResources\\Modules\\' . $this->module . '\\Scopes';
 			case 'command':
-				return 'PactTraceSDK\\SharedResources\\Modules\\' . $this->module . '\\Console\\Commands';
+				return 'PactTrackSDK\\SharedResources\\Modules\\' . $this->module . '\\Console\\Commands';
 			case 'notification':
-				return 'PactTraceSDK\\SharedResources\\Modules\\' . $this->module . '\\Notifications';
+				return 'PactTrackSDK\\SharedResources\\Modules\\' . $this->module . '\\Notifications';
             default:
                 return '';
         }

@@ -1,14 +1,14 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\Modules\Client\Http\Controllers;
+namespace PactTrackSDK\SharedResources\Modules\Client\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
-use PactTraceSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientInvitationRepository;
-use PactTraceSDK\SharedResources\Modules\Client\Application\UseCases\AcceptClientInvitation;
-use PactTraceSDK\SharedResources\Modules\Client\Http\Requests\AcceptClientInvitationRequest;
-use PactTraceSDK\SharedResources\Modules\User\Application\Services\UserAuthentication;
-use PactTraceSDK\SharedResources\Modules\User\Http\Resources\UserResource;
+use PactTrackSDK\SharedResources\Modules\Client\Application\Ports\Repository\ClientInvitationRepository;
+use PactTrackSDK\SharedResources\Modules\Client\Application\UseCases\AcceptClientInvitation;
+use PactTrackSDK\SharedResources\Modules\Client\Http\Requests\AcceptClientInvitationRequest;
+use PactTrackSDK\SharedResources\Modules\User\Application\Services\UserAuthentication;
+use PactTrackSDK\SharedResources\Modules\User\Http\Resources\UserResource;
 use RuntimeException;
 
 /**

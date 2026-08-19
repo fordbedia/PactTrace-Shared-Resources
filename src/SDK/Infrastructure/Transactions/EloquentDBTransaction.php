@@ -1,8 +1,8 @@
 <?php
 
-namespace PactTraceSDK\SharedResources\SDK\Infrastructure\Transactions;
+namespace PactTrackSDK\SharedResources\SDK\Infrastructure\Transactions;
 
-use PactTraceSDK\SharedResources\SDK\Application\Ports\Transactional;
+use PactTrackSDK\SharedResources\SDK\Application\Ports\Transactional;
 use Illuminate\Support\Facades\DB;
 
 class EloquentDBTransaction implements Transactional
