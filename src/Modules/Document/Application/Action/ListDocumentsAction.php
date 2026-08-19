@@ -45,12 +45,12 @@ class ListDocumentsAction
         $clientId = $user->isClientUser() ? $user->client?->id : null;
 
         if ($data->folder_id === null) {
-            return $this->documents->forProvider($providerId, $clientId, $data->per_page, $data->page);
+            return $this->documents->forProvider($providerId, $clientId, $data->per_page, $data->page, $data->archived);
         }
 
         $folderIds = $this->folderAndDescendantIds($data->folder_id, $this->folders->allForProvider($providerId));
 
-        return $this->documents->forFolders($providerId, $folderIds, $clientId, $data->per_page, $data->page);
+        return $this->documents->forFolders($providerId, $folderIds, $clientId, $data->per_page, $data->page, $data->archived);
     }
 
     /**

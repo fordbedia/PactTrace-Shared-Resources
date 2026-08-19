@@ -20,6 +20,8 @@ class DocumentResource extends JsonResource
             'mime_type' => $this->mime_type,
             'size' => $this->size,
             'version' => $this->version,
+            'status' => $this->status?->value,
+            'archived_at' => $this->archived_at?->toIso8601String(),
             'matter_id' => $this->matter_id,
             'matter_name' => $this->whenLoaded('matter', fn () => $this->matter?->name),
             'client_id' => $this->client_id,

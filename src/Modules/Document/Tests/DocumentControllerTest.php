@@ -6,6 +6,7 @@ namespace PactTraceSDK\SharedResources\Modules\Document\Tests;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PactTraceSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
 use PactTraceSDK\SharedResources\Modules\Document\Models\Folder;
 use PactTraceSDK\SharedResources\Modules\User\Models\User;
@@ -13,6 +14,7 @@ use PactTraceSDK\SharedResources\TestCase\Extras\LoadsModuleApiRoutes;
 use PactTraceSDK\SharedResources\TestCase\Migrations\BaseTest;
 use PactTraceSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
 use PactTraceSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * The HTTP surface behind the document table, upload modal and STORAGE
@@ -195,6 +197,45 @@ class DocumentControllerTest extends BaseTest
             ->getJson("/api/documents?folder_id={$foreign->id}")
             ->assertOk()
             ->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_the_default_listing_excludes_archived_documents(): void
+    {
+        $active = $this->tenant['document'];
+        $archived = $this->documentIn($this->folder('Archive Bucket'));
+        $archived->forceFill(['archived_at' => now()])->save();
+
+        $ids = $this->actingAs($this->tenant['owner'])->getJson('/api/documents')->json('data.*.id');
+
+        $this->assertContains($active->id, $ids);
+        $this->assertNotContains($archived->id, $ids);
+    }
+
+    public function test_the_archived_filter_returns_only_archived_documents(): void
+    {
+        $active = $this->tenant['document'];
+        $archived = $this->documentIn($this->folder('Archive Bucket'));
+        $archived->forceFill(['archived_at' => now()])->save();
+
+        $ids = $this->actingAs($this->tenant['owner'])->getJson('/api/documents?archived=1')->json('data.*.id');
+
+        $this->assertSame([$archived->id], $ids);
+        $this->assertNotContains($active->id, $ids);
+    }
+
+    public function test_the_archived_filter_does_not_surface_soft_deleted_documents(): void
+    {
+        // archived_at and deleted_at are independent columns/scopes — a
+        // soft-deleted document must stay hidden by Eloquent's own
+        // SoftDeletes global scope even when explicitly asking for the
+        // archived view. See .claude/rules/document.md, "Archival policy".
+        $archived = $this->documentIn($this->folder('Archive Bucket'));
+        $archived->forceFill(['archived_at' => now()])->save();
+        $archived->delete();
+
+        $ids = $this->actingAs($this->tenant['owner'])->getJson('/api/documents?archived=1')->json('data.*.id');
+
+        $this->assertNotContains($archived->id, $ids);
     }
 
     /* ── storage ───────────────────────────────────────────────────────── */
@@ -405,6 +446,178 @@ class DocumentControllerTest extends BaseTest
             ->assertStatus(403);
 
         $this->assertEmpty(Storage::disk(self::DISK)->allFiles());
+    }
+
+    /* ── destroy ───────────────────────────────────────────────────────── */
+
+    public function test_deleting_requires_being_signed_in(): void
+    {
+        $this->deleteJson("/api/documents/{$this->tenant['document']->id}")->assertStatus(401);
+    }
+
+    public function test_it_deletes_a_draft_document(): void
+    {
+        $document = $this->documentWithStatus(DocumentStatus::Draft);
+
+        $this->actingAs($this->tenant['owner'])
+            ->deleteJson("/api/documents/{$document->id}")
+            ->assertNoContent();
+
+        $this->assertSoftDeleted('documents', ['id' => $document->id]);
+    }
+
+    public function test_it_refuses_to_delete_a_sent_document_over_http(): void
+    {
+        // A stale page/replayed request for a document that has since moved
+        // past draft must get a clear 422, not a 500 — see
+        // .claude/rules/document.md, "Deletion policy".
+        $document = $this->documentWithStatus(DocumentStatus::Sent);
+
+        $this->actingAs($this->tenant['owner'])
+            ->deleteJson("/api/documents/{$document->id}")
+            ->assertStatus(422)
+            ->assertJsonPath(
+                'message',
+                'Document cannot be deleted while its status is "sent". Only a document with status "draft" may be deleted — cancel an in-flight document with Void instead.'
+            );
+
+        $this->assertDatabaseHas('documents', ['id' => $document->id, 'deleted_at' => null]);
+    }
+
+    public function test_it_refuses_to_delete_a_completed_document_over_http(): void
+    {
+        $document = $this->documentWithStatus(DocumentStatus::Completed);
+
+        $this->actingAs($this->tenant['owner'])
+            ->deleteJson("/api/documents/{$document->id}")
+            ->assertStatus(422);
+
+        $this->assertDatabaseHas('documents', ['id' => $document->id, 'deleted_at' => null]);
+    }
+
+    public function test_deleting_another_tenants_document_is_refused(): void
+    {
+        $foreign = $this->documentWithStatus(DocumentStatus::Draft, $this->otherTenant);
+
+        $this->actingAs($this->tenant['owner'])
+            ->deleteJson("/api/documents/{$foreign->id}")
+            ->assertStatus(403);
+
+        $this->assertDatabaseHas('documents', ['id' => $foreign->id, 'deleted_at' => null]);
+    }
+
+    /* ── archive / unarchive ───────────────────────────────────────────── */
+
+    public function test_archiving_requires_being_signed_in(): void
+    {
+        $this->postJson("/api/documents/{$this->tenant['document']->id}/archive")->assertStatus(401);
+    }
+
+    #[DataProvider('everyStatus')]
+    public function test_it_archives_a_document_regardless_of_status(DocumentStatus $status): void
+    {
+        $document = $this->documentWithStatus($status);
+
+        $this->actingAs($this->tenant['owner'])
+            ->postJson("/api/documents/{$document->id}/archive")
+            ->assertOk()
+            ->assertJsonPath('data.status', $status->value);
+
+        $this->assertNotNull($document->fresh()->archived_at);
+    }
+
+    public function test_it_unarchives_a_document(): void
+    {
+        $document = $this->documentWithStatus(DocumentStatus::Draft);
+        $document->forceFill(['archived_at' => now()])->save();
+
+        $this->actingAs($this->tenant['owner'])
+            ->postJson("/api/documents/{$document->id}/unarchive")
+            ->assertOk()
+            ->assertJsonPath('data.archived_at', null);
+
+        $this->assertNull($document->fresh()->archived_at);
+    }
+
+    public function test_archiving_another_tenants_document_is_refused(): void
+    {
+        $foreign = $this->documentWithStatus(DocumentStatus::Draft, $this->otherTenant);
+
+        $this->actingAs($this->tenant['owner'])
+            ->postJson("/api/documents/{$foreign->id}/archive")
+            ->assertStatus(403);
+
+        $this->assertNull($foreign->fresh()->archived_at);
+    }
+
+    /* ── void ──────────────────────────────────────────────────────────── */
+
+    public function test_voiding_requires_being_signed_in(): void
+    {
+        $this->postJson("/api/documents/{$this->tenant['document']->id}/void")->assertStatus(401);
+    }
+
+    public function test_it_voids_a_sent_document(): void
+    {
+        $document = $this->documentWithStatus(DocumentStatus::Sent);
+
+        $this->actingAs($this->tenant['owner'])
+            ->postJson("/api/documents/{$document->id}/void")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'voided');
+    }
+
+    public function test_it_voids_a_partially_signed_document(): void
+    {
+        $document = $this->documentWithStatus(DocumentStatus::PartiallySigned);
+
+        $this->actingAs($this->tenant['owner'])
+            ->postJson("/api/documents/{$document->id}/void")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'voided');
+    }
+
+    public function test_it_refuses_to_void_a_draft_document_over_http(): void
+    {
+        $document = $this->documentWithStatus(DocumentStatus::Draft);
+
+        $this->actingAs($this->tenant['owner'])
+            ->postJson("/api/documents/{$document->id}/void")
+            ->assertStatus(422);
+
+        $this->assertSame(DocumentStatus::Draft, $document->fresh()->status);
+    }
+
+    public function test_it_refuses_to_void_a_completed_document_over_http(): void
+    {
+        $document = $this->documentWithStatus(DocumentStatus::Completed);
+
+        $this->actingAs($this->tenant['owner'])
+            ->postJson("/api/documents/{$document->id}/void")
+            ->assertStatus(422);
+    }
+
+    /**
+     * @return array<string, array{DocumentStatus}>
+     */
+    public static function everyStatus(): array
+    {
+        return array_combine(
+            array_map(fn (DocumentStatus $s) => $s->value, DocumentStatus::cases()),
+            array_map(fn (DocumentStatus $s) => [$s], DocumentStatus::cases()),
+        );
+    }
+
+    private function documentWithStatus(DocumentStatus $status, ?TestScenarioCollection $tenant = null): Document
+    {
+        $tenant ??= $this->tenant;
+
+        return Document::factory()->create([
+            'provider_id' => $tenant['provider']->id,
+            'workspace_id' => $tenant['workspace']->id,
+            'uploaded_by' => $tenant['owner']->id,
+            'status' => $status,
+        ]);
     }
 
     private function folder(string $name, ?int $parentId = null): Folder

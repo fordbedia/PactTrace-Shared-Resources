@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PactTraceSDK\SharedResources\Modules\Document\Application\UseCases;
+
+use PactTraceSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
+use PactTraceSDK\SharedResources\Modules\Document\Models\Document;
+use PactTraceSDK\SharedResources\Modules\Notification\Models\AuditLog;
+use PactTraceSDK\SharedResources\Modules\User\Models\User;
+
+/**
+ * Archiving is non-destructive and carries no status restriction — a
+ * document anywhere from draft through completed may be archived. It only
+ * sets `archived_at`, which hides it from default dashboard views; it
+ * remains fully queryable for audit/compliance and never touches `status`
+ * or `deleted_at`. See .claude/rules/document.md, "Document Deletion &
+ * Archival Rules".
+ */
+class ArchiveDocumentHandler
+{
+    public function __construct(
+        private readonly DocumentRepository $documents,
+    ) {
+    }
+
+    public function handle(Document $document, User $actor): Document
+    {
+        $previousStatus = $document->status;
+
+        $document = $this->documents->save($document, ['archived_at' => now()]);
+
+        AuditLog::create([
+            'provider_id' => $document->provider_id,
+            'user_id' => $actor->id,
+            'action' => 'document.archived',
+            'auditable_type' => Document::class,
+            'auditable_id' => $document->id,
+            'metadata' => [
+                'previous_status' => $previousStatus->value,
+            ],
+        ]);
+
+        return $document;
+    }
+}

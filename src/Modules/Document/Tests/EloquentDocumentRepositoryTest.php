@@ -145,6 +145,27 @@ class EloquentDocumentRepositoryTest extends BaseTest
         $this->assertTrue($document->relationLoaded('matter'));
     }
 
+    public function test_for_provider_excludes_archived_documents_by_default(): void
+    {
+        $archived = $this->documentFor($this->tenant, ['archived_at' => now()]);
+
+        $ids = $this->repository->forProvider($this->tenant['provider']->id, null, 15, 1)
+            ->getCollection()
+            ->pluck('id')
+            ->all();
+
+        $this->assertNotContains($archived->id, $ids);
+    }
+
+    public function test_for_provider_archived_true_returns_only_archived_documents(): void
+    {
+        $archived = $this->documentFor($this->tenant, ['archived_at' => now()]);
+
+        $page = $this->repository->forProvider($this->tenant['provider']->id, null, 15, 1, archived: true);
+
+        $this->assertSame([$archived->id], $page->getCollection()->pluck('id')->all());
+    }
+
     public function test_for_folders_returns_only_documents_in_the_given_folders(): void
     {
         $wanted = $this->folderFor($this->tenant);

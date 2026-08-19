@@ -7,8 +7,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use PactTraceSDK\SharedResources\Modules\Client\Models\Client;
 use PactTraceSDK\SharedResources\Modules\Document\Database\Factories\DocumentFactory;
+use PactTraceSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTraceSDK\SharedResources\Modules\Messaging\Models\MessageAttachment;
 use PactTraceSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTraceSDK\SharedResources\Modules\Signature\Models\Envelope;
@@ -17,7 +19,7 @@ use PactTraceSDK\SharedResources\Modules\Workspace\Models\Concerns\BelongsToWork
 
 class Document extends Model
 {
-    use BelongsToWorkspace, HasFactory;
+    use BelongsToWorkspace, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'provider_id',
@@ -31,6 +33,13 @@ class Document extends Model
         'mime_type',
         'size',
         'version',
+        'status',
+        'archived_at',
+    ];
+
+    protected $casts = [
+        'status' => DocumentStatus::class,
+        'archived_at' => 'datetime',
     ];
 
     protected static function newFactory(): DocumentFactory

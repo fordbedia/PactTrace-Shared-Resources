@@ -14,23 +14,25 @@ class EloquentDocumentRepository extends BaseRepository implements DocumentRepos
 		return $this->model->create($data);
 	}
 
-	public function forProvider(int $providerId, ?int $clientId, int $perPage, ?int $page): LengthAwarePaginator
+	public function forProvider(int $providerId, ?int $clientId, int $perPage, ?int $page, bool $archived = false): LengthAwarePaginator
 	{
 		$query = $this->model->newQuery()
 			->where('provider_id', $providerId)
 			->when($clientId !== null, fn ($query) => $query->where('client_id', $clientId))
+			->when($archived, fn ($query) => $query->whereNotNull('archived_at'), fn ($query) => $query->whereNull('archived_at'))
 			->with(['uploader', 'matter'])
 			->latest();
 
 		return $this->paginate($query, $perPage, ['*'], 'page', $page);
 	}
 
-	public function forFolders(int $providerId, array $folderIds, ?int $clientId, int $perPage, ?int $page): LengthAwarePaginator
+	public function forFolders(int $providerId, array $folderIds, ?int $clientId, int $perPage, ?int $page, bool $archived = false): LengthAwarePaginator
 	{
 		$query = $this->model->newQuery()
 			->where('provider_id', $providerId)
 			->whereIn('folder_id', $folderIds)
 			->when($clientId !== null, fn ($query) => $query->where('client_id', $clientId))
+			->when($archived, fn ($query) => $query->whereNotNull('archived_at'), fn ($query) => $query->whereNull('archived_at'))
 			->with(['uploader', 'matter'])
 			->latest();
 
@@ -45,6 +47,18 @@ class EloquentDocumentRepository extends BaseRepository implements DocumentRepos
 			->where('provider_id', $providerId)
 			->when($clientId !== null, fn ($query) => $query->where('client_id', $clientId))
 			->sum('size');
+	}
+
+	public function save(Document $document, array $attributes): Document
+	{
+		$document->fill($attributes)->save();
+
+		return $document->refresh();
+	}
+
+	public function delete(Document $document): void
+	{
+		$document->delete();
 	}
 
 	public function makeModel(): string

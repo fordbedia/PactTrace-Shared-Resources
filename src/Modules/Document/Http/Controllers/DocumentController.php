@@ -13,6 +13,12 @@ use Illuminate\Support\Facades\Gate;
 use PactTraceSDK\SharedResources\Modules\Document\Application\Action\GetStorageUsageAction;
 use PactTraceSDK\SharedResources\Modules\Document\Application\Action\ListDocumentsAction;
 use PactTraceSDK\SharedResources\Modules\Document\Application\Action\UploadDocumentAction;
+use PactTraceSDK\SharedResources\Modules\Document\Application\UseCases\ArchiveDocumentHandler;
+use PactTraceSDK\SharedResources\Modules\Document\Application\UseCases\DeleteDocumentHandler;
+use PactTraceSDK\SharedResources\Modules\Document\Application\UseCases\UnarchiveDocumentHandler;
+use PactTraceSDK\SharedResources\Modules\Document\Application\UseCases\VoidDocumentHandler;
+use PactTraceSDK\SharedResources\Modules\Document\Domain\Exceptions\DocumentCannotBeDeletedException;
+use PactTraceSDK\SharedResources\Modules\Document\Domain\Exceptions\DocumentCannotBeVoidedException;
 use PactTraceSDK\SharedResources\Modules\Document\Infrastructure\Services\ByteFormatter;
 use PactTraceSDK\SharedResources\Modules\Document\Application\DTO\DocumentData;
 use PactTraceSDK\SharedResources\Modules\Document\Application\DTO\DocumentListData;
@@ -47,6 +53,10 @@ class DocumentController extends Controller
         private readonly ListDocumentsAction $listDocuments,
         private readonly GetStorageUsageAction $storageUsage,
         private readonly ByteFormatter $bytes,
+        private readonly DeleteDocumentHandler $deleteDocument,
+        private readonly ArchiveDocumentHandler $archiveDocument,
+        private readonly UnarchiveDocumentHandler $unarchiveDocument,
+        private readonly VoidDocumentHandler $voidDocument,
     ) {
     }
 
@@ -146,5 +156,106 @@ class DocumentController extends Controller
         ));
 
         return DocumentResource::make($document);
+    }
+
+    /**
+     * DELETE /api/documents/{document}
+     *
+     * Only a `draft` document may ever be deleted — DocumentDeletionPolicy
+     * (via DeleteDocumentHandler) is the actual enforcement, not the row
+     * actions on /dashboard/documents hiding the Delete button for
+     * non-draft rows. This route exists precisely so a stale page or a
+     * replayed request for a document that has since moved past draft gets
+     * a clear 422 naming why, rather than a 500 or a silent no-op — see
+     * .claude/rules/document.md, "Document Deletion & Archival Rules".
+     */
+    public function destroy(Request $request, Document $document): Response
+    {
+        $user = $this->resolveActingUser($request);
+
+        if ($user === null || $user->provider_id === null) {
+            return response()->json([
+                'message' => 'You must be signed in to a provider account to delete documents.',
+            ], 401);
+        }
+
+        Gate::forUser($user)->authorize('delete', $document);
+
+        try {
+            $this->deleteDocument->handle($document, $user);
+        } catch (DocumentCannotBeDeletedException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->noContent();
+    }
+
+    /**
+     * POST /api/documents/{document}/archive
+     *
+     * No status restriction — any document, draft through completed, may be
+     * archived (ArchiveDocumentHandler). Reuses the `update` gate/permission
+     * rather than a dedicated one: archiving only flips `archived_at`, the
+     * same class of change `document.update` already covers.
+     */
+    public function archive(Request $request, Document $document): DocumentResource|Response
+    {
+        $user = $this->resolveActingUser($request);
+
+        if ($user === null || $user->provider_id === null) {
+            return response()->json([
+                'message' => 'You must be signed in to a provider account to archive documents.',
+            ], 401);
+        }
+
+        Gate::forUser($user)->authorize('update', $document);
+
+        return DocumentResource::make($this->archiveDocument->handle($document, $user));
+    }
+
+    /**
+     * POST /api/documents/{document}/unarchive
+     */
+    public function unarchive(Request $request, Document $document): DocumentResource|Response
+    {
+        $user = $this->resolveActingUser($request);
+
+        if ($user === null || $user->provider_id === null) {
+            return response()->json([
+                'message' => 'You must be signed in to a provider account to unarchive documents.',
+            ], 401);
+        }
+
+        Gate::forUser($user)->authorize('update', $document);
+
+        return DocumentResource::make($this->unarchiveDocument->handle($document, $user));
+    }
+
+    /**
+     * POST /api/documents/{document}/void
+     *
+     * The cancellation path for a `sent`/`partially_signed` document — the
+     * alternative to Delete once a document has left draft. Outside those
+     * two statuses VoidDocumentHandler rejects with
+     * DocumentCannotBeVoidedException, translated to a 422 here for the
+     * same "stale page / replayed request" reason as destroy() above.
+     */
+    public function void(Request $request, Document $document): DocumentResource|Response
+    {
+        $user = $this->resolveActingUser($request);
+
+        if ($user === null || $user->provider_id === null) {
+            return response()->json([
+                'message' => 'You must be signed in to a provider account to void documents.',
+            ], 401);
+        }
+
+        Gate::forUser($user)->authorize('update', $document);
+
+        try {
+            return DocumentResource::make($this->voidDocument->handle($document, $user));
+        } catch (DocumentCannotBeVoidedException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
     }
 }

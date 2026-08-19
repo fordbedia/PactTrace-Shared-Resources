@@ -27,6 +27,7 @@ final readonly class DocumentListData
 		public ?int $folder_id,
 		public int $per_page,
 		public ?int $page,
+		public bool $archived = false,
 	)
 	{}
 
@@ -36,6 +37,7 @@ final readonly class DocumentListData
 			folder_id: $request->integer('folder_id') ?: null,
 			per_page: max(1, min((int) $request->query('per_page', self::DEFAULT_PER_PAGE), self::MAX_PER_PAGE)),
 			page: $request->filled('page') ? max(1, (int) $request->query('page')) : null,
+			archived: $request->boolean('archived'),
 		);
 	}
 }
