@@ -65,7 +65,7 @@ class DocusignSignatureProviderTest extends BaseTest
         $this->fakeAuth();
         Http::fake(['na2.docusign.test/restapi/v2.1/accounts/acct-1/envelopes' => Http::response(['envelopeId' => 'env-1'])]);
 
-        $envelopeId = $this->provider()->createDraftEnvelope('Retainer', 'retainer.pdf', 'pdf-bytes', $this->recipient(), '42');
+        $envelopeId = $this->provider()->createDraftEnvelope('Retainer', 'retainer.pdf', 'pdf-bytes', [$this->recipient()], '42');
 
         $this->assertSame('env-1', $envelopeId);
 
@@ -83,6 +83,31 @@ class DocusignSignatureProviderTest extends BaseTest
         });
     }
 
+    public function test_create_draft_envelope_assigns_sequential_recipient_ids_and_omits_client_user_id_for_remote_signers(): void
+    {
+        $this->fakeAuth();
+        Http::fake(['na2.docusign.test/restapi/v2.1/accounts/acct-1/envelopes' => Http::response(['envelopeId' => 'env-1'])]);
+
+        $coSigner = new EnvelopeRecipient(name: 'Co Signer', email: 'co@example.com', clientUserId: null);
+
+        $this->provider()->createDraftEnvelope('Retainer', 'retainer.pdf', 'pdf-bytes', [$this->recipient(), $coSigner]);
+
+        Http::assertSent(function ($request) {
+            if (! str_ends_with($request->url(), '/envelopes')) {
+                return true;
+            }
+
+            $signers = $request['recipients']['signers'];
+            $this->assertSame('1', $signers[0]['recipientId']);
+            $this->assertSame('7', $signers[0]['clientUserId']);
+            $this->assertSame('2', $signers[1]['recipientId']);
+            $this->assertSame('co@example.com', $signers[1]['email']);
+            $this->assertArrayNotHasKey('clientUserId', $signers[1]);
+
+            return true;
+        });
+    }
+
     public function test_create_draft_envelope_throws_on_failure(): void
     {
         $this->fakeAuth();
@@ -90,7 +115,7 @@ class DocusignSignatureProviderTest extends BaseTest
 
         $this->expectException(RuntimeException::class);
 
-        $this->provider()->createDraftEnvelope('Retainer', 'retainer.pdf', 'bytes', $this->recipient());
+        $this->provider()->createDraftEnvelope('Retainer', 'retainer.pdf', 'bytes', [$this->recipient()]);
     }
 
     public function test_sender_view_url_returns_the_embed_url(): void

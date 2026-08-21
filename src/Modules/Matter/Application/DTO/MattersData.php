@@ -12,7 +12,7 @@ class MattersData
 		public int $workspace_id,
 		public int $client_id,
 		public string $name,
-		public string $description,
+		public ?string $description,
 		public string $status,
 		public ?string $start_date,
 		public ?string $due_date,

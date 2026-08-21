@@ -72,6 +72,35 @@ class ClientController extends Controller
     }
 
     /**
+     * Re-sends a client's pending portal invitation. Reuses InviteClient so
+     * the stale token is invalidated and a fresh one (with a new 7-day
+     * expiry) is issued, exactly like the original invite — the "Resend"
+     * action on /dashboard/clients backing this.
+     */
+    public function resendInvitation(Client $client, InviteClient $handler)
+    {
+        Gate::authorize('invite', $client);
+
+        $data = new ClientData(
+            $client->provider_id,
+            $client->user_id,
+            $client->name,
+            $client->email,
+            $client->company_name,
+            $client->phone,
+        );
+
+        [$client, $invitation] = $handler->handle($data, auth()->id());
+
+        $provider = auth()->user()->provider?->toArray();
+
+        $invitationData = ClientInvitationData::fromClientData($data, auth()->user()->name, $invitation->token);
+        Mail::to($data->email)->send(new ClientInvitationEmail(ProviderData::fromArray($provider), $invitationData));
+
+        return new ClientResource($client);
+    }
+
+    /**
      * Display the specified resource.
      */
     public function show(string $id)

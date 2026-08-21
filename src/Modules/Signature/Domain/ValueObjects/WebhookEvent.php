@@ -19,21 +19,21 @@ namespace PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects;
  * actually needs to drive the Envelope state machine and is more robust to
  * exactly which Connect events a given configuration has enabled.
  *
- * `recipientEmail` is best-effort: the email of the signer with the most
- * recent `signedDateTime` among any 'completed' recipients on the payload —
- * used only to keep the local `Signer` row's status/email in sync when the
- * envelope reaches `completed`. PactTrack's product currently sends to
- * exactly one recipient per envelope (see EnvelopeRecipient), so this never
- * needs to disambiguate between multiple simultaneously-completed signers;
- * extend this (and RecordSignatureCompletionUseCase's per-recipient handling)
- * before relying on it for a multi-signer envelope.
+ * `completedSignerEmails` lists every recipient this payload reports as
+ * 'completed' — used to keep each matching local `Signer` row's
+ * status/email in sync (see RecordSignatureCompletionUseCase). DocuSign
+ * delivers the full recipient list on every Connect payload, so this is
+ * simply every 'completed' entry in it, not just one.
  */
 final class WebhookEvent
 {
+    /**
+     * @param string[] $completedSignerEmails
+     */
     public function __construct(
         public readonly string $eventType,
         public readonly ?string $providerEnvelopeId,
-        public readonly ?string $recipientEmail,
+        public readonly array $completedSignerEmails,
         public readonly array $raw,
     ) {
     }
@@ -50,26 +50,20 @@ final class WebhookEvent
 
         $eventType = $status ?? strtolower(str_replace('envelope-', '', (string) ($payload['event'] ?? 'unknown')));
 
-        $recipientEmail = null;
-        $latestSignedAt = null;
+        $completedSignerEmails = [];
 
         foreach ($signers as $signer) {
             if (! is_array($signer) || ($signer['status'] ?? null) !== 'completed' || empty($signer['email'])) {
                 continue;
             }
 
-            $signedAt = $signer['signedDateTime'] ?? null;
-
-            if ($latestSignedAt === null || ($signedAt !== null && $signedAt > $latestSignedAt)) {
-                $recipientEmail = (string) $signer['email'];
-                $latestSignedAt = $signedAt;
-            }
+            $completedSignerEmails[] = (string) $signer['email'];
         }
 
         return new self(
             eventType: $eventType,
             providerEnvelopeId: isset($data['envelopeId']) ? (string) $data['envelopeId'] : null,
-            recipientEmail: $recipientEmail,
+            completedSignerEmails: array_values(array_unique($completedSignerEmails)),
             raw: $payload,
         );
     }

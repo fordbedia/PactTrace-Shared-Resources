@@ -97,6 +97,30 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
         $this->assertSame(1, Signer::query()->where('envelope_id', $envelope->id)->count());
     }
 
+    public function test_completed_event_records_every_completed_signer_independently(): void
+    {
+        $envelope = $this->envelope(EnvelopeStatus::Viewed, DocumentStatus::Sent);
+        Signer::factory()->create(['envelope_id' => $envelope->id, 'email' => 'co@example.com', 'status' => 'pending']);
+
+        $this->useCase->handle($this->event(
+            'completed',
+            $envelope,
+            $this->tenant['client']->email,
+            'co@example.com',
+        ));
+
+        $this->assertDatabaseHas('signers', [
+            'envelope_id' => $envelope->id,
+            'email' => $this->tenant['client']->email,
+            'status' => 'signed',
+        ]);
+        $this->assertDatabaseHas('signers', [
+            'envelope_id' => $envelope->id,
+            'email' => 'co@example.com',
+            'status' => 'signed',
+        ]);
+    }
+
     public function test_completed_event_marks_envelope_and_document_completed(): void
     {
         $envelope = $this->envelope(EnvelopeStatus::Viewed, DocumentStatus::Sent);
@@ -151,7 +175,7 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
     public function test_an_event_for_an_unknown_envelope_id_is_ignored(): void
     {
         // Must not throw — this exercises the "not one of ours" branch.
-        $this->useCase->handle(new WebhookEvent('completed', 'no-such-envelope', null, []));
+        $this->useCase->handle(new WebhookEvent('completed', 'no-such-envelope', [], []));
 
         $this->assertDatabaseCount('audit_logs', 0);
     }
@@ -180,8 +204,8 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
         ]);
     }
 
-    private function event(string $type, Envelope $envelope, ?string $recipientEmail = null): WebhookEvent
+    private function event(string $type, Envelope $envelope, string ...$completedSignerEmails): WebhookEvent
     {
-        return new WebhookEvent($type, $envelope->provider_envelope_id, $recipientEmail, []);
+        return new WebhookEvent($type, $envelope->provider_envelope_id, $completedSignerEmails, []);
     }
 }

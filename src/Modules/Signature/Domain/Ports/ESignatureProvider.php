@@ -25,16 +25,21 @@ interface ESignatureProvider
 {
     /**
      * Create a draft envelope in the provider, upload the document's bytes
-     * to it, and add the one recipient it will be sent to (required up
-     * front — DocuSign's embedded views can't resolve a recipient that
-     * isn't already on the envelope). Returns the provider's own envelope
+     * to it, and add every recipient it will be sent to (required up front
+     * — DocuSign's embedded views can't resolve a recipient that isn't
+     * already on the envelope). `$recipients` is non-empty; its first entry
+     * is the document's own client (conventionally assigned the provider's
+     * recipientId '1', which recipientViewUrl() below always targets — see
+     * DocusignSignatureProvider). Returns the provider's own envelope
      * identifier (persisted locally as Envelope::provider_envelope_id).
+     *
+     * @param EnvelopeRecipient[] $recipients
      */
     public function createDraftEnvelope(
         string $title,
         string $fileName,
         string $fileContents,
-        EnvelopeRecipient $recipient,
+        array $recipients,
         ?string $externalId = null,
     ): string;
 

@@ -32,12 +32,12 @@ use Throwable;
  *
  * `eventType` values are DocuSign's own envelope status strings
  * (sent/delivered/completed/declined/voided — see WebhookEvent::fromDocusignPayload),
- * not DocuSign's underlying Connect event names. There's no separate
- * "partially signed" webhook signal in a single-recipient envelope (the only
- * shape PactTrack currently sends) — `completed` is where the local Signer
- * row gets marked signed, matching envelope completion exactly. Multi-signer
- * partial-signature tracking is deferred until multi-recipient envelopes
- * are actually built.
+ * not DocuSign's underlying Connect event names. `completed` is where every
+ * local Signer row DocuSign reports as done gets marked signed — see
+ * recordSignersCompleted(). There's still no separate "partially signed"
+ * webhook signal to react to per-signer; the Envelope's own status stays
+ * driven entirely by DocuSign's envelope-level status string, which only
+ * reports `completed` once every required signer is done.
  */
 class RecordSignatureCompletionUseCase
 {
@@ -88,7 +88,7 @@ class RecordSignatureCompletionUseCase
             } elseif (in_array($event->eventType, self::VIEWED_EVENTS, true)) {
                 $envelope->markViewed();
             } elseif (in_array($event->eventType, self::COMPLETED_EVENTS, true)) {
-                $this->recordSignerCompleted($envelope, $event);
+                $this->recordSignersCompleted($envelope, $event);
                 $envelope->markCompleted();
             } elseif (in_array($event->eventType, self::DECLINED_EVENTS, true)) {
                 $envelope->markDeclined();
@@ -130,25 +130,30 @@ class RecordSignatureCompletionUseCase
         ]);
     }
 
-    private function recordSignerCompleted(Envelope $envelope, WebhookEvent $event): void
+    /**
+     * A Signer row per recipient normally already exists — created
+     * `pending` by PrepareEnvelopeForSignature when the envelope was first
+     * sent — so this is usually just flipping status; the firstOrNew()
+     * fallback only matters for envelopes that predate that (e.g. a
+     * manually reconciled backfill).
+     */
+    private function recordSignersCompleted(Envelope $envelope, WebhookEvent $event): void
     {
-        if ($event->recipientEmail === null) {
-            return;
+        foreach ($event->completedSignerEmails as $email) {
+            $signer = Signer::query()->firstOrNew([
+                'envelope_id' => $envelope->id,
+                'email' => $email,
+            ]);
+
+            if (! $signer->exists) {
+                $signer->name = $email;
+                $signer->routing_order = 1;
+            }
+
+            $signer->status = 'signed';
+            $signer->signed_at ??= now();
+            $signer->save();
         }
-
-        $signer = Signer::query()->firstOrNew([
-            'envelope_id' => $envelope->id,
-            'email' => $event->recipientEmail,
-        ]);
-
-        if (! $signer->exists) {
-            $signer->name = $event->recipientEmail;
-            $signer->routing_order = 1;
-        }
-
-        $signer->status = 'signed';
-        $signer->signed_at ??= now();
-        $signer->save();
     }
 
     private function syncDocumentStatus(Envelope $envelope): void

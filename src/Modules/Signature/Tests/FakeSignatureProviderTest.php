@@ -19,7 +19,7 @@ class FakeSignatureProviderTest extends BaseTest
     {
         $provider = new FakeSignatureProvider();
 
-        $envelopeId = $provider->createDraftEnvelope('Title', 'file.pdf', 'bytes', $this->recipient());
+        $envelopeId = $provider->createDraftEnvelope('Title', 'file.pdf', 'bytes', [$this->recipient()]);
         $this->assertNotEmpty($envelopeId);
         $this->assertNotEmpty($provider->senderViewUrl($envelopeId, 'https://app.test/return'));
 

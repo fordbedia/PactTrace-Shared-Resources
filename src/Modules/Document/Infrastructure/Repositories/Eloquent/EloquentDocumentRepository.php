@@ -20,7 +20,7 @@ class EloquentDocumentRepository extends BaseRepository implements DocumentRepos
 			->where('provider_id', $providerId)
 			->when($clientId !== null, fn ($query) => $query->where('client_id', $clientId))
 			->when($archived, fn ($query) => $query->whereNotNull('archived_at'), fn ($query) => $query->whereNull('archived_at'))
-			->with(['uploader', 'matter'])
+			->with(['uploader', 'matter', 'client'])
 			->latest();
 
 		return $this->paginate($query, $perPage, ['*'], 'page', $page);
@@ -33,7 +33,7 @@ class EloquentDocumentRepository extends BaseRepository implements DocumentRepos
 			->whereIn('folder_id', $folderIds)
 			->when($clientId !== null, fn ($query) => $query->where('client_id', $clientId))
 			->when($archived, fn ($query) => $query->whereNotNull('archived_at'), fn ($query) => $query->whereNull('archived_at'))
-			->with(['uploader', 'matter'])
+			->with(['uploader', 'matter', 'client'])
 			->latest();
 
 		return $this->paginate($query, $perPage, ['*'], 'page', $page);

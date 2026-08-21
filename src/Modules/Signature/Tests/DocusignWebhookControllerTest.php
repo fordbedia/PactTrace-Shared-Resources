@@ -76,7 +76,7 @@ class DocusignWebhookControllerTest extends BaseTest
     {
         $this->app->bind(ESignatureProvider::class, function () {
             return new class implements ESignatureProvider {
-                public function createDraftEnvelope(string $title, string $fileName, string $fileContents, EnvelopeRecipient $recipient, ?string $externalId = null): string
+                public function createDraftEnvelope(string $title, string $fileName, string $fileContents, array $recipients, ?string $externalId = null): string
                 {
                     return 'unused';
                 }

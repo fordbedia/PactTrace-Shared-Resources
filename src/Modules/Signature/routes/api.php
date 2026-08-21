@@ -22,6 +22,7 @@ use PactTrackSDK\SharedResources\Modules\Signature\Http\Controllers\SigningContr
 */
 
 // Flow A — tenant/staff embedded authoring (Sender View), see .claude/rules/signature.md.
+Route::get('signature/documents/{document}/prepare', [EnvelopeController::class, 'draftSigners']);
 Route::post('signature/documents/{document}/prepare', [EnvelopeController::class, 'prepare']);
 Route::get('signature/envelopes/{envelope}/status', [EnvelopeController::class, 'status']);
 

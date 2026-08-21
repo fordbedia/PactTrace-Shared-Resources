@@ -17,11 +17,10 @@
                     <table cellpadding="0" cellspacing="0">
                         <tr>
                             <td style="vertical-align:middle; padding-right:10px;">
-                                <svg width="28" height="28" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <defs><clipPath id="fc-invite"><path d="M3 13 C3 9.686 5.686 7 9 7 H15.5 L20.5 13 H31 C34.314 13 37 15.686 37 19 V28 C37 31.314 34.314 34 31 34 H9 C5.686 34 3 31.314 3 28 Z"/></clipPath></defs>
-                                    <path d="M3 13 C3 9.686 5.686 7 9 7 H15.5 L20.5 13 H31 C34.314 13 37 15.686 37 19 V28 C37 31.314 34.314 34 31 34 H9 C5.686 34 3 31.314 3 28 Z" fill="#F8FAFC"/>
-                                    <g clip-path="url(#fc-invite)"><path d="M3 26 H19 V20 H37" stroke="#FBBF24" stroke-width="2.5" stroke-linecap="butt" fill="none"/></g>
-                                    <circle cx="25" cy="20" r="2.5" fill="#FCD34D"/>
+                                <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M4 22C4 22 7 12 11 12C13.5 12 13.5 17 16 17C18 17 18 12 20 12" stroke="#F1F5F9" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+                                    <circle cx="23" cy="12" r="1.4" fill="#FBBF24"/>
+                                    <circle cx="26.5" cy="12" r="1.4" fill="#FBBF24"/>
                                 </svg>
                             </td>
                             <td style="vertical-align:middle;">

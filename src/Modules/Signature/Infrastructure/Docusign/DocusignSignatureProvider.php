@@ -19,10 +19,12 @@ use RuntimeException;
  * REST API (v2.1), authenticated via JWT Grant. Bound to the port in
  * SignatureProvider.
  *
- * PactTrack's product currently sends every envelope to exactly one
- * recipient — the client — so this always uses a single, fixed
- * `recipientId` ('1'). Extend RECIPIENT_ID handling into something
- * per-signer before adding multi-recipient envelopes.
+ * `RECIPIENT_ID` ('1') is the fixed recipientId views/recipient always
+ * targets — the document's own client, always the first entry in a
+ * `createDraftEnvelope()` recipients array (see ESignatureProvider). Any
+ * additional co-signers get recipientId '2', '3', ... assigned positionally
+ * in createDraftEnvelope() and never need a recipientViewUrl() of their
+ * own — they sign via DocuSign's own emailed link (see EnvelopeRecipient).
  */
 class DocusignSignatureProvider implements ESignatureProvider
 {
@@ -40,9 +42,15 @@ class DocusignSignatureProvider implements ESignatureProvider
         string $title,
         string $fileName,
         string $fileContents,
-        EnvelopeRecipient $recipient,
+        array $recipients,
         ?string $externalId = null,
     ): string {
+        $signers = [];
+
+        foreach (array_values($recipients) as $index => $recipient) {
+            $signers[] = $this->signerPayload($recipient, (string) ($index + 1));
+        }
+
         $payload = [
             'emailSubject' => "Please sign: {$title}",
             'status' => 'created',
@@ -52,15 +60,7 @@ class DocusignSignatureProvider implements ESignatureProvider
                 'fileExtension' => pathinfo($fileName, PATHINFO_EXTENSION) ?: 'pdf',
                 'documentBase64' => base64_encode($fileContents),
             ]],
-            'recipients' => [
-                'signers' => [[
-                    'recipientId' => self::RECIPIENT_ID,
-                    'routingOrder' => '1',
-                    'email' => $recipient->email,
-                    'name' => $recipient->name,
-                    'clientUserId' => $recipient->clientUserId,
-                ]],
-            ],
+            'recipients' => ['signers' => $signers],
         ];
 
         if ($externalId !== null) {
@@ -182,6 +182,28 @@ class DocusignSignatureProvider implements ESignatureProvider
     public function normalizeWebhookEvent(array $payload): WebhookEvent
     {
         return WebhookEvent::fromDocusignPayload($payload);
+    }
+
+    /**
+     * `clientUserId` is only sent for an embedded/captive recipient
+     * (EnvelopeRecipient::$clientUserId !== null) — omitting the key
+     * entirely for a remote co-signer is what tells DocuSign to email them
+     * its own signing link instead of expecting an embedded view request.
+     */
+    private function signerPayload(EnvelopeRecipient $recipient, string $recipientId): array
+    {
+        $signer = [
+            'recipientId' => $recipientId,
+            'routingOrder' => '1',
+            'email' => $recipient->email,
+            'name' => $recipient->name,
+        ];
+
+        if ($recipient->clientUserId !== null) {
+            $signer['clientUserId'] = $recipient->clientUserId;
+        }
+
+        return $signer;
     }
 
     private function extractViewUrl(Response $response, string $viewName): string

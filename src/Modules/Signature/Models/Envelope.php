@@ -85,6 +85,24 @@ class Envelope extends Model
     }
 
     /**
+     * The still-editable DocuSign draft for a document, if one exists —
+     * the single definition of "resumable" shared by
+     * PrepareEnvelopeForSignature::handle() (create-or-reuse) and
+     * GetDraftEnvelope (read-only resumability check for the frontend), so
+     * the two can never disagree about it. Scoped to `provider = 'docusign'`
+     * so a pre-migration Documenso draft row is never mistaken for one — see
+     * .claude/rules/signature.md.
+     */
+    public function scopeReusableDraftFor(Builder $query, int $documentId): Builder
+    {
+        return $query
+            ->where('document_id', $documentId)
+            ->where('status', 'draft')
+            ->where('provider', 'docusign')
+            ->whereNotNull('provider_envelope_id');
+    }
+
+    /**
      * Every envelope belonging to a client that hasn't reached a terminal
      * state — the query behind both the client portal's pending-documents
      * list and FindNextPendingSignatureForClientUseCase's chaining. Ordered

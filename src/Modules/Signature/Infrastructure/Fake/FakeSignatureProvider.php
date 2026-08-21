@@ -24,7 +24,7 @@ class FakeSignatureProvider implements ESignatureProvider
         string $title,
         string $fileName,
         string $fileContents,
-        EnvelopeRecipient $recipient,
+        array $recipients,
         ?string $externalId = null,
     ): string {
         return 'fake-envelope-' . Str::uuid();

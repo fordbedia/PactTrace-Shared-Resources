@@ -25,6 +25,8 @@ class DocumentResource extends JsonResource
             'matter_id' => $this->matter_id,
             'matter_name' => $this->whenLoaded('matter', fn () => $this->matter?->name),
             'client_id' => $this->client_id,
+            'client_name' => $this->whenLoaded('client', fn () => $this->client?->name),
+            'client_email' => $this->whenLoaded('client', fn () => $this->client?->email),
             'folder_id' => $this->folder_id,
             'uploaded_by' => $this->uploaded_by,
             'uploaded_by_name' => $this->whenLoaded('uploader', fn () => $this->uploader?->name),
