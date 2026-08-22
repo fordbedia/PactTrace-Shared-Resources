@@ -55,7 +55,17 @@ class EloquentClientRepository extends BaseRepository implements ClientRepositor
 
 	public function searchForSelection(int $providerId, string $search, int $limit): Collection
 	{
-		$query = $this->model->newQuery()->where('provider_id', $providerId);
+		// Only a client who has actually accepted their invitation is
+		// selectable here — an invited-but-not-yet-onboarded row (status
+		// 'invited', user_id still null) has no portal login to receive or
+		// view anything attached to it. This is the query behind the Upload
+		// Documents modal's client picker (documents/page.js) — never widen
+		// it to include 'invited'/'archived' rows without checking that
+		// call site's assumptions first.
+		$query = $this->model->newQuery()
+			->where('provider_id', $providerId)
+			->where('status', 'active')
+			->whereNotNull('user_id');
 
 		if ($search !== '') {
 			$query->where(function ($clientQuery) use ($search) {
