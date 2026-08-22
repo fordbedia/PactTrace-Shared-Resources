@@ -22,6 +22,7 @@ class MatterResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'public_id' => $this->public_id,
             'provider_id' => $this->provider_id,
             'workspace_id' => $this->workspace_id,
             'client_id' => $this->client_id,

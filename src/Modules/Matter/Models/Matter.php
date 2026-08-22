@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
@@ -36,6 +37,29 @@ class Matter extends Model
     protected static function newFactory(): MatterFactory
     {
         return MatterFactory::new();
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $matter) {
+            $matter->public_id ??= (string) Str::ulid();
+        });
+    }
+
+    /**
+     * The client portal resolves a matter by this non-sequential identifier
+     * rather than the auto-increment `id` — see .claude/rules/matter.md,
+     * mirroring Envelope::getRouteKeyName() (.claude/rules/signature.md,
+     * "Envelope public identifier"). Provider-side routes bind by it too
+     * (there is only one route key per model), which is safe here: nothing
+     * on the provider dashboard passes the internal id in a URL today (see
+     * MattersController::show()'s docblock — it isn't on the frontend's
+     * critical path yet), so this is a behavior-preserving change for every
+     * existing caller.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'public_id';
     }
 
     public function provider(): BelongsTo
