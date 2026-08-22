@@ -60,11 +60,21 @@ interface ESignatureProvider
      * embedding tokens in other providers do, so `token` here is an opaque
      * value carried along for audit/debugging only — never re-used to mint
      * a second view.
+     *
+     * `$recipientId` is the provider's own identifier for *this* recipient
+     * on the envelope (DocuSign's `recipientId`, assigned positionally —
+     * `'1'` for the document's own client, `'2'`/`'3'`/... for co-signers —
+     * in createDraftEnvelope() and persisted as Signer::provider_signer_id).
+     * Callers must pass the recipient's actual id, not assume `'1'`: this
+     * is what lets recipientViewUrl() mint a correct view for a co-signer,
+     * not just the primary recipient. See GenerateSigningEmbedTokenUseCase
+     * and GenerateGuestSigningEmbedTokenUseCase.
      */
     public function recipientViewUrl(
         string $providerEnvelopeId,
         EnvelopeRecipient $recipient,
         string $returnUrl,
+        string $recipientId,
     ): SigningToken;
 
     /**
@@ -78,11 +88,21 @@ interface ESignatureProvider
     public function applyBrand(string $providerEnvelopeId, ?string $brandId): void;
 
     /**
-     * Read the envelope's current status directly from the provider — used
-     * only for optimistic, read-only UI feedback right after an embedded
-     * view's returnUrl fires (see Application/UseCases/CheckEnvelopeProviderStatus).
-     * Never the basis for a persisted Envelope status change — that's the
-     * webhook's job exclusively (RecordSignatureCompletionUseCase).
+     * Read the envelope's current status directly from the provider. Two
+     * callers:
+     *
+     * 1. Application/UseCases/CheckEnvelopeProviderStatus — optimistic,
+     *    read-only UI feedback right after an embedded view's returnUrl
+     *    fires. Never persists anything.
+     * 2. Application/UseCases/ReconcileStaleDraftEnvelopes — the scheduled
+     *    safety net for DocuSign Connect webhook delivery being slow or
+     *    missing entirely. This *is* allowed to feed a persisted Envelope
+     *    status change, but only through RecordSignatureCompletionUseCase
+     *    (the same transition/audit-log/notification path a real webhook
+     *    uses) and only for envelopes stuck well past a normal webhook
+     *    delay — see that use case's docblock. The webhook remains the
+     *    primary, preferred path; this is deliberately a fallback, not a
+     *    replacement for it.
      */
     public function fetchEnvelopeStatus(string $providerEnvelopeId): string;
 

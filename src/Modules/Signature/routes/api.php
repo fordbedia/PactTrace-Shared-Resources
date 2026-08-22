@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use PactTrackSDK\SharedResources\Modules\Signature\Http\Controllers\DocusignWebhookController;
 use PactTrackSDK\SharedResources\Modules\Signature\Http\Controllers\EnvelopeController;
+use PactTrackSDK\SharedResources\Modules\Signature\Http\Controllers\GuestSigningController;
 use PactTrackSDK\SharedResources\Modules\Signature\Http\Controllers\SigningController;
 
 /*
@@ -30,6 +31,12 @@ Route::get('signature/envelopes/{envelope}/status', [EnvelopeController::class, 
 Route::get('signature/pending', [SigningController::class, 'pending']);
 Route::get('signature/pending-next', [SigningController::class, 'pendingNext']);
 Route::post('signature/envelopes/{envelope}/signing-token', [SigningController::class, 'signingToken']);
+
+// Guest (no PactTrack account) signing — a tokenized link, not a signed-in
+// session; see .claude/rules/signature.md, "Guest signers". Unauthenticated
+// by design, same as the rest of this file for now — the signingLinkToken
+// itself is what scopes the request.
+Route::post('signature/envelopes/{envelope}/guest-signing-token', [GuestSigningController::class, 'signingToken']);
 
 // Provider webhook — no auth middleware, verified via signature header.
 Route::post('signature/webhooks/docusign', DocusignWebhookController::class);

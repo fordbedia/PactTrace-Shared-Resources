@@ -39,6 +39,7 @@ class FakeSignatureProvider implements ESignatureProvider
         string $providerEnvelopeId,
         EnvelopeRecipient $recipient,
         string $returnUrl,
+        string $recipientId,
     ): SigningToken {
         $token = 'fake-token-' . Str::uuid();
 
@@ -46,7 +47,7 @@ class FakeSignatureProvider implements ESignatureProvider
             token: $token,
             expiresAt: new DateTimeImmutable('+5 minutes'),
             signingUrl: "https://fake.docusign.test/recipient/{$providerEnvelopeId}/{$token}",
-            providerSignerId: 'fake-recipient-' . md5($recipient->email),
+            providerSignerId: $recipientId,
         );
     }
 

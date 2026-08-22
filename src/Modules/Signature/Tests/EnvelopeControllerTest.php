@@ -114,8 +114,10 @@ class EnvelopeControllerTest extends BaseTest
         $response = $this->actingAs($this->tenant['owner'])
             ->postJson("/api/signature/documents/{$document->id}/prepare");
 
+        $envelope = Envelope::query()->where('public_id', $response->json('envelope_id'))->firstOrFail();
+
         $this->assertDatabaseHas('signers', [
-            'envelope_id' => $response->json('envelope_id'),
+            'envelope_id' => $envelope->id,
             'email' => $this->tenant['client']->email,
             'provider_signer_id' => '1',
             'status' => 'pending',
@@ -135,15 +137,17 @@ class EnvelopeControllerTest extends BaseTest
             ]);
 
         $response->assertSuccessful();
-        $this->assertSame(3, Signer::query()->where('envelope_id', $response->json('envelope_id'))->count());
+        $envelope = Envelope::query()->where('public_id', $response->json('envelope_id'))->firstOrFail();
+
+        $this->assertSame(3, Signer::query()->where('envelope_id', $envelope->id)->count());
         $this->assertDatabaseHas('signers', [
-            'envelope_id' => $response->json('envelope_id'),
+            'envelope_id' => $envelope->id,
             'email' => 'co1@example.com',
             'provider_signer_id' => '2',
             'status' => 'pending',
         ]);
         $this->assertDatabaseHas('signers', [
-            'envelope_id' => $response->json('envelope_id'),
+            'envelope_id' => $envelope->id,
             'email' => 'co2@example.com',
             'provider_signer_id' => '3',
             'status' => 'pending',
@@ -193,6 +197,44 @@ class EnvelopeControllerTest extends BaseTest
         $response->assertOk()->assertJsonPath('envelope_id', $prepared->json('envelope_id'));
         $this->assertCount(2, $response->json('signers'));
         $this->assertContains('co@example.com', array_column($response->json('signers'), 'email'));
+    }
+
+    public function test_public_id_is_auto_populated_and_unique(): void
+    {
+        $one = Envelope::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'document_id' => $this->tenant['document']->id,
+        ]);
+        $two = Envelope::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'document_id' => $this->tenant['document']->id,
+        ]);
+
+        $this->assertNotEmpty($one->public_id);
+        $this->assertNotSame($one->public_id, $two->public_id);
+        $this->assertMatchesRegularExpression('/^[0-9A-HJKMNP-TV-Z]{26}$/', $one->public_id);
+    }
+
+    public function test_status_resolves_the_envelope_by_public_id_not_the_internal_id(): void
+    {
+        $document = $this->freshPdfDocument();
+
+        $prepared = $this->actingAs($this->tenant['owner'])
+            ->postJson("/api/signature/documents/{$document->id}/prepare");
+
+        $envelope = Envelope::query()->where('public_id', $prepared->json('envelope_id'))->firstOrFail();
+
+        $byPublicId = $this->actingAs($this->tenant['owner'])
+            ->getJson("/api/signature/envelopes/{$envelope->public_id}/status");
+        $byPublicId->assertOk();
+
+        $byInternalId = $this->actingAs($this->tenant['owner'])
+            ->getJson("/api/signature/envelopes/{$envelope->id}/status");
+        $byInternalId->assertStatus(404);
     }
 
     public function test_it_refuses_a_non_pdf_document_with_a_422(): void

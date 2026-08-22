@@ -7,6 +7,7 @@ namespace PactTrackSDK\SharedResources\Modules\Signature\Tests;
 use Illuminate\Support\Facades\Mail;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\DocumentReadyForSignatureEmail;
+use PactTrackSDK\SharedResources\Modules\Notification\Mail\GuestSigningInvitationEmail;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\RecordSignatureCompletionUseCase;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Enums\EnvelopeStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\WebhookEvent;
@@ -54,7 +55,137 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
 
         Mail::assertQueued(
             DocumentReadyForSignatureEmail::class,
+            // Regression guard: the client's link must carry the envelope's
+            // public_id, never the enumerable internal id — see
+            // .claude/rules/signature.md, "Envelope public identifier".
+            fn ($mail) => $mail->hasTo($this->tenant['client']->email)
+                && str_ends_with($mail->portalUrl, "envelope={$envelope->public_id}"),
+        );
+    }
+
+    public function test_sent_event_notifies_every_co_signer_but_not_the_client_again(): void
+    {
+        Mail::fake();
+
+        $envelope = $this->envelope(EnvelopeStatus::Draft, DocumentStatus::Draft);
+        Signer::factory()->create([
+            'envelope_id' => $envelope->id,
+            'provider_signer_id' => '1',
+            'email' => $this->tenant['client']->email,
+        ]);
+        $coSigner = Signer::factory()->create([
+            'envelope_id' => $envelope->id,
+            'provider_signer_id' => '2',
+            'name' => 'Co Signer',
+            'email' => 'co-signer@example.com',
+        ]);
+
+        $this->useCase->handle($this->event('sent', $envelope));
+
+        Mail::assertQueued(
+            GuestSigningInvitationEmail::class,
+            fn ($mail) => $mail->hasTo('co-signer@example.com')
+                && str_contains($mail->signingUrl, "envelope={$envelope->public_id}")
+                && str_contains($mail->signingUrl, 'signingLinkToken='),
+        );
+        Mail::assertNotQueued(
+            GuestSigningInvitationEmail::class,
             fn ($mail) => $mail->hasTo($this->tenant['client']->email),
+        );
+        // A guest signing token is issued at send time — see
+        // .claude/rules/signature.md, "Guest signers".
+        $this->assertNotNull($coSigner->fresh()->signing_token_hash);
+        $this->assertNotNull($coSigner->fresh()->signing_token_expires_at);
+    }
+
+    /**
+     * Problem 1 confirmation: notification dispatch is per-envelope and
+     * independent, never a batched/chained walk of a signer's backlog — see
+     * .claude/rules/signature.md, "Notification dispatch is per-envelope".
+     * Each envelope here is matched to its own webhook event purely by
+     * `provider_envelope_id` (RecordSignatureCompletionUseCase::handle()),
+     * so three envelopes "sent" in quick succession for the same client
+     * must produce three independent emails, each addressed and linked to
+     * its own envelope — not one email unlocking the next.
+     */
+    public function test_sending_multiple_envelopes_for_the_same_client_in_quick_succession_notifies_independently(): void
+    {
+        Mail::fake();
+
+        $envelopeOne = $this->distinctEnvelope();
+        $envelopeTwo = $this->distinctEnvelope();
+        $envelopeThree = $this->distinctEnvelope();
+
+        $this->useCase->handle($this->event('sent', $envelopeOne));
+        $this->useCase->handle($this->event('sent', $envelopeTwo));
+        $this->useCase->handle($this->event('sent', $envelopeThree));
+
+        Mail::assertQueuedCount(3);
+        foreach ([$envelopeOne, $envelopeTwo, $envelopeThree] as $envelope) {
+            Mail::assertQueued(
+                DocumentReadyForSignatureEmail::class,
+                fn ($mail) => $mail->hasTo($this->tenant['client']->email)
+                    && str_ends_with($mail->portalUrl, "envelope={$envelope->public_id}"),
+            );
+        }
+    }
+
+    /**
+     * Sending envelope B's notification must not require envelope A (for
+     * the same client) to have reached `sent`, `completed`, or any other
+     * status first — handling B's webhook before A's must still notify B
+     * correctly. Regression guard against ever introducing a chained/
+     * sequenced dispatch keyed on "the signer's oldest pending envelope".
+     */
+    public function test_notifying_one_envelope_does_not_depend_on_another_pending_envelopes_status(): void
+    {
+        Mail::fake();
+
+        $older = $this->distinctEnvelope();
+        $newer = $this->distinctEnvelope();
+
+        // Handle the newer envelope's `sent` event first — the older one is
+        // still sitting in Draft, untouched.
+        $this->useCase->handle($this->event('sent', $newer));
+
+        $this->assertSame(EnvelopeStatus::Sent, $newer->fresh()->status);
+        $this->assertSame(EnvelopeStatus::Draft, $older->fresh()->status);
+        Mail::assertQueued(
+            DocumentReadyForSignatureEmail::class,
+            fn ($mail) => str_ends_with($mail->portalUrl, "envelope={$newer->public_id}"),
+        );
+        Mail::assertNotQueued(
+            DocumentReadyForSignatureEmail::class,
+            fn ($mail) => str_ends_with($mail->portalUrl, "envelope={$older->public_id}"),
+        );
+    }
+
+    /**
+     * Same independence guarantee for guest co-signer invitations: each
+     * envelope's own co-signer is issued their own token and email on that
+     * envelope's `sent` transition — not batched or gated behind a sibling
+     * envelope for the same client.
+     */
+    public function test_co_signer_invitations_across_multiple_envelopes_are_independent(): void
+    {
+        Mail::fake();
+
+        $envelopeOne = $this->distinctEnvelope();
+        Signer::factory()->create(['envelope_id' => $envelopeOne->id, 'provider_signer_id' => '2', 'email' => 'co1@example.com']);
+
+        $envelopeTwo = $this->distinctEnvelope();
+        Signer::factory()->create(['envelope_id' => $envelopeTwo->id, 'provider_signer_id' => '2', 'email' => 'co2@example.com']);
+
+        $this->useCase->handle($this->event('sent', $envelopeOne));
+        $this->useCase->handle($this->event('sent', $envelopeTwo));
+
+        Mail::assertQueued(
+            GuestSigningInvitationEmail::class,
+            fn ($mail) => $mail->hasTo('co1@example.com') && str_contains($mail->signingUrl, "envelope={$envelopeOne->public_id}"),
+        );
+        Mail::assertQueued(
+            GuestSigningInvitationEmail::class,
+            fn ($mail) => $mail->hasTo('co2@example.com') && str_contains($mail->signingUrl, "envelope={$envelopeTwo->public_id}"),
         );
     }
 
@@ -201,6 +332,30 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
             'document_id' => $document->id,
             'status' => $envelopeStatus,
             'provider_envelope_id' => 'docusign-env-' . $document->id,
+        ]);
+    }
+
+    /**
+     * A second (or third) envelope for the same tenant/client/document as
+     * `envelope()`, but with its own unique `provider_envelope_id` — needed
+     * whenever a test creates more than one envelope, since `envelope()`'s
+     * id is derived solely from the shared document and would otherwise
+     * collide, making `RecordSignatureCompletionUseCase::handle()`'s
+     * `where('provider_envelope_id', ...)` lookup match the wrong (or same)
+     * row.
+     */
+    private function distinctEnvelope(): Envelope
+    {
+        $document = $this->tenant['document'];
+        $document->forceFill(['status' => DocumentStatus::Draft])->save();
+
+        return Envelope::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'document_id' => $document->id,
+            'status' => EnvelopeStatus::Draft,
+            'provider_envelope_id' => 'docusign-env-' . $document->id . '-' . uniqid(),
         ]);
     }
 

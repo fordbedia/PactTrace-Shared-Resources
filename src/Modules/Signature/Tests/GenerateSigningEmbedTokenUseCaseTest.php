@@ -103,7 +103,7 @@ class GenerateSigningEmbedTokenUseCaseTest extends BaseTest
                     return 'unused';
                 }
 
-                public function recipientViewUrl(string $providerEnvelopeId, EnvelopeRecipient $recipient, string $returnUrl): \PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\SigningToken
+                public function recipientViewUrl(string $providerEnvelopeId, EnvelopeRecipient $recipient, string $returnUrl, string $recipientId): \PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\SigningToken
                 {
                     throw new RuntimeException('DocuSign recipient view request failed (403): consent_required.');
                 }

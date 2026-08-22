@@ -44,16 +44,13 @@ class GenerateSigningEmbedTokenUseCase
             clientUserId: (string) $client->id,
         );
 
-        try {
-            $token = $this->eSignatureProvider->recipientViewUrl(
-                $envelope->provider_envelope_id,
-                $recipient,
-                $this->returnUrl($envelope),
-            );
-        } catch (Throwable $e) {
-            throw EnvelopeSigningUnavailableException::fromProviderFailure($e);
-        }
-
+        // Signer rows normally already exist by the time an envelope has
+        // been sent (PrepareEnvelopeForSignature::createSignerRows() — the
+        // client is always index 0, DocuSign recipientId '1'); the
+        // firstOrNew()/'1' fallback only matters for envelopes that predate
+        // that. Resolving it *before* the provider call is what lets
+        // recipientViewUrl() target the right DocuSign recipient instead of
+        // assuming '1' — see ESignatureProvider::recipientViewUrl().
         $signer = Signer::query()->firstOrNew([
             'envelope_id' => $envelope->id,
             'email' => $client->email,
@@ -63,6 +60,19 @@ class GenerateSigningEmbedTokenUseCase
             $signer->name = $client->name;
             $signer->routing_order = 1;
             $signer->status = 'pending';
+        }
+
+        $recipientId = $signer->provider_signer_id ?? '1';
+
+        try {
+            $token = $this->eSignatureProvider->recipientViewUrl(
+                $envelope->provider_envelope_id,
+                $recipient,
+                $this->returnUrl($envelope),
+                $recipientId,
+            );
+        } catch (Throwable $e) {
+            throw EnvelopeSigningUnavailableException::fromProviderFailure($e);
         }
 
         $signer->provider_signer_id = $token->providerSignerId;
@@ -83,6 +93,6 @@ class GenerateSigningEmbedTokenUseCase
     private function returnUrl(Envelope $envelope): string
     {
         return rtrim((string) config('app.frontend_url'), '/')
-            . '/docusign-return?flow=recipient&envelope=' . $envelope->id;
+            . '/docusign-return?flow=recipient&envelope=' . $envelope->public_id;
     }
 }

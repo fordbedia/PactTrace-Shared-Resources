@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Signature\Database\Factories\EnvelopeFactory;
@@ -40,6 +41,26 @@ class Envelope extends Model
     protected static function newFactory(): EnvelopeFactory
     {
         return EnvelopeFactory::new();
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $envelope) {
+            $envelope->public_id ??= (string) Str::ulid();
+        });
+    }
+
+    /**
+     * Every client-facing route/URL resolves an Envelope by this
+     * non-sequential identifier instead of the auto-increment `id`, which
+     * would otherwise be enumerable in a signing link — see
+     * .claude/rules/signature.md, "Envelope public identifier". Internal
+     * FK relationships (webhook matching, DB joins) are untouched; only
+     * route-model binding is affected.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'public_id';
     }
 
     public function provider(): BelongsTo

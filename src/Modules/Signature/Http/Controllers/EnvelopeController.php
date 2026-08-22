@@ -72,7 +72,7 @@ class EnvelopeController extends Controller
         $envelope = $this->getDraftEnvelope->handle($document);
 
         return response()->json([
-            'envelope_id' => $envelope?->id,
+            'envelope_id' => $envelope?->public_id,
             'signers' => $envelope === null ? [] : $envelope->signers->map(fn (Signer $signer) => [
                 'name' => $signer->name,
                 'email' => $signer->email,
@@ -118,7 +118,7 @@ class EnvelopeController extends Controller
         }
 
         return response()->json([
-            'envelope_id' => $envelope->id,
+            'envelope_id' => $envelope->public_id,
             'status' => $envelope->status,
             'sender_view_url' => $senderViewUrl,
         ]);

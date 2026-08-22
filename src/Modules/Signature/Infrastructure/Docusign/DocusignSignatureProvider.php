@@ -19,17 +19,17 @@ use RuntimeException;
  * REST API (v2.1), authenticated via JWT Grant. Bound to the port in
  * SignatureProvider.
  *
- * `RECIPIENT_ID` ('1') is the fixed recipientId views/recipient always
- * targets — the document's own client, always the first entry in a
- * `createDraftEnvelope()` recipients array (see ESignatureProvider). Any
- * additional co-signers get recipientId '2', '3', ... assigned positionally
- * in createDraftEnvelope() and never need a recipientViewUrl() of their
- * own — they sign via DocuSign's own emailed link (see EnvelopeRecipient).
+ * Every recipient gets a DocuSign `recipientId` assigned positionally in
+ * `createDraftEnvelope()` — `'1'` for the document's own client, `'2'`,
+ * `'3'`, ... for co-signers — persisted as Signer::provider_signer_id.
+ * `recipientViewUrl()` targets whichever `$recipientId` its caller passes
+ * (see ESignatureProvider's docblock); it no longer assumes `'1'`, since
+ * co-signers now sign through PactTrack's own guest link and need a correct
+ * embedded view for their own recipientId too — see
+ * .claude/rules/signature.md, "Guest signers".
  */
 class DocusignSignatureProvider implements ESignatureProvider
 {
-    private const RECIPIENT_ID = '1';
-
     private ?DocusignSession $session = null;
 
     public function __construct(
@@ -104,6 +104,7 @@ class DocusignSignatureProvider implements ESignatureProvider
         string $providerEnvelopeId,
         EnvelopeRecipient $recipient,
         string $returnUrl,
+        string $recipientId,
     ): SigningToken {
         $response = $this->client()->post($this->envelopesUrl("/{$providerEnvelopeId}/views/recipient"), [
             'returnUrl' => $returnUrl,
@@ -111,16 +112,16 @@ class DocusignSignatureProvider implements ESignatureProvider
             'email' => $recipient->email,
             'userName' => $recipient->name,
             'clientUserId' => $recipient->clientUserId,
-            'recipientId' => self::RECIPIENT_ID,
+            'recipientId' => $recipientId,
         ]);
 
         $url = $this->extractViewUrl($response, 'recipient');
 
         return new SigningToken(
-            token: self::RECIPIENT_ID,
+            token: $recipientId,
             expiresAt: new DateTimeImmutable('+5 minutes'),
             signingUrl: $url,
-            providerSignerId: self::RECIPIENT_ID,
+            providerSignerId: $recipientId,
         );
     }
 

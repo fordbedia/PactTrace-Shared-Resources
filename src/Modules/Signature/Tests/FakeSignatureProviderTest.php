@@ -23,9 +23,9 @@ class FakeSignatureProviderTest extends BaseTest
         $this->assertNotEmpty($envelopeId);
         $this->assertNotEmpty($provider->senderViewUrl($envelopeId, 'https://app.test/return'));
 
-        $token = $provider->recipientViewUrl($envelopeId, $this->recipient(), 'https://app.test/return');
+        $token = $provider->recipientViewUrl($envelopeId, $this->recipient(), 'https://app.test/return', '2');
         $this->assertNotEmpty($token->token);
-        $this->assertNotEmpty($token->providerSignerId);
+        $this->assertSame('2', $token->providerSignerId);
         $this->assertStringContainsString($token->token, $token->signingUrl);
     }
 

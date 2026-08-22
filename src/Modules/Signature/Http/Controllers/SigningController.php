@@ -64,7 +64,7 @@ class SigningController extends Controller
 
         return response()->json([
             'data' => $envelopes->map(fn (Envelope $envelope) => [
-                'envelope_id' => $envelope->id,
+                'envelope_id' => $envelope->public_id,
                 'status' => $envelope->status->value,
                 'document_id' => $envelope->document?->id,
                 'document_name' => $envelope->document?->name,
@@ -74,7 +74,7 @@ class SigningController extends Controller
     }
 
     /**
-     * GET /api/signature/pending-next?exclude={envelopeId}
+     * GET /api/signature/pending-next?exclude={envelopePublicId}
      *
      * The chaining step from the feature spec, Flow B step 4: after the
      * client's browser sees a signing complete (via postMessage), the
@@ -83,6 +83,12 @@ class SigningController extends Controller
      * data. Deliberately does not wait for the completion webhook to have
      * landed yet; `exclude` just keeps the envelope just signed out of its
      * own answer while that confirmation is still in flight.
+     *
+     * `remaining_count` is what the frontend's continue/later interstitial
+     * (see .claude/rules/signature.md, "Deep-link chaining") uses to decide
+     * whether to show that prompt at all — reuses the same
+     * `pendingForClient` scope as the count below rather than a second
+     * implementation of "how many are left."
      */
     public function pendingNext(Request $request): JsonResponse
     {
@@ -96,17 +102,27 @@ class SigningController extends Controller
 
         Gate::forUser($user)->authorize('viewAny', Envelope::class);
 
-        $envelope = $this->findNextPending->handle($user->client, $request->integer('exclude') ?: null);
+        $excludeEnvelopeId = $request->filled('exclude')
+            ? Envelope::query()->where('public_id', $request->string('exclude'))->value('id')
+            : null;
+
+        $envelope = $this->findNextPending->handle($user->client, $excludeEnvelopeId);
+
+        $remainingCount = Envelope::query()
+            ->pendingForClient($user->client->id)
+            ->when($excludeEnvelopeId !== null, fn ($query) => $query->where('id', '!=', $excludeEnvelopeId))
+            ->count();
 
         if ($envelope === null) {
-            return response()->json(['done' => true]);
+            return response()->json(['done' => true, 'remaining_count' => $remainingCount]);
         }
 
         return response()->json([
             'done' => false,
-            'envelope_id' => $envelope->id,
+            'envelope_id' => $envelope->public_id,
             'document_id' => $envelope->document?->id,
             'document_name' => $envelope->document?->name,
+            'remaining_count' => $remainingCount,
         ]);
     }
 

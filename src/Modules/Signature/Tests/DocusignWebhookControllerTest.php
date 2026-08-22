@@ -86,7 +86,7 @@ class DocusignWebhookControllerTest extends BaseTest
                     return 'unused';
                 }
 
-                public function recipientViewUrl(string $providerEnvelopeId, EnvelopeRecipient $recipient, string $returnUrl): SigningToken
+                public function recipientViewUrl(string $providerEnvelopeId, EnvelopeRecipient $recipient, string $returnUrl, string $recipientId): SigningToken
                 {
                     throw new \RuntimeException('unused');
                 }
@@ -117,6 +117,29 @@ class DocusignWebhookControllerTest extends BaseTest
 
         $this->assertSame(EnvelopeStatus::Viewed, $this->envelope->fresh()->status);
         $this->assertDatabaseCount('signature_webhook_events', 0);
+    }
+
+    public function test_a_flat_legacy_shaped_payload_still_transitions_the_envelope(): void
+    {
+        // DocuSign Connect has been observed delivering a flat payload
+        // (envelopeId/status at the top level, no `data`/`envelopeSummary`
+        // wrapper) to the same sandbox subscription that otherwise sends the
+        // eventData shape in payload() above — see WebhookEvent's docblock.
+        $flatPayload = [
+            'status' => 'completed',
+            'envelopeId' => $this->envelope->provider_envelope_id,
+            'recipients' => [
+                'signers' => [[
+                    'email' => $this->tenant['client']->email,
+                    'status' => 'completed',
+                    'signedDateTime' => now()->toIso8601String(),
+                ]],
+            ],
+        ];
+
+        $this->postJson('/api/signature/webhooks/docusign', $flatPayload)->assertOk();
+
+        $this->assertSame(EnvelopeStatus::Completed, $this->envelope->fresh()->status);
     }
 
     public function test_a_malformed_body_returns_400(): void

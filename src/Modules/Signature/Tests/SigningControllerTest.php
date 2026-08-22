@@ -50,7 +50,7 @@ class SigningControllerTest extends BaseTest
         $response = $this->actingAs($this->tenant['clientUser'])->getJson('/api/signature/pending');
 
         $response->assertOk();
-        $this->assertSame([$mine->id], $response->json('data.*.envelope_id'));
+        $this->assertSame([$mine->public_id], $response->json('data.*.envelope_id'));
     }
 
     public function test_pending_excludes_completed_envelopes(): void
@@ -82,10 +82,36 @@ class SigningControllerTest extends BaseTest
         $next = $this->envelope($this->tenant['client'], $this->tenant['document'], EnvelopeStatus::Sent, now()->subHour());
 
         $this->actingAs($this->tenant['clientUser'])
-            ->getJson("/api/signature/pending-next?exclude={$justSigned->id}")
+            ->getJson("/api/signature/pending-next?exclude={$justSigned->public_id}")
             ->assertOk()
             ->assertJsonPath('done', false)
-            ->assertJsonPath('envelope_id', $next->id);
+            ->assertJsonPath('envelope_id', $next->public_id)
+            ->assertJsonPath('remaining_count', 1);
+    }
+
+    public function test_pending_next_reports_how_many_others_are_still_pending(): void
+    {
+        Envelope::query()->delete();
+        $justSigned = $this->envelope($this->tenant['client'], $this->tenant['document'], EnvelopeStatus::Sent, now()->subDays(3));
+        $this->envelope($this->tenant['client'], $this->tenant['document'], EnvelopeStatus::Sent, now()->subDays(2));
+        $this->envelope($this->tenant['client'], $this->tenant['document'], EnvelopeStatus::Sent, now()->subDay());
+
+        $this->actingAs($this->tenant['clientUser'])
+            ->getJson("/api/signature/pending-next?exclude={$justSigned->public_id}")
+            ->assertOk()
+            ->assertJsonPath('done', false)
+            ->assertJsonPath('remaining_count', 2);
+    }
+
+    public function test_pending_next_reports_zero_remaining_when_nothing_is_left(): void
+    {
+        Envelope::query()->delete();
+
+        $this->actingAs($this->tenant['clientUser'])
+            ->getJson('/api/signature/pending-next')
+            ->assertOk()
+            ->assertJsonPath('done', true)
+            ->assertJsonPath('remaining_count', 0);
     }
 
     /* ── signing-token ─────────────────────────────────────────────────── */
@@ -94,7 +120,7 @@ class SigningControllerTest extends BaseTest
     {
         $envelope = $this->envelope($this->tenant['client'], $this->tenant['document'], EnvelopeStatus::Sent);
 
-        $this->postJson("/api/signature/envelopes/{$envelope->id}/signing-token")->assertStatus(401);
+        $this->postJson("/api/signature/envelopes/{$envelope->public_id}/signing-token")->assertStatus(401);
     }
 
     public function test_signing_token_returns_a_token_for_the_clients_own_envelope(): void
@@ -102,7 +128,7 @@ class SigningControllerTest extends BaseTest
         $envelope = $this->envelope($this->tenant['client'], $this->tenant['document'], EnvelopeStatus::Sent);
 
         $this->actingAs($this->tenant['clientUser'])
-            ->postJson("/api/signature/envelopes/{$envelope->id}/signing-token")
+            ->postJson("/api/signature/envelopes/{$envelope->public_id}/signing-token")
             ->assertOk()
             ->assertJsonStructure(['token', 'expires_at', 'signing_url']);
     }
@@ -112,7 +138,7 @@ class SigningControllerTest extends BaseTest
         $foreign = $this->envelope($this->tenant['otherClient'], $this->tenant['otherDocument'], EnvelopeStatus::Sent);
 
         $this->actingAs($this->tenant['clientUser'])
-            ->postJson("/api/signature/envelopes/{$foreign->id}/signing-token")
+            ->postJson("/api/signature/envelopes/{$foreign->public_id}/signing-token")
             ->assertStatus(403);
     }
 
@@ -121,7 +147,7 @@ class SigningControllerTest extends BaseTest
         $envelope = $this->envelope($this->tenant['client'], $this->tenant['document'], EnvelopeStatus::Completed);
 
         $this->actingAs($this->tenant['clientUser'])
-            ->postJson("/api/signature/envelopes/{$envelope->id}/signing-token")
+            ->postJson("/api/signature/envelopes/{$envelope->public_id}/signing-token")
             ->assertStatus(422);
     }
 

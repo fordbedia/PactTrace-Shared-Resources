@@ -4,6 +4,7 @@ namespace PactTrackSDK\SharedResources\Modules\Signature;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use PactTrackSDK\SharedResources\Modules\Signature\Console\Commands\ReconcileStaleDocusignEnvelopes;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Ports\ESignatureProvider;
 use PactTrackSDK\SharedResources\Modules\Signature\Infrastructure\Docusign\DocusignSignatureProvider;
 use PactTrackSDK\SharedResources\Modules\Signature\Infrastructure\Docusign\JwtGrantAuthenticator;
@@ -71,6 +72,12 @@ class SignatureProvider extends ServiceProvider
     {
         foreach ($this->policies as $model => $policy) {
             Gate::policy($model, $policy);
+        }
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                ReconcileStaleDocusignEnvelopes::class,
+            ]);
         }
     }
 

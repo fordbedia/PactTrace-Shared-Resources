@@ -20,10 +20,19 @@ class Signer extends Model
         'routing_order',
         'status',
         'signed_at',
+        'signing_token_hash',
+        'signing_token_expires_at',
+        'signing_token_consumed_at',
+    ];
+
+    protected $hidden = [
+        'signing_token_hash',
     ];
 
     protected $casts = [
         'signed_at' => 'datetime',
+        'signing_token_expires_at' => 'datetime',
+        'signing_token_consumed_at' => 'datetime',
     ];
 
     protected static function newFactory(): SignerFactory
@@ -39,5 +48,16 @@ class Signer extends Model
     public function fields(): HasMany
     {
         return $this->hasMany(SignatureField::class);
+    }
+
+    /**
+     * A guest (no PactTrack account) signer is any signer that was ever
+     * issued a guest signing token — see GuestSigningTokenService. The
+     * primary, portal-authenticated client signer never has one, so this
+     * is a sufficient signal on its own; no separate boolean column.
+     */
+    public function isGuest(): bool
+    {
+        return $this->signing_token_hash !== null;
     }
 }

@@ -24,6 +24,15 @@ namespace PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects;
  * status/email in sync (see RecordSignatureCompletionUseCase). DocuSign
  * delivers the full recipient list on every Connect payload, so this is
  * simply every 'completed' entry in it, not just one.
+ *
+ * DocuSign Connect has been observed delivering two different shapes to the
+ * same sandbox subscription: the "eventData" shape above (`event` +
+ * `data.envelopeSummary`), and a flat legacy shape that mirrors the
+ * envelope REST resource directly at the payload's top level (`envelopeId`/
+ * `status` with no `data` wrapper at all). Without the fallback below, the
+ * flat shape parses as `eventType: 'unknown'` / `providerEnvelopeId: null`,
+ * which RecordSignatureCompletionUseCase silently ignores — the envelope
+ * never leaves `draft` and no notification ever sends.
  */
 final class WebhookEvent
 {
@@ -42,6 +51,12 @@ final class WebhookEvent
     {
         $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
         $summary = is_array($data['envelopeSummary'] ?? null) ? $data['envelopeSummary'] : [];
+
+        if ($data === [] && isset($payload['envelopeId'])) {
+            $data = $payload;
+            $summary = $payload;
+        }
+
         $signers = is_array($summary['recipients']['signers'] ?? null) ? $summary['recipients']['signers'] : [];
 
         $status = isset($summary['status']) && is_string($summary['status'])

@@ -133,10 +133,31 @@ class DocusignSignatureProviderTest extends BaseTest
         $this->fakeAuth();
         Http::fake(['na2.docusign.test/restapi/v2.1/accounts/acct-1/envelopes/env-1/views/recipient' => Http::response(['url' => 'https://sign.test/recipient'])]);
 
-        $token = $this->provider()->recipientViewUrl('env-1', $this->recipient(), 'https://app.test/return');
+        $token = $this->provider()->recipientViewUrl('env-1', $this->recipient(), 'https://app.test/return', '1');
 
         $this->assertSame('https://sign.test/recipient', $token->signingUrl);
         $this->assertSame('1', $token->providerSignerId);
+    }
+
+    /**
+     * A co-signer's Signer::provider_signer_id is never '1' — this proves
+     * recipientViewUrl() actually sends and echoes back the caller's
+     * recipientId, rather than a hardcoded '1', which would otherwise mint
+     * an embedded view for the wrong DocuSign recipient. See
+     * .claude/rules/signature.md, "Guest signers".
+     */
+    public function test_recipient_view_url_targets_the_given_recipient_id_not_a_hardcoded_one(): void
+    {
+        $this->fakeAuth();
+        Http::fake(['na2.docusign.test/restapi/v2.1/accounts/acct-1/envelopes/env-1/views/recipient' => Http::response(['url' => 'https://sign.test/recipient'])]);
+
+        $token = $this->provider()->recipientViewUrl('env-1', $this->recipient(), 'https://app.test/return', '2');
+
+        $this->assertSame('2', $token->providerSignerId);
+        // Guarded on the endpoint first: assertSent evaluates this closure
+        // against every recorded request, including fakeAuth()'s token/
+        // userinfo calls, which have no 'recipientId' key at all.
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/views/recipient') && $request['recipientId'] === '2');
     }
 
     public function test_apply_brand_is_a_no_op_when_brand_id_is_null(): void

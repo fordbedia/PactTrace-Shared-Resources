@@ -118,7 +118,16 @@ class PrepareEnvelopeForSignature
         ];
 
         foreach ($coSigners as $coSigner) {
-            $recipients[] = new EnvelopeRecipient(name: $coSigner['name'], email: $coSigner['email'], clientUserId: null);
+            // clientUserId is the co-signer's own email rather than null: a
+            // co-signer now signs embedded, through PactTrack's own guest
+            // link (see GenerateGuestSigningEmbedTokenUseCase), not
+            // DocuSign's hosted remote-signer email — DocuSign requires the
+            // same clientUserId at creation and at every later
+            // recipientViewUrl() call for an embedded recipient, and email
+            // is the only value stable across both that's known before this
+            // signer's own Signer row exists. See .claude/rules/signature.md,
+            // "Guest signers".
+            $recipients[] = new EnvelopeRecipient(name: $coSigner['name'], email: $coSigner['email'], clientUserId: $coSigner['email']);
         }
 
         $providerEnvelopeId = $this->eSignatureProvider->createDraftEnvelope(
@@ -200,6 +209,6 @@ class PrepareEnvelopeForSignature
     private function returnUrl(Envelope $envelope): string
     {
         return rtrim((string) config('app.frontend_url'), '/')
-            . '/docusign-return?flow=sender&envelope=' . $envelope->id;
+            . '/docusign-return?flow=sender&envelope=' . $envelope->public_id;
     }
 }

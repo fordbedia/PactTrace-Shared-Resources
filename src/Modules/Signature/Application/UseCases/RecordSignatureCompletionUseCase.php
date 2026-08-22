@@ -8,8 +8,10 @@ use Illuminate\Support\Facades\Mail;
 use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\DocumentReadyForSignatureEmail;
+use PactTrackSDK\SharedResources\Modules\Notification\Mail\GuestSigningInvitationEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\DTO\ProviderData;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\Services\GuestSigningTokenService;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Enums\EnvelopeStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Exceptions\EnvelopeCannotTransitionException;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\WebhookEvent;
@@ -20,9 +22,10 @@ use Throwable;
 /**
  * The webhook-side half of Flow B: turns a normalized WebhookEvent into an
  * Envelope status transition, keeps the linked Document's status in sync,
- * notifies the client the first time an envelope reaches `sent`, and writes
- * the audit trail entry — see .claude/rules/signature.md and
- * .claude/rules/document.md, "Audit trail".
+ * notifies the client (and any ad-hoc co-signers — see notifyCoSigners())
+ * the first time an envelope reaches `sent`, and writes the audit trail
+ * entry — see .claude/rules/signature.md and .claude/rules/document.md,
+ * "Audit trail".
  *
  * Deliberately does NOT do its own idempotency check — DocusignWebhookController
  * already guarantees this is only called once per distinct payload (unique
@@ -63,6 +66,7 @@ class RecordSignatureCompletionUseCase
 
     public function __construct(
         private readonly DocumentRepository $documents,
+        private readonly GuestSigningTokenService $guestSigningTokenService,
     ) {
     }
 
@@ -114,6 +118,7 @@ class RecordSignatureCompletionUseCase
 
         if ($previousStatus === EnvelopeStatus::Draft && $envelope->status === EnvelopeStatus::Sent) {
             $this->notifyClient($envelope);
+            $this->notifyCoSigners($envelope);
         }
 
         AuditLog::create([
@@ -152,6 +157,16 @@ class RecordSignatureCompletionUseCase
 
             $signer->status = 'signed';
             $signer->signed_at ??= now();
+
+            // A guest signer's token stays hash-matchable after this (so a
+            // reopened link still resolves the right Signer for messaging),
+            // but is no longer usable to sign again — see
+            // GuestSigningTokenService::resolve() and
+            // .claude/rules/signature.md, "Guest signers".
+            if ($signer->isGuest()) {
+                $signer->signing_token_consumed_at ??= now();
+            }
+
             $signer->save();
         }
     }
@@ -193,8 +208,61 @@ class RecordSignatureCompletionUseCase
                 providerData: ProviderData::fromArray($provider->toArray()),
                 clientName: $client->name,
                 documentName: $document?->name ?? 'A document',
-                portalUrl: rtrim((string) config('app.frontend_url'), '/') . '/portal/sign?envelope=' . $envelope->id,
+                portalUrl: rtrim((string) config('app.frontend_url'), '/') . '/portal/sign?envelope=' . $envelope->public_id,
             ));
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * PactTrack's own guest signing invitation to every ad-hoc co-signer on
+     * the envelope — the client's own Signer row always carries
+     * `provider_signer_id === '1'` (see DocusignSignatureProvider::RECIPIENT_ID
+     * and PrepareEnvelopeForSignature::createSignerRows, both
+     * positional/1-indexed the same way), so everything else here is a
+     * co-signer, never the client counted twice. Each co-signer is issued a
+     * fresh guest signing token here, at send time — see
+     * GuestSigningTokenService::issueFor() — and signs embedded, through
+     * PactTrack's own branded iframe, not DocuSign's hosted remote-signer
+     * email; see .claude/rules/signature.md, "Guest signers". A co-signer
+     * with no email on file is simply skipped (no token to deliver it with)
+     * rather than treated as an error. Same best-effort contract as
+     * notifyClient(): never let a mail failure break webhook processing.
+     */
+    private function notifyCoSigners(Envelope $envelope): void
+    {
+        try {
+            $client = $envelope->client()->first();
+            $provider = $envelope->provider()->first();
+            $document = $envelope->document()->first();
+
+            if ($provider === null) {
+                return;
+            }
+
+            $coSigners = $envelope->signers()
+                ->where('provider_signer_id', '!=', '1')
+                ->get();
+
+            foreach ($coSigners as $coSigner) {
+                if ($coSigner->email === null || $coSigner->email === '') {
+                    continue;
+                }
+
+                $rawToken = $this->guestSigningTokenService->issueFor($coSigner);
+
+                $signingUrl = rtrim((string) config('app.frontend_url'), '/')
+                    . '/portal/sign?signingLinkToken=' . $rawToken . '&envelope=' . $envelope->public_id;
+
+                Mail::to($coSigner->email)->queue(new GuestSigningInvitationEmail(
+                    providerData: ProviderData::fromArray($provider->toArray()),
+                    signerName: $coSigner->name,
+                    documentName: $document?->name ?? 'A document',
+                    clientName: $client?->name ?? 'the client',
+                    signingUrl: $signingUrl,
+                ));
+            }
         } catch (Throwable $e) {
             report($e);
         }
