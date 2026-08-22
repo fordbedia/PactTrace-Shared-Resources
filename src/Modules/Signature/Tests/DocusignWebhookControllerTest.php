@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PactTrackSDK\SharedResources\Modules\Signature\Tests;
 
+use Illuminate\Support\Facades\Log;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Enums\EnvelopeStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Ports\ESignatureProvider;
@@ -113,10 +114,50 @@ class DocusignWebhookControllerTest extends BaseTest
             };
         });
 
+        Log::spy();
+
         $this->postJson('/api/signature/webhooks/docusign', $this->payload())->assertStatus(401);
 
         $this->assertSame(EnvelopeStatus::Viewed, $this->envelope->fresh()->status);
         $this->assertDatabaseCount('signature_webhook_events', 0);
+
+        // The exact failure this bug needed: a rejected delivery that
+        // produces no log line is indistinguishable from one that never
+        // arrived — see DocusignWebhookController's own docblock.
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn ($message) => str_contains($message, 'signature verification failed'))
+            ->once();
+    }
+
+    public function test_a_malformed_payload_is_logged(): void
+    {
+        Log::spy();
+
+        $this->call(
+            'POST',
+            '/api/signature/webhooks/docusign',
+            server: ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'],
+            content: 'not-json',
+        )->assertStatus(400);
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn ($message) => str_contains($message, 'payload was not valid JSON'))
+            ->once();
+    }
+
+    public function test_a_payload_for_an_unknown_envelope_is_logged_not_silently_dropped(): void
+    {
+        Log::spy();
+
+        $unknown = $this->payload();
+        $unknown['data']['envelopeId'] = 'no-such-provider-envelope-id';
+
+        $this->postJson('/api/signature/webhooks/docusign', $unknown)->assertOk();
+
+        $this->assertSame(EnvelopeStatus::Viewed, $this->envelope->fresh()->status);
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn ($message) => str_contains($message, 'no record of'))
+            ->once();
     }
 
     public function test_a_flat_legacy_shaped_payload_still_transitions_the_envelope(): void

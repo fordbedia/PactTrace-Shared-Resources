@@ -86,6 +86,65 @@ class GuestSigningControllerTest extends BaseTest
             ->assertJsonPath('reason', 'consumed');
     }
 
+    /* ── guest-signer-status ──────────────────────────────────────────────
+     * See .claude/rules/signature.md, "Never contradict the authoritative
+     * signed status" (Problem 5). */
+
+    public function test_signer_status_reports_signed_once_the_signer_row_is_marked_signed(): void
+    {
+        [$envelope, $signer] = $this->sentEnvelopeWithCoSigner();
+        $token = app(GuestSigningTokenService::class)->issueFor($signer);
+        $signer->forceFill(['status' => 'signed', 'signing_token_consumed_at' => now()])->save();
+
+        $this->postJson("/api/signature/envelopes/{$envelope->public_id}/guest-signer-status", [
+            'signingLinkToken' => $token,
+        ])
+            ->assertOk()
+            ->assertJsonPath('signed', true)
+            ->assertJsonPath('declined', false);
+    }
+
+    /**
+     * A CONSUMED token must still resolve to a status — this is exactly how
+     * a guest who just finished signing (and whose token was consumed the
+     * same moment they were marked signed) identifies themselves for this
+     * read. `resolve()` rejecting a consumed token is correct for the
+     * *signing* action; `findByToken()` (what this endpoint uses) is not
+     * subject to that guard.
+     */
+    public function test_signer_status_still_resolves_a_consumed_token(): void
+    {
+        [$envelope, $signer] = $this->sentEnvelopeWithCoSigner();
+        $token = app(GuestSigningTokenService::class)->issueFor($signer);
+        $signer->forceFill(['status' => 'signed', 'signing_token_consumed_at' => now()])->save();
+
+        $this->postJson("/api/signature/envelopes/{$envelope->public_id}/guest-signer-status", [
+            'signingLinkToken' => $token,
+        ])->assertOk()->assertJsonPath('signed', true);
+    }
+
+    public function test_signer_status_reports_not_signed_while_still_pending(): void
+    {
+        [$envelope, $signer] = $this->sentEnvelopeWithCoSigner();
+        $token = app(GuestSigningTokenService::class)->issueFor($signer);
+
+        $this->postJson("/api/signature/envelopes/{$envelope->public_id}/guest-signer-status", [
+            'signingLinkToken' => $token,
+        ])
+            ->assertOk()
+            ->assertJsonPath('signed', false)
+            ->assertJsonPath('declined', false);
+    }
+
+    public function test_signer_status_rejects_an_unknown_token_with_404(): void
+    {
+        [$envelope] = $this->sentEnvelopeWithCoSigner();
+
+        $this->postJson("/api/signature/envelopes/{$envelope->public_id}/guest-signer-status", [
+            'signingLinkToken' => 'not-a-real-token',
+        ])->assertStatus(404);
+    }
+
     public function test_the_envelopes_internal_id_never_resolves_the_route(): void
     {
         [$envelope, $signer] = $this->sentEnvelopeWithCoSigner();

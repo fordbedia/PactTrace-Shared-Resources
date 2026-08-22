@@ -94,14 +94,15 @@ interface ESignatureProvider
      * 1. Application/UseCases/CheckEnvelopeProviderStatus — optimistic,
      *    read-only UI feedback right after an embedded view's returnUrl
      *    fires. Never persists anything.
-     * 2. Application/UseCases/ReconcileStaleDraftEnvelopes — the scheduled
+     * 2. Application/UseCases/ReconcileStaleEnvelopes — the scheduled
      *    safety net for DocuSign Connect webhook delivery being slow or
-     *    missing entirely. This *is* allowed to feed a persisted Envelope
-     *    status change, but only through RecordSignatureCompletionUseCase
-     *    (the same transition/audit-log/notification path a real webhook
-     *    uses) and only for envelopes stuck well past a normal webhook
-     *    delay — see that use case's docblock. The webhook remains the
-     *    primary, preferred path; this is deliberately a fallback, not a
+     *    missing entirely (draft, and sent/viewed/partially_signed alike).
+     *    This *is* allowed to feed a persisted Envelope status change, but
+     *    only through RecordSignatureCompletionUseCase (the same
+     *    transition/audit-log/notification path a real webhook uses) and
+     *    only for envelopes stuck well past a normal webhook delay — see
+     *    that use case's docblock. The webhook remains the primary,
+     *    preferred path; this is deliberately a fallback, not a
      *    replacement for it.
      */
     public function fetchEnvelopeStatus(string $providerEnvelopeId): string;

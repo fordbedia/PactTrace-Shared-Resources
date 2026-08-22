@@ -6,6 +6,7 @@ namespace PactTrackSDK\SharedResources\Modules\Signature\Tests;
 
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Enums\EnvelopeStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
+use PactTrackSDK\SharedResources\Modules\Signature\Models\Signer;
 use PactTrackSDK\SharedResources\TestCase\Extras\LoadsModuleApiRoutes;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
@@ -149,6 +150,77 @@ class SigningControllerTest extends BaseTest
         $this->actingAs($this->tenant['clientUser'])
             ->postJson("/api/signature/envelopes/{$envelope->public_id}/signing-token")
             ->assertStatus(422);
+    }
+
+    /* ── signer-status ─────────────────────────────────────────────────── *
+     * See .claude/rules/signature.md, "Never contradict the authoritative
+     * signed status" (Problem 5) — the cross-check /portal/sign polls
+     * before ever rendering a "nothing was signed" message. */
+
+    public function test_signer_status_requires_being_signed_in(): void
+    {
+        $envelope = $this->envelope($this->tenant['client'], $this->tenant['document'], EnvelopeStatus::Sent);
+
+        $this->getJson("/api/signature/envelopes/{$envelope->public_id}/signer-status")->assertStatus(401);
+    }
+
+    public function test_signer_status_reports_signed_once_the_signer_row_is_marked_signed(): void
+    {
+        $envelope = $this->envelope($this->tenant['client'], $this->tenant['document'], EnvelopeStatus::Sent);
+        Signer::factory()->create([
+            'envelope_id' => $envelope->id,
+            'provider_signer_id' => '1',
+            'email' => $this->tenant['client']->email,
+            'status' => 'signed',
+        ]);
+
+        $this->actingAs($this->tenant['clientUser'])
+            ->getJson("/api/signature/envelopes/{$envelope->public_id}/signer-status")
+            ->assertOk()
+            ->assertJsonPath('signed', true)
+            ->assertJsonPath('declined', false);
+    }
+
+    public function test_signer_status_reports_not_signed_while_still_pending(): void
+    {
+        $envelope = $this->envelope($this->tenant['client'], $this->tenant['document'], EnvelopeStatus::Sent);
+        Signer::factory()->create([
+            'envelope_id' => $envelope->id,
+            'provider_signer_id' => '1',
+            'email' => $this->tenant['client']->email,
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($this->tenant['clientUser'])
+            ->getJson("/api/signature/envelopes/{$envelope->public_id}/signer-status")
+            ->assertOk()
+            ->assertJsonPath('signed', false)
+            ->assertJsonPath('declined', false);
+    }
+
+    /**
+     * No Signer row at all (e.g. the webhook that would have created one
+     * hasn't landed yet) must never be misread as "signed" — the absence of
+     * confirmation is exactly the "not yet" case this endpoint exists to
+     * distinguish from a genuine false negative.
+     */
+    public function test_signer_status_reports_not_signed_when_no_signer_row_exists_yet(): void
+    {
+        $envelope = $this->envelope($this->tenant['client'], $this->tenant['document'], EnvelopeStatus::Sent);
+
+        $this->actingAs($this->tenant['clientUser'])
+            ->getJson("/api/signature/envelopes/{$envelope->public_id}/signer-status")
+            ->assertOk()
+            ->assertJsonPath('signed', false);
+    }
+
+    public function test_signer_status_refuses_another_clients_envelope(): void
+    {
+        $foreign = $this->envelope($this->tenant['otherClient'], $this->tenant['otherDocument'], EnvelopeStatus::Sent);
+
+        $this->actingAs($this->tenant['clientUser'])
+            ->getJson("/api/signature/envelopes/{$foreign->public_id}/signer-status")
+            ->assertStatus(403);
     }
 
     private function envelope(

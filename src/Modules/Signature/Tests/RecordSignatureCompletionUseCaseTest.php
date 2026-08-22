@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PactTrackSDK\SharedResources\Modules\Signature\Tests;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\DocumentReadyForSignatureEmail;
@@ -214,6 +215,49 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
         ]);
     }
 
+    /**
+     * Problem 5 fix: a recipient's own Signer row must reflect `signed` as
+     * soon as DocuSign's payload reports them completed — even when the
+     * envelope overall hasn't reached `completed` yet (a multi-signer
+     * envelope where a co-signer hasn't gone yet). Previously
+     * recordSignersCompleted() only ran on the `completed` branch, so this
+     * signer's own row stayed `pending` for that whole window — the stale
+     * read that let /portal/sign's post-signing status check see a false
+     * "nothing was signed". See .claude/rules/signature.md, "Never
+     * contradict the authoritative signed status".
+     */
+    public function test_a_signer_is_recorded_as_signed_even_when_the_envelope_itself_is_not_yet_completed(): void
+    {
+        $envelope = $this->envelope(EnvelopeStatus::Sent, DocumentStatus::Sent);
+        Signer::factory()->create([
+            'envelope_id' => $envelope->id,
+            'email' => $this->tenant['client']->email,
+            'status' => 'pending',
+        ]);
+        Signer::factory()->create([
+            'envelope_id' => $envelope->id,
+            'email' => 'still-pending-co-signer@example.com',
+            'status' => 'pending',
+        ]);
+
+        // DocuSign's own envelope-level status is still `delivered`
+        // (mapped to VIEWED_EVENTS) — this client finished, the co-signer
+        // hasn't, so the envelope as a whole is nowhere near `completed`.
+        $this->useCase->handle($this->event('delivered', $envelope, $this->tenant['client']->email));
+
+        $this->assertSame(EnvelopeStatus::Viewed, $envelope->fresh()->status);
+        $this->assertDatabaseHas('signers', [
+            'envelope_id' => $envelope->id,
+            'email' => $this->tenant['client']->email,
+            'status' => 'signed',
+        ]);
+        $this->assertDatabaseHas('signers', [
+            'envelope_id' => $envelope->id,
+            'email' => 'still-pending-co-signer@example.com',
+            'status' => 'pending',
+        ]);
+    }
+
     public function test_completed_event_updates_an_existing_signer_rather_than_duplicating(): void
     {
         $envelope = $this->envelope(EnvelopeStatus::Viewed, DocumentStatus::Sent);
@@ -305,19 +349,42 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
 
     public function test_an_event_for_an_unknown_envelope_id_is_ignored(): void
     {
+        Log::spy();
+
         // Must not throw — this exercises the "not one of ours" branch.
         $this->useCase->handle(new WebhookEvent('completed', 'no-such-envelope', [], []));
 
         $this->assertDatabaseCount('audit_logs', 0);
+
+        // Silent-and-unmatched is the exact bug class this class's own
+        // docblock warns about — see .claude/rules/signature.md.
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn ($message) => str_contains($message, 'no record of'))
+            ->once();
     }
 
     public function test_an_unrecognised_event_type_is_ignored(): void
     {
+        Log::spy();
         $envelope = $this->envelope(EnvelopeStatus::Sent, DocumentStatus::Sent);
 
         $this->useCase->handle($this->event('some-future-status', $envelope));
 
         $this->assertSame(EnvelopeStatus::Sent, $envelope->fresh()->status);
+        Log::shouldHaveReceived('info')
+            ->withArgs(fn ($message) => str_contains($message, 'not mapped to any Envelope transition'))
+            ->once();
+    }
+
+    public function test_a_payload_with_no_extractable_envelope_id_is_logged(): void
+    {
+        Log::spy();
+
+        $this->useCase->handle(new WebhookEvent('unknown', null, [], ['some' => 'shape docusign never documented']));
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn ($message) => str_contains($message, 'no recognizable envelope id'))
+            ->once();
     }
 
     private function envelope(EnvelopeStatus $envelopeStatus, DocumentStatus $documentStatus): Envelope

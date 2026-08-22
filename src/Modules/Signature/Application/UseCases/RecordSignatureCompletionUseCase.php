@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
@@ -35,12 +36,24 @@ use Throwable;
  *
  * `eventType` values are DocuSign's own envelope status strings
  * (sent/delivered/completed/declined/voided — see WebhookEvent::fromDocusignPayload),
- * not DocuSign's underlying Connect event names. `completed` is where every
- * local Signer row DocuSign reports as done gets marked signed — see
- * recordSignersCompleted(). There's still no separate "partially signed"
- * webhook signal to react to per-signer; the Envelope's own status stays
- * driven entirely by DocuSign's envelope-level status string, which only
- * reports `completed` once every required signer is done.
+ * not DocuSign's underlying Connect event names. `recordSignersCompleted()`
+ * runs on every event, independent of which one — DocuSign includes each
+ * recipient's own status on every Connect delivery, so an individual
+ * `Signer` row can flip to `signed` well before the envelope itself reaches
+ * `completed` in a multi-signer envelope. The Envelope's own status still
+ * stays driven entirely by DocuSign's envelope-level status string (no
+ * separate "partially signed" webhook signal exists to react to for that),
+ * which only reports `completed` once every required signer is done — but
+ * per-signer state no longer has to wait for that.
+ *
+ * Every early return below (`providerEnvelopeId` missing, envelope
+ * unmatched, event type not mapped to a transition) is logged — see
+ * DocusignWebhookController's own docblock. This is not decorative: a
+ * DocuSign Connect webhook that arrives, gets accepted, and produces no
+ * database change is otherwise indistinguishable from one that never
+ * arrived at all, which is exactly how an envelope sat stuck at `viewed`
+ * with `completed_at` null (2026-08-22) before anyone noticed — see
+ * ReconcileStaleEnvelopes for the companion scheduled safety net.
  */
 class RecordSignatureCompletionUseCase
 {
@@ -73,6 +86,11 @@ class RecordSignatureCompletionUseCase
     public function handle(WebhookEvent $event): void
     {
         if ($event->providerEnvelopeId === null) {
+            Log::warning('DocuSign webhook payload carried no recognizable envelope id — check WebhookEvent::fromDocusignPayload against the actual payload shape DocuSign just sent.', [
+                'event_type' => $event->eventType,
+                'payload_keys' => array_keys($event->raw),
+            ]);
+
             return;
         }
 
@@ -81,10 +99,31 @@ class RecordSignatureCompletionUseCase
             ->first();
 
         if ($envelope === null) {
+            Log::warning('DocuSign webhook referenced an envelope PactTrack has no record of.', [
+                'provider_envelope_id' => $event->providerEnvelopeId,
+                'event_type' => $event->eventType,
+            ]);
+
             return;
         }
 
         $previousStatus = $envelope->status;
+
+        // Recorded unconditionally, before the envelope-level status branch
+        // below, and independent of it: DocuSign includes the full
+        // recipient list — each with its own status — on every Connect
+        // delivery, not only the one payload that finally reports the
+        // envelope itself as `completed` (see WebhookEvent's own docblock).
+        // A multi-signer envelope can sit at `sent`/`viewed` for a while
+        // after one specific recipient has already finished signing;
+        // previously this only ran on COMPLETED_EVENTS, which left that
+        // recipient's own Signer row at `pending` for that whole window —
+        // exactly the stale read that let /portal/sign's post-signing
+        // status check (see .claude/rules/signature.md, "Never contradict
+        // the authoritative signed status") see a false negative. Safe to
+        // call on every event: recordSignersCompleted() is idempotent and a
+        // no-op when completedSignerEmails is empty.
+        $this->recordSignersCompleted($envelope, $event);
 
         try {
             if (in_array($event->eventType, self::SENT_EVENTS, true)) {
@@ -92,13 +131,18 @@ class RecordSignatureCompletionUseCase
             } elseif (in_array($event->eventType, self::VIEWED_EVENTS, true)) {
                 $envelope->markViewed();
             } elseif (in_array($event->eventType, self::COMPLETED_EVENTS, true)) {
-                $this->recordSignersCompleted($envelope, $event);
                 $envelope->markCompleted();
             } elseif (in_array($event->eventType, self::DECLINED_EVENTS, true)) {
                 $envelope->markDeclined();
             } elseif (in_array($event->eventType, self::VOIDED_EVENTS, true)) {
                 $envelope->markVoided();
             } else {
+                Log::info('DocuSign webhook event type not mapped to any Envelope transition — ignored by design.', [
+                    'envelope_id' => $envelope->id,
+                    'provider_envelope_id' => $event->providerEnvelopeId,
+                    'event_type' => $event->eventType,
+                ]);
+
                 return;
             }
         } catch (EnvelopeCannotTransitionException) {
@@ -106,7 +150,15 @@ class RecordSignatureCompletionUseCase
             // terminal state (e.g. DocuSign redelivers `completed` after a
             // network hiccup). Nothing left to record — and this must stay
             // a no-op rather than bubble up, or a legitimate webhook retry
-            // would fail forever against an already-terminal envelope.
+            // would fail forever against an already-terminal envelope. Still
+            // worth a low-severity trace: this is expected/benign, not a
+            // failure, so it's logged at debug rather than warning.
+            Log::debug('DocuSign webhook event ignored: envelope already in a terminal state.', [
+                'envelope_id' => $envelope->id,
+                'status' => $envelope->status->value,
+                'event_type' => $event->eventType,
+            ]);
+
             return;
         }
 
@@ -140,7 +192,11 @@ class RecordSignatureCompletionUseCase
      * `pending` by PrepareEnvelopeForSignature when the envelope was first
      * sent — so this is usually just flipping status; the firstOrNew()
      * fallback only matters for envelopes that predate that (e.g. a
-     * manually reconciled backfill).
+     * manually reconciled backfill). Called on every webhook event
+     * regardless of eventType (see the call site above) — `$event->completedSignerEmails`
+     * is simply empty on a payload that reports no newly-completed
+     * recipients, making the loop below a no-op, so calling this
+     * unconditionally is safe.
      */
     private function recordSignersCompleted(Envelope $envelope, WebhookEvent $event): void
     {

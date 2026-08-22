@@ -83,12 +83,14 @@ class GuestSigningTokenService
      * given Envelope so a token can never be replayed against a different
      * envelope's route. Throws GuestSigningTokenUnavailableException with a
      * reason the caller can map to the right HTTP status / frontend copy.
+     * For the *signing* action itself — a consumed or expired token must
+     * not be usable to open another embedded view. For a pure status read
+     * (has this signer actually completed?), use `findByToken()` instead,
+     * which returns the same Signer regardless of consumption/expiry.
      */
     public function resolve(Envelope $envelope, string $rawToken): Signer
     {
-        $signer = $envelope->signers()
-            ->where('signing_token_hash', $this->hash($rawToken))
-            ->first();
+        $signer = $this->findByToken($envelope, $rawToken);
 
         if ($signer === null) {
             throw GuestSigningTokenUnavailableException::invalid();
@@ -103,6 +105,22 @@ class GuestSigningTokenService
         }
 
         return $signer;
+    }
+
+    /**
+     * The same envelope-scoped hash lookup `resolve()` does, without the
+     * consumed/expired guards — used by GuestSigningController's status
+     * check (see .claude/rules/signature.md, "Never contradict the
+     * authoritative signed status"), where a *consumed* token is exactly
+     * what a client identifies themselves with after they've already
+     * finished signing, and must still resolve to their Signer row rather
+     * than throwing.
+     */
+    public function findByToken(Envelope $envelope, string $rawToken): ?Signer
+    {
+        return $envelope->signers()
+            ->where('signing_token_hash', $this->hash($rawToken))
+            ->first();
     }
 
     private function hash(string $rawToken): string

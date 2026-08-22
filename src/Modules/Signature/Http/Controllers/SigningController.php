@@ -161,4 +161,40 @@ class SigningController extends Controller
             'signing_url' => $token->signingUrl,
         ]);
     }
+
+    /**
+     * GET /api/signature/envelopes/{envelope}/signer-status
+     *
+     * A pure DB read of whether *this* client has actually completed
+     * signing this envelope — the authoritative cross-check
+     * `/portal/sign` polls after any non-`signing_complete` DocuSign
+     * returnUrl event, instead of trusting that event value alone to
+     * declare "nothing was signed" (that event is only a same-tab UX hint
+     * and can be wrong, delayed, or misread — see
+     * .claude/rules/signature.md, "Never contradict the authoritative
+     * signed status"). `signed`/`declined` read `Signer.status`, which
+     * `RecordSignatureCompletionUseCase::recordSignersCompleted()` now
+     * keeps in sync on every webhook delivery, not only once the whole
+     * envelope reaches `completed`.
+     */
+    public function signerStatus(Request $request, Envelope $envelope): JsonResponse
+    {
+        $user = $this->resolveActingUser($request);
+
+        if ($user === null || $user->client === null) {
+            return response()->json([
+                'message' => 'You must be signed in as a client to view a signing status.',
+            ], 401);
+        }
+
+        Gate::forUser($user)->authorize('sign', $envelope);
+
+        $signer = $envelope->signers()->where('email', $user->client->email)->first();
+
+        return response()->json([
+            'signed' => $signer?->status === 'signed',
+            'declined' => $signer?->status === 'declined',
+            'envelope_status' => $envelope->status->value,
+        ]);
+    }
 }

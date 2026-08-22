@@ -71,4 +71,40 @@ class GuestSigningController extends Controller
             'signing_url' => $token->signingUrl,
         ]);
     }
+
+    /**
+     * POST /api/signature/envelopes/{envelope}/guest-signer-status
+     *
+     * The guest-link counterpart to SigningController::signerStatus() — see
+     * that method's docblock and .claude/rules/signature.md, "Never
+     * contradict the authoritative signed status". Uses
+     * `GuestSigningTokenService::findByToken()`, not `resolve()`: a guest
+     * who already finished signing has a *consumed* token by design (see
+     * "Guest signers" — consumption happens the same moment
+     * `recordSignersCompleted()` marks them `signed`), and `resolve()`
+     * would reject that as unusable for signing again, which is correct
+     * for the signing action but wrong here — a consumed token is exactly
+     * how a just-finished guest identifies themselves for this read.
+     */
+    public function signerStatus(Request $request, Envelope $envelope): JsonResponse
+    {
+        $request->validate([
+            'signingLinkToken' => ['required', 'string'],
+        ]);
+
+        $signer = $this->guestSigningTokenService->findByToken(
+            $envelope,
+            $request->string('signingLinkToken')->toString(),
+        );
+
+        if ($signer === null) {
+            return response()->json(['message' => 'This signing link is not valid.', 'reason' => 'invalid'], 404);
+        }
+
+        return response()->json([
+            'signed' => $signer->status === 'signed',
+            'declined' => $signer->status === 'declined',
+            'envelope_status' => $envelope->status->value,
+        ]);
+    }
 }

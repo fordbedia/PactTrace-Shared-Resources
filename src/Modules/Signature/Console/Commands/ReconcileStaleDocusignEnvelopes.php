@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace PactTrackSDK\SharedResources\Modules\Signature\Console\Commands;
 
 use Illuminate\Console\Command;
-use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\ReconcileStaleDraftEnvelopes;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\ReconcileStaleEnvelopes;
 
 /**
  * Thin console adapter — same shape as
@@ -18,13 +18,13 @@ class ReconcileStaleDocusignEnvelopes extends Command
 {
     protected $signature = 'signature:reconcile-stale-envelopes';
 
-    protected $description = 'Catch up envelopes stuck in draft when DocuSign Connect never delivered (or delayed) the sent webhook';
+    protected $description = 'Catch up envelopes stuck (draft, or sent/viewed/partially_signed) when DocuSign Connect never delivered — or delayed — the webhook that would have advanced them';
 
-    public function handle(ReconcileStaleDraftEnvelopes $useCase): int
+    public function handle(ReconcileStaleEnvelopes $useCase): int
     {
         $result = $useCase->handle();
 
-        $this->info("Checked {$result['checked']} stale draft envelope(s); reconciled {$result['reconciled']}.");
+        $this->info("Checked {$result['checked']} stale envelope(s); reconciled {$result['reconciled']}.");
 
         return self::SUCCESS;
     }
