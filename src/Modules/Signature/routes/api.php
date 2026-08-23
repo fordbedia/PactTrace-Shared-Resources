@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use PactTrackSDK\SharedResources\Modules\Signature\Http\Controllers\DocusignWebhookController;
 use PactTrackSDK\SharedResources\Modules\Signature\Http\Controllers\EnvelopeController;
+use PactTrackSDK\SharedResources\Modules\Signature\Http\Controllers\EnvelopeDetailController;
 use PactTrackSDK\SharedResources\Modules\Signature\Http\Controllers\GuestSigningController;
 use PactTrackSDK\SharedResources\Modules\Signature\Http\Controllers\SigningController;
 
@@ -42,3 +43,16 @@ Route::post('signature/envelopes/{envelope}/guest-signer-status', [GuestSigningC
 
 // Provider webhook — no auth middleware, verified via signature header.
 Route::post('signature/webhooks/docusign', DocusignWebhookController::class);
+
+// The envelope detail view (/dashboard/signatures/matter/{matterId}), see
+// .claude/rules/signature.md. Real `auth:sanctum` middleware, matching
+// MattersController's pattern — not the ResolvesActingUser bypass the rest
+// of this file still uses (see EnvelopeDetailController's own docblock for
+// why this one surface is on the modern pattern already). `{matter:id}`
+// binds by Matter's internal id rather than its public_id route key
+// (Matter::getRouteKeyName(), see .claude/rules/matter.md) — this is a
+// staff-only URL, matching Ed's own /dashboard/signatures/matter/2 example.
+Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
+    Route::get('signature/matters/{matter:id}/envelope', [EnvelopeDetailController::class, 'show']);
+    Route::post('signature/envelopes/{envelope}/void', [EnvelopeDetailController::class, 'void']);
+});

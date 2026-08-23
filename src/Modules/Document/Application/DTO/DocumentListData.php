@@ -28,6 +28,7 @@ final readonly class DocumentListData
 		public int $per_page,
 		public ?int $page,
 		public bool $archived = false,
+		public ?int $matter_id = null,
 	)
 	{}
 
@@ -38,6 +39,7 @@ final readonly class DocumentListData
 			per_page: max(1, min((int) $request->query('per_page', self::DEFAULT_PER_PAGE), self::MAX_PER_PAGE)),
 			page: $request->filled('page') ? max(1, (int) $request->query('page')) : null,
 			archived: $request->boolean('archived'),
+			matter_id: $request->integer('matter_id') ?: null,
 		);
 	}
 }

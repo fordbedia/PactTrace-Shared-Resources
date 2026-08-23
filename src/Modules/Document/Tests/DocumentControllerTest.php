@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Folder;
+use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use PactTrackSDK\SharedResources\TestCase\Extras\LoadsModuleApiRoutes;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
@@ -197,6 +198,81 @@ class DocumentControllerTest extends BaseTest
             ->getJson("/api/documents?folder_id={$foreign->id}")
             ->assertOk()
             ->assertJsonPath('meta.total', 0);
+    }
+
+    /* ── matter_id (Matter Detail's "Documents on this matter") ──────────
+     * See .claude/rules/document.md and .claude/rules/matter.md. */
+
+    public function test_filtering_by_matter_id_returns_only_that_matters_documents(): void
+    {
+        $inMatter = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'matter_id' => $this->tenant['matter']->id,
+        ]);
+        $elsewhere = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'matter_id' => $this->tenant['otherMatter']->id,
+        ]);
+
+        $ids = $this->actingAs($this->tenant['owner'])
+            ->getJson("/api/documents?matter_id={$this->tenant['matter']->id}")
+            ->assertOk()
+            ->json('data.*.id');
+
+        $this->assertContains($inMatter->id, $ids);
+        $this->assertNotContains($elsewhere->id, $ids);
+    }
+
+    public function test_another_tenants_matter_id_returns_nothing(): void
+    {
+        $this->actingAs($this->tenant['owner'])
+            ->getJson("/api/documents?matter_id={$this->otherTenant['matter']->id}")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_a_document_with_an_envelope_exposes_its_public_id(): void
+    {
+        $document = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'matter_id' => $this->tenant['matter']->id,
+        ]);
+        $envelope = Envelope::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'document_id' => $document->id,
+        ]);
+
+        $response = $this->actingAs($this->tenant['owner'])
+            ->getJson("/api/documents?matter_id={$this->tenant['matter']->id}")
+            ->assertOk();
+
+        $row = collect($response->json('data'))->firstWhere('id', $document->id);
+        $this->assertSame($envelope->public_id, $row['envelope_public_id']);
+    }
+
+    public function test_a_document_with_no_envelope_has_a_null_envelope_public_id(): void
+    {
+        $document = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'matter_id' => $this->tenant['matter']->id,
+        ]);
+
+        $response = $this->actingAs($this->tenant['owner'])
+            ->getJson("/api/documents?matter_id={$this->tenant['matter']->id}")
+            ->assertOk();
+
+        $row = collect($response->json('data'))->firstWhere('id', $document->id);
+        $this->assertNull($row['envelope_public_id']);
     }
 
     public function test_the_default_listing_excludes_archived_documents(): void

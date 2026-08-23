@@ -28,6 +28,21 @@ class DocumentResource extends JsonResource
             'client_name' => $this->whenLoaded('client', fn () => $this->client?->name),
             'client_email' => $this->whenLoaded('client', fn () => $this->client?->email),
             'folder_id' => $this->folder_id,
+            /**
+             * The document's current envelope, if it has ever been prepared
+             * for signature — a Document can accumulate more than one
+             * Envelope over its lifetime (e.g. voided, then re-prepared),
+             * so "current" means the most recently created one. Exposed by
+             * public_id (never the internal id) for the same reason
+             * Envelope::getRouteKeyName() exists — see
+             * .claude/rules/signature.md. Backs the "View Signature" link
+             * on the Matter Detail view's "Documents on this matter"
+             * section (.claude/rules/matter.md).
+             */
+            'envelope_public_id' => $this->whenLoaded(
+                'envelopes',
+                fn () => $this->envelopes->sortByDesc('created_at')->first()?->public_id
+            ),
             'uploaded_by' => $this->uploaded_by,
             'uploaded_by_name' => $this->whenLoaded('uploader', fn () => $this->uploader?->name),
             'created_at' => $this->created_at?->toIso8601String(),

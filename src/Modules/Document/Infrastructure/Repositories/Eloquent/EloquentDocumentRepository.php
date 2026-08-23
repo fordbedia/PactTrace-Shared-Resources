@@ -39,6 +39,19 @@ class EloquentDocumentRepository extends BaseRepository implements DocumentRepos
 		return $this->paginate($query, $perPage, ['*'], 'page', $page);
 	}
 
+	public function forMatter(int $providerId, int $matterId, ?int $clientId, int $perPage, ?int $page, bool $archived = false): LengthAwarePaginator
+	{
+		$query = $this->model->newQuery()
+			->where('provider_id', $providerId)
+			->where('matter_id', $matterId)
+			->when($clientId !== null, fn ($query) => $query->where('client_id', $clientId))
+			->when($archived, fn ($query) => $query->whereNotNull('archived_at'), fn ($query) => $query->whereNull('archived_at'))
+			->with(['uploader', 'matter', 'client', 'envelopes'])
+			->latest();
+
+		return $this->paginate($query, $perPage, ['*'], 'page', $page);
+	}
+
 	public function totalSizeForProvider(int $providerId, ?int $clientId = null): int
 	{
 		// sum() returns null on an empty set and a numeric string on some

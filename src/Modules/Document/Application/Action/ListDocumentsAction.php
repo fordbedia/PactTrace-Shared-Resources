@@ -21,6 +21,11 @@ use PactTrackSDK\SharedResources\Modules\User\Models\User;
  * expands to that folder plus every descendant before the document query
  * runs, rather than an exact `folder_id` match.
  *
+ * `matter_id` (when present) takes priority over `folder_id` — it backs the
+ * "Documents on this matter" section of the Matter Detail view on
+ * /dashboard/matters (see .claude/rules/matter.md), which has no folder
+ * context at all. The two are never sent together by the frontend today.
+ *
  * Returns a LengthAwarePaginator, not a Collection: a provider's library
  * grows without bound, so the table pages server-side — same shape as
  * ListMattersHandler (see .claude/rules/matter.md). Note the folder tree
@@ -43,6 +48,10 @@ class ListDocumentsAction
     {
         $providerId = (int) $user->provider_id;
         $clientId = $user->isClientUser() ? $user->client?->id : null;
+
+        if ($data->matter_id !== null) {
+            return $this->documents->forMatter($providerId, $data->matter_id, $clientId, $data->per_page, $data->page, $data->archived);
+        }
 
         if ($data->folder_id === null) {
             return $this->documents->forProvider($providerId, $clientId, $data->per_page, $data->page, $data->archived);

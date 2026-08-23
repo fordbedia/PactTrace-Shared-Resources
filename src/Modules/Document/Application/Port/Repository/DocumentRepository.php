@@ -44,6 +44,22 @@ interface DocumentRepository
     public function forFolders(int $providerId, array $folderIds, ?int $clientId, int $perPage, ?int $page, bool $archived = false): LengthAwarePaginator;
 
     /**
+     * One page of every document filed against a single matter — backs the
+     * "Documents on this matter" section of the Matter Detail view on
+     * `/dashboard/matters` (see .claude/rules/matter.md). `envelopes` is
+     * eager-loaded (on top of the usual uploader/matter/client) so
+     * `DocumentResource::envelope_public_id` can be derived without an
+     * N+1 — that field is what the frontend uses to decide whether a row
+     * gets a "View Signature" link.
+     *
+     * `$archived` — see forProvider() above; same independent
+     * archived/soft-delete split applies here.
+     *
+     * @return LengthAwarePaginator<int, Document>
+     */
+    public function forMatter(int $providerId, int $matterId, ?int $clientId, int $perPage, ?int $page, bool $archived = false): LengthAwarePaginator;
+
+    /**
      * Total bytes stored by a provider — `SUM(documents.size)`, optionally
      * narrowed to one client. Backs the STORAGE indicator on
      * /dashboard/documents through DocumentStorageUsageService.
