@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\DocumentReadyForSignatureEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\GuestSigningInvitationEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
@@ -264,11 +265,31 @@ class RecordSignatureCompletionUseCase
                 providerData: ProviderData::fromArray($provider->toArray()),
                 clientName: $client->name,
                 documentName: $document?->name ?? 'A document',
-                portalUrl: rtrim((string) config('app.frontend_url'), '/') . '/portal/sign?envelope=' . $envelope->public_id,
+                portalUrl: $this->buildPortalUrl($document),
             ));
         } catch (Throwable $e) {
             report($e);
         }
+    }
+
+    /**
+     * `{FRONTEND_URL}/portal/matter/{matter.public_id}` when the document
+     * being signed belongs to a Matter — bare `{FRONTEND_URL}/portal`
+     * otherwise, since a Document can exist outside any Matter (see
+     * .claude/rules/matter.md) and `/portal` already handles that case (its
+     * own single-matter redirect / multi-matter picker / empty state — see
+     * .claude/rules/matter.md, "Matter Progress timeline"). Deliberately not
+     * `/portal/sign?envelope=...` — this email's CTA lands the client on the
+     * matter's own portal page, not straight into the DocuSign iframe.
+     */
+    private function buildPortalUrl(?Document $document): string
+    {
+        $base = rtrim((string) config('app.frontend_url'), '/');
+        $matterPublicId = $document?->matter?->public_id;
+
+        return $matterPublicId !== null
+            ? $base . '/portal/matter/' . $matterPublicId
+            : $base . '/portal';
     }
 
     /**

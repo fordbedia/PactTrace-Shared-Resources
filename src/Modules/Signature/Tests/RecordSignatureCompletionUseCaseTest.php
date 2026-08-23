@@ -7,6 +7,7 @@ namespace PactTrackSDK\SharedResources\Modules\Signature\Tests;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\DocumentReadyForSignatureEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\GuestSigningInvitationEmail;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\RecordSignatureCompletionUseCase;
@@ -56,11 +57,50 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
 
         Mail::assertQueued(
             DocumentReadyForSignatureEmail::class,
-            // Regression guard: the client's link must carry the envelope's
-            // public_id, never the enumerable internal id — see
-            // .claude/rules/signature.md, "Envelope public identifier".
+            // Regression guard: the client's link points at the document's
+            // own matter (public_id, never the enumerable internal id), not
+            // a bare /portal or a /portal/sign deep link — see
+            // .claude/rules/matter.md, "Fix Portal Links to Use
+            // matters.public_id".
             fn ($mail) => $mail->hasTo($this->tenant['client']->email)
-                && str_ends_with($mail->portalUrl, "envelope={$envelope->public_id}"),
+                && str_ends_with($mail->portalUrl, "/portal/matter/{$this->tenant['matter']->public_id}"),
+        );
+    }
+
+    /**
+     * A Document can exist outside any Matter (see .claude/rules/matter.md)
+     * — the notification link must fall back to the bare /portal route
+     * rather than crashing on a null matter or producing a broken
+     * /portal/matter/ URL with no id.
+     */
+    public function test_sent_event_falls_back_to_bare_portal_when_the_document_has_no_matter(): void
+    {
+        Mail::fake();
+
+        $document = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'matter_id' => null,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'status' => DocumentStatus::Draft,
+        ]);
+
+        $envelope = Envelope::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'document_id' => $document->id,
+            'status' => EnvelopeStatus::Draft,
+            'provider_envelope_id' => 'docusign-env-no-matter',
+        ]);
+
+        $this->useCase->handle($this->event('sent', $envelope));
+
+        Mail::assertQueued(
+            DocumentReadyForSignatureEmail::class,
+            fn ($mail) => str_ends_with($mail->portalUrl, '/portal')
+                && ! str_contains($mail->portalUrl, '/portal/matter/'),
         );
     }
 
@@ -121,14 +161,15 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
         $this->useCase->handle($this->event('sent', $envelopeTwo));
         $this->useCase->handle($this->event('sent', $envelopeThree));
 
+        // Three independent sends — never batched/deduped into one email,
+        // even though all three envelopes' documents share the same matter
+        // and therefore the same portalUrl (see .claude/rules/matter.md).
         Mail::assertQueuedCount(3);
-        foreach ([$envelopeOne, $envelopeTwo, $envelopeThree] as $envelope) {
-            Mail::assertQueued(
-                DocumentReadyForSignatureEmail::class,
-                fn ($mail) => $mail->hasTo($this->tenant['client']->email)
-                    && str_ends_with($mail->portalUrl, "envelope={$envelope->public_id}"),
-            );
-        }
+        Mail::assertQueued(
+            DocumentReadyForSignatureEmail::class,
+            fn ($mail) => $mail->hasTo($this->tenant['client']->email)
+                && str_ends_with($mail->portalUrl, "/portal/matter/{$this->tenant['matter']->public_id}"),
+        );
     }
 
     /**
@@ -151,13 +192,13 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
 
         $this->assertSame(EnvelopeStatus::Sent, $newer->fresh()->status);
         $this->assertSame(EnvelopeStatus::Draft, $older->fresh()->status);
+        // Only the newer envelope's `sent` transition happened — exactly
+        // one notification goes out, regardless of the older envelope still
+        // sitting pending for the same client.
+        Mail::assertQueuedCount(1);
         Mail::assertQueued(
             DocumentReadyForSignatureEmail::class,
-            fn ($mail) => str_ends_with($mail->portalUrl, "envelope={$newer->public_id}"),
-        );
-        Mail::assertNotQueued(
-            DocumentReadyForSignatureEmail::class,
-            fn ($mail) => str_ends_with($mail->portalUrl, "envelope={$older->public_id}"),
+            fn ($mail) => str_ends_with($mail->portalUrl, "/portal/matter/{$this->tenant['matter']->public_id}"),
         );
     }
 

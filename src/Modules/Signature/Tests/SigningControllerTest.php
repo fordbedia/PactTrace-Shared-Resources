@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PactTrackSDK\SharedResources\Modules\Signature\Tests;
 
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Enums\EnvelopeStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Signer;
@@ -131,7 +132,35 @@ class SigningControllerTest extends BaseTest
         $this->actingAs($this->tenant['clientUser'])
             ->postJson("/api/signature/envelopes/{$envelope->public_id}/signing-token")
             ->assertOk()
-            ->assertJsonStructure(['token', 'expires_at', 'signing_url']);
+            ->assertJsonStructure(['token', 'expires_at', 'signing_url', 'matter_public_id'])
+            // The scenario's default document already belongs to a Matter —
+            // /portal/sign's "Back to portal" link uses this to target that
+            // matter instead of the bare /portal route. See
+            // .claude/rules/matter.md.
+            ->assertJsonPath('matter_public_id', $this->tenant['matter']->public_id);
+    }
+
+    /**
+     * A Document can exist outside any Matter (see .claude/rules/matter.md)
+     * — the field must come back null rather than omitted or erroring, so
+     * the frontend's `body.matter_public_id ?? null` fallback has something
+     * predictable to read.
+     */
+    public function test_signing_token_reports_a_null_matter_when_the_document_has_none(): void
+    {
+        $document = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'matter_id' => null,
+            'uploaded_by' => $this->tenant['owner']->id,
+        ]);
+        $envelope = $this->envelope($this->tenant['client'], $document, EnvelopeStatus::Sent);
+
+        $this->actingAs($this->tenant['clientUser'])
+            ->postJson("/api/signature/envelopes/{$envelope->public_id}/signing-token")
+            ->assertOk()
+            ->assertJsonPath('matter_public_id', null);
     }
 
     public function test_signing_token_refuses_another_clients_envelope(): void

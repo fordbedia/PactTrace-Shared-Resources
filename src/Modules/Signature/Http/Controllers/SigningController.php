@@ -159,6 +159,12 @@ class SigningController extends Controller
             'token' => $token->token,
             'expires_at' => $token->expiresAt->format(DATE_ATOM),
             'signing_url' => $token->signingUrl,
+            // Lets /portal/sign send "Back to portal" at this specific
+            // matter (see .claude/rules/matter.md) instead of the bare
+            // /portal route — null when the document has no matter, same
+            // fallback RecordSignatureCompletionUseCase::buildPortalUrl()
+            // uses for the notification email's own link.
+            'matter_public_id' => $envelope->document?->matter?->public_id,
         ]);
     }
 

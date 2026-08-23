@@ -66,7 +66,13 @@ class EloquentMattersRepository extends BaseRepository implements MattersReposit
 
 	public function searchForSelection(int $providerId, string $search, int $limit): Collection
 	{
-		$query = $this->model->newQuery()->where('provider_id', $providerId);
+		// Eager-loads `client` (unlike the bare id `where('provider_id', ...)`
+		// query below might suggest) because MatterResource exposes it via
+		// whenLoaded('client') — the Upload Documents modal on
+		// /dashboard/documents uses the selected matter's client to auto-fill
+		// and lock its own Client field, so the name/company_name has to be on
+		// the wire, not just client_id. See .claude/rules/document.md.
+		$query = $this->model->newQuery()->with('client')->where('provider_id', $providerId);
 
 		if ($search !== '') {
 			$query->where('name', 'like', "%{$search}%");

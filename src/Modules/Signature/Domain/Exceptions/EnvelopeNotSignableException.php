@@ -18,7 +18,7 @@ class EnvelopeNotSignableException extends RuntimeException
 {
     public static function terminal(EnvelopeStatus $status): self
     {
-        return new self("Envelope is [{$status->value}] and can no longer be signed.");
+        return new self("Envelope is {$status->value} and can no longer be signed.");
     }
 
     public static function notYetSent(): self

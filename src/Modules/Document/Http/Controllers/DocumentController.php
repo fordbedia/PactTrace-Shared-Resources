@@ -156,11 +156,23 @@ class DocumentController extends Controller
 
         Gate::forUser($user)->authorize('create', [Document::class, $matter]);
 
+        // A Matter belongsTo exactly one Client (MattersRequest requires
+        // client_id at matter-creation time — see .claude/rules/matter.md), so
+        // once a matter is given here, its own client_id is the only
+        // consistent value for the document — never the independently
+        // submitted `client_id`, which the Upload Documents modal on
+        // /dashboard/documents keeps in sync client-side (auto-fills and
+        // locks the Client field once a matter is picked) but a stale page
+        // or a non-frontend API caller could still disagree. Matches the
+        // same "derive from the resolved parent, don't trust the
+        // request for it" rule FolderController::store() already applies to
+        // nested folders (.claude/rules/document.md). Only fall back to the
+        // request's own client_id for the legitimate "no matter" case.
         $document = $this->uploadDocument->handle(DocumentData::fromRequest(
             provider_id: (int) $user->provider_id,
             uploaded_by: (int) $user->id,
-            matter_id: $request->integer('matter_id') ?: null,
-            client_id: $request->integer('client_id') ?: null,
+            matter_id: $matter?->id,
+            client_id: $matter?->client_id ?? ($request->integer('client_id') ?: null),
             folder_id: $request->integer('folder_id') ?: null,
             request: $request,
         ));

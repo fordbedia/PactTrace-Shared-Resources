@@ -387,6 +387,45 @@ class DocumentControllerTest extends BaseTest
             ->assertJsonPath('data.client_id', $this->tenant['client']->id);
     }
 
+    public function test_a_matters_own_client_wins_over_a_disagreeing_submitted_client_id(): void
+    {
+        // The frontend keeps these in sync (auto-fills and locks the Client
+        // field once a matter is picked — see
+        // frontend/app/dashboard/documents/page.js, handleSelectMatter), but
+        // the server must not trust a client-submitted client_id that
+        // disagrees with the selected matter's own client — a stale page or
+        // a non-frontend API caller could still send a mismatched pair. See
+        // .claude/rules/document.md.
+        $response = $this->actingAs($this->tenant['owner'])->postJson('/api/documents', [
+            'file' => UploadedFile::fake()->create('brief.pdf', 4),
+            'matter_id' => $this->tenant['matter']->id,
+            'client_id' => $this->tenant['otherClient']->id,
+        ]);
+
+        $response->assertSuccessful()
+            ->assertJsonPath('data.matter_id', $this->tenant['matter']->id)
+            ->assertJsonPath('data.client_id', $this->tenant['client']->id);
+
+        $document = Document::query()->findOrFail($response->json('data.id'));
+        $this->assertSame($this->tenant['client']->id, $document->client_id);
+    }
+
+    public function test_it_respects_an_independently_submitted_client_id_when_no_matter_is_given(): void
+    {
+        // Document belongsTo Matter is nullable (.claude/rules/matter.md) —
+        // "file this document under a client directly, no matter" is a
+        // legitimate, supported case, so client_id must still be honoured
+        // when matter_id is absent.
+        $response = $this->actingAs($this->tenant['owner'])->postJson('/api/documents', [
+            'file' => UploadedFile::fake()->create('id.pdf', 4),
+            'client_id' => $this->tenant['client']->id,
+        ]);
+
+        $response->assertSuccessful()
+            ->assertJsonPath('data.matter_id', null)
+            ->assertJsonPath('data.client_id', $this->tenant['client']->id);
+    }
+
     public function test_it_rejects_an_upload_with_no_file(): void
     {
         $this->actingAs($this->tenant['owner'])
