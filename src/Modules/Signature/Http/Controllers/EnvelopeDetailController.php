@@ -11,9 +11,11 @@ use Illuminate\Support\Facades\Gate;
 use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterActivityFeedBuilder;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\GetMatterEnvelopeDetail;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\PrepareMatterEnvelopesForSignature;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\VoidEnvelopeHandler;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Exceptions\EnvelopeNotFoundForMatterException;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Exceptions\EnvelopeCannotTransitionException;
+use PactTrackSDK\SharedResources\Modules\Signature\Http\Requests\PrepareMatterEnvelopesRequest;
 use PactTrackSDK\SharedResources\Modules\Signature\Http\Resources\EnvelopeDetailResource;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 
@@ -35,18 +37,26 @@ class EnvelopeDetailController extends Controller
         private readonly GetMatterEnvelopeDetail $getMatterEnvelopeDetail,
         private readonly VoidEnvelopeHandler $voidEnvelope,
         private readonly MatterActivityFeedBuilder $activityFeedBuilder,
+        private readonly PrepareMatterEnvelopesForSignature $prepareMatterEnvelopes,
     ) {
     }
 
     /**
      * GET /api/v1/signature/matters/{matter}/envelope?envelope={publicId}
      *
-     * `{matter}` binds by the internal auto-increment id (see routes/api.php)
-     * — this is a staff-only page, not a client-facing URL, so there is no
-     * reason to expose Matter::public_id here (see .claude/rules/matter.md).
-     * `envelope` is optional and, when given, is the target Envelope's own
-     * public_id — see GetMatterEnvelopeDetail for the full resolution rule
-     * this exists to serve (a matter can have more than one envelope).
+     * `{matter}` binds by `Matter::public_id` — `Matter::getRouteKeyName()`'s
+     * default, same identifier `/dashboard/matters/{matterId}` itself now
+     * uses (see .claude/rules/matter.md, "Matter Detail is a real route").
+     * This route used to bind by the internal auto-increment id on the
+     * reasoning that a staff-only page has no need to hide it; that stopped
+     * being the deciding factor once the Matter Detail page itself — which
+     * every "View Signature" link on this page originates from — became a
+     * public_id-keyed URL. Keeping this route on a different identifier
+     * scheme than its own parent page was the actual inconsistency, not the
+     * staff-only-ness. `envelope` is optional and, when given, is the target
+     * Envelope's own public_id — see GetMatterEnvelopeDetail for the full
+     * resolution rule this exists to serve (a matter can have more than one
+     * envelope).
      */
     public function show(Request $request, Matter $matter): JsonResponse
     {
@@ -90,5 +100,33 @@ class EnvelopeDetailController extends Controller
         return (EnvelopeDetailResource::make($envelope->loadMissing(['document.matter', 'document.uploader', 'client', 'provider', 'signers'])))
             ->additional(['audit_trail' => $this->activityFeedBuilder->buildForEnvelope($envelope)])
             ->response();
+    }
+
+    /**
+     * POST /api/v1/signature/matters/{matter}/prepare-all-envelopes
+     *
+     * "Prepare All for Signature" on the Matter Detail page — see
+     * .claude/rules/matter.md. `{matter}` binds by `public_id`, same as
+     * show() above. Authorized against the Matter itself (create requires a
+     * Document, and there may be zero eligible ones) via the same
+     * envelope.create permission the single-document path checks, since
+     * this performs exactly that action, just for every eligible document
+     * on the matter at once.
+     *
+     * Request body's optional `signers` (validated by
+     * PrepareMatterEnvelopesRequest) is the JSON-object-keyed-by-document-id
+     * co-signers map PrepareAllSignatureModal's signer-collection step
+     * submits — see PrepareMatterEnvelopesForSignature::handle() and
+     * .claude/rules/matter.md. Omitting it (or sending `{}`) behaves exactly
+     * as before this existed: every envelope gets no co-signers.
+     */
+    public function prepareAll(PrepareMatterEnvelopesRequest $request, Matter $matter): JsonResponse
+    {
+        Gate::authorize('view', $matter);
+        Gate::authorize('create', [Envelope::class]);
+
+        $result = $this->prepareMatterEnvelopes->handle($matter, $request->coSignersByDocumentId());
+
+        return response()->json($result);
     }
 }

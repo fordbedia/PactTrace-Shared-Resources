@@ -463,6 +463,24 @@ class DocumentControllerTest extends BaseTest
             ->assertJsonPath('data.client_id', $this->tenant['client']->id);
     }
 
+    /**
+     * The upload-success modal on /dashboard/documents links straight to
+     * `/dashboard/matters/{public_id}` (see .claude/rules/matter.md) from
+     * this very response — matter_public_id has to be on the wire for a
+     * matter-attached upload, not fetched separately.
+     */
+    public function test_uploading_against_a_matter_exposes_the_matters_public_id(): void
+    {
+        $response = $this->actingAs($this->tenant['owner'])->postJson('/api/documents', [
+            'file' => UploadedFile::fake()->create('brief.pdf', 4),
+            'matter_id' => $this->tenant['matter']->id,
+            'client_id' => $this->tenant['client']->id,
+        ]);
+
+        $response->assertSuccessful()
+            ->assertJsonPath('data.matter_public_id', $this->tenant['matter']->public_id);
+    }
+
     public function test_a_matters_own_client_wins_over_a_disagreeing_submitted_client_id(): void
     {
         // The frontend keeps these in sync (auto-fills and locks the Client

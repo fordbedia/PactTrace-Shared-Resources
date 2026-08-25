@@ -7,6 +7,7 @@ namespace PactTrackSDK\SharedResources\Modules\Matter\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterActivityFeedBuilder;
+use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterPendingEnvelopesResolver;
 use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterProgressCalculator;
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
 
@@ -50,6 +51,18 @@ class PortalMatterResource extends JsonResource
             ],
             'milestones' => PortalMilestoneResource::collection($this->whenLoaded('milestones')),
             'documents' => PortalDocumentResource::collection($this->whenLoaded('documents')),
+            /**
+             * Every non-terminal envelope across this matter's own documents
+             * — replaces the client portal's old single-envelope ACTION
+             * REQUIRED card, which sourced from the unscoped
+             * `GET /api/signature/pending` (every pending envelope across
+             * every matter the client has) and could only ever act on the
+             * first one. See MatterPendingEnvelopesResolver and
+             * .claude/rules/matter.md.
+             *
+             * @see MatterPendingEnvelopesResolver
+             */
+            'pending_envelopes' => app(MatterPendingEnvelopesResolver::class)->resolve($this->resource),
             /** @see MatterActivityFeedBuilder */
             'activity' => app(MatterActivityFeedBuilder::class)->build($this->resource),
         ];

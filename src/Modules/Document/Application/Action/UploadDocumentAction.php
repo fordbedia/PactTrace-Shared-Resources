@@ -8,6 +8,8 @@ use PactTrackSDK\SharedResources\Modules\Document\Application\DTO\DocumentData;
 use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
 use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Upload\DocumentUploadService;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Services\MilestoneProgressionService;
+use PactTrackSDK\SharedResources\Modules\Matter\Domain\ValueObjects\DefaultMilestone;
 
 /**
  * Orchestration behind the "Upload Documents" modal on /dashboard/documents
@@ -23,6 +25,7 @@ class UploadDocumentAction
     public function __construct(
         private readonly DocumentUploadService $uploadService,
         private readonly DocumentRepository $documents,
+        private readonly MilestoneProgressionService $milestoneProgression,
     ) {
     }
 
@@ -30,7 +33,7 @@ class UploadDocumentAction
     {
         $path = $this->uploadService->store($data->file, $data->provider_id);
 
-        return $this->documents->create([
+        $document = $this->documents->create([
             'provider_id' => $data->provider_id,
             'client_id' => $data->client_id,
             'matter_id' => $data->matter_id,
@@ -42,5 +45,14 @@ class UploadDocumentAction
             'size' => $data->file->getSize(),
             'version' => 1,
         ]);
+
+        // "Drafting" represents a document existing on the matter to work
+        // from — a no-op when $data->matter_id is null (a document filed
+        // with no Matter, see .claude/rules/matter.md) or once the matter's
+        // Drafting milestone is already past `pending`. See
+        // .claude/rules/matter.md, "Matter Progress timeline".
+        $this->milestoneProgression->completeMilestone($data->matter_id, DefaultMilestone::DRAFTING);
+
+        return $document;
     }
 }

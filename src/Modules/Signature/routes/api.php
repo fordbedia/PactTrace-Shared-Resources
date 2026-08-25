@@ -48,11 +48,17 @@ Route::post('signature/webhooks/docusign', DocusignWebhookController::class);
 // .claude/rules/signature.md. Real `auth:sanctum` middleware, matching
 // MattersController's pattern — not the ResolvesActingUser bypass the rest
 // of this file still uses (see EnvelopeDetailController's own docblock for
-// why this one surface is on the modern pattern already). `{matter:id}`
-// binds by Matter's internal id rather than its public_id route key
-// (Matter::getRouteKeyName(), see .claude/rules/matter.md) — this is a
-// staff-only URL, matching Ed's own /dashboard/signatures/matter/2 example.
+// why this one surface is on the modern pattern already). Both `{matter}`
+// routes below bind by Matter's default route key, `public_id`
+// (Matter::getRouteKeyName(), see .claude/rules/matter.md) — matching
+// /dashboard/matters/{matterId} itself, which every link into this page
+// originates from. Previously bound by the internal id (staff-only, so
+// hiding it wasn't a security requirement) — switched for consistency once
+// the Matter Detail page's own URL became public_id-keyed; two different
+// identifier schemes for sibling staff routes under the same matter was the
+// actual problem, not staff-only-ness.
 Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
-    Route::get('signature/matters/{matter:id}/envelope', [EnvelopeDetailController::class, 'show']);
+    Route::get('signature/matters/{matter}/envelope', [EnvelopeDetailController::class, 'show']);
+    Route::post('signature/matters/{matter}/prepare-all-envelopes', [EnvelopeDetailController::class, 'prepareAll']);
     Route::post('signature/envelopes/{envelope}/void', [EnvelopeDetailController::class, 'void']);
 });

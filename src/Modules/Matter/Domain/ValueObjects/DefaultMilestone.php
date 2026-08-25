@@ -17,6 +17,21 @@ namespace PactTrackSDK\SharedResources\Modules\Matter\Domain\ValueObjects;
  */
 final class DefaultMilestone
 {
+    /**
+     * Named constants so other modules advancing a milestone (see
+     * Application\Services\MilestoneProgressionService) reference a single
+     * source of truth instead of a magic string.
+     */
+    public const ENGAGEMENT = 'Engagement';
+
+    public const DISCOVERY = 'Discovery';
+
+    public const DRAFTING = 'Drafting';
+
+    public const REVIEW = 'Review';
+
+    public const COMPLETED = 'Completed';
+
     private function __construct(
         public readonly string $name,
         public readonly int $position,
@@ -28,7 +43,7 @@ final class DefaultMilestone
      */
     public static function ordered(): array
     {
-        $names = ['Engagement', 'Discovery', 'Drafting', 'Review', 'Completed'];
+        $names = [self::ENGAGEMENT, self::DISCOVERY, self::DRAFTING, self::REVIEW, self::COMPLETED];
 
         return array_map(
             static fn (int $position, string $name): self => new self($name, $position),

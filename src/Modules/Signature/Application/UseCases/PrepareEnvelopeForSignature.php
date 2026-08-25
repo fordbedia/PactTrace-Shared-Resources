@@ -63,8 +63,14 @@ class PrepareEnvelopeForSignature
      *     envelope (the $existing-draft branch below always returns as-is)
      *     — adding recipients to an already-created draft is a different
      *     DocuSign operation than creating one, and out of scope for now.
+     * @param string|null $batchId Set only by PrepareMatterEnvelopesForSignature,
+     *     shared across every envelope created by one "Prepare All for
+     *     Signature" click — see Envelope::scopeInBatch() and
+     *     .claude/rules/matter.md. Left null (the default) by the
+     *     single-document path, which this parameter otherwise leaves
+     *     completely unchanged.
      */
-    public function handle(Document $document, array $coSigners = []): Envelope
+    public function handle(Document $document, array $coSigners = [], ?string $batchId = null): Envelope
     {
         if ($document->client_id === null) {
             throw new RuntimeException(
@@ -144,6 +150,7 @@ class PrepareEnvelopeForSignature
             'client_id' => $document->client_id,
             'provider' => 'docusign',
             'provider_envelope_id' => $providerEnvelopeId,
+            'batch_id' => $batchId,
             'status' => 'draft',
         ]);
         $envelope->save();

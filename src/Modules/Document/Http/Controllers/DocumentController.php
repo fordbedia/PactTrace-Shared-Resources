@@ -177,7 +177,13 @@ class DocumentController extends Controller
             request: $request,
         ));
 
-        return DocumentResource::make($document);
+        // Loaded so DocumentResource can expose matter_public_id — the
+        // upload-success modal on /dashboard/documents links straight to
+        // /dashboard/matters/{public_id} from this response, see
+        // .claude/rules/matter.md. Cheap here (one row); every other caller
+        // of this resource already eager-loads `matter` on its own listing
+        // query (EloquentDocumentRepository).
+        return DocumentResource::make($document->load('matter'));
     }
 
     /**

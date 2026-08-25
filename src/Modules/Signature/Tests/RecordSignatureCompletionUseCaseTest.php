@@ -6,8 +6,11 @@ namespace PactTrackSDK\SharedResources\Modules\Signature\Tests;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Matter\Domain\ValueObjects\DefaultMilestone;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Milestone;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\DocumentReadyForSignatureEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\GuestSigningInvitationEmail;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\RecordSignatureCompletionUseCase;
@@ -231,6 +234,135 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
         );
     }
 
+    /**
+     * Confirms the exact scenario reported against the portal's old
+     * single-envelope ACTION REQUIRED card: a Matter reused for two
+     * Documents, each with its own Envelope and its own additional
+     * (co-)signer, both sent. Each co-signer must get their own
+     * GuestSigningInvitationEmail, with a distinct signingLinkToken and its
+     * own envelope's public_id — never batched, deduped, or collapsed into
+     * one email. See .claude/rules/signature.md, "Guest signers" and
+     * "Notification dispatch is per-envelope" — this is that guarantee,
+     * exercised with two real Documents on the same Matter rather than two
+     * Envelopes sharing one Document.
+     */
+    public function test_two_envelopes_on_different_documents_of_the_same_matter_email_each_co_signer_independently(): void
+    {
+        Mail::fake();
+
+        $documentOne = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'matter_id' => $this->tenant['matter']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'status' => DocumentStatus::Draft,
+        ]);
+        $envelopeOne = Envelope::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'document_id' => $documentOne->id,
+            'status' => EnvelopeStatus::Draft,
+            'provider_envelope_id' => 'docusign-env-doc-one',
+        ]);
+        Signer::factory()->create(['envelope_id' => $envelopeOne->id, 'provider_signer_id' => '2', 'email' => 'co1@example.com']);
+
+        $documentTwo = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'matter_id' => $this->tenant['matter']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'status' => DocumentStatus::Draft,
+        ]);
+        $envelopeTwo = Envelope::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'document_id' => $documentTwo->id,
+            'status' => EnvelopeStatus::Draft,
+            'provider_envelope_id' => 'docusign-env-doc-two',
+        ]);
+        Signer::factory()->create(['envelope_id' => $envelopeTwo->id, 'provider_signer_id' => '2', 'email' => 'co2@example.com']);
+
+        $this->useCase->handle($this->event('sent', $envelopeOne));
+        $this->useCase->handle($this->event('sent', $envelopeTwo));
+
+        $mails = Mail::queued(GuestSigningInvitationEmail::class);
+        $this->assertCount(2, $mails);
+
+        $mailToCo1 = $mails->first(fn ($mail) => $mail->hasTo('co1@example.com'));
+        $mailToCo2 = $mails->first(fn ($mail) => $mail->hasTo('co2@example.com'));
+
+        $this->assertNotNull($mailToCo1);
+        $this->assertNotNull($mailToCo2);
+        $this->assertStringContainsString("envelope={$envelopeOne->public_id}", $mailToCo1->signingUrl);
+        $this->assertStringContainsString("envelope={$envelopeTwo->public_id}", $mailToCo2->signingUrl);
+
+        // Each co-signer's token is genuinely their own — never the same
+        // bearer credential reused across two different envelopes.
+        preg_match('/signingLinkToken=([^&]+)/', $mailToCo1->signingUrl, $tokenOneMatch);
+        preg_match('/signingLinkToken=([^&]+)/', $mailToCo2->signingUrl, $tokenTwoMatch);
+        $this->assertNotSame($tokenOneMatch[1], $tokenTwoMatch[1]);
+    }
+
+    /**
+     * The one sanctioned exception to "never batched": envelopes created
+     * together by "Prepare All for Signature" (see .claude/rules/matter.md)
+     * share a batch_id and must collapse into a single client email even
+     * though each is its own independent `draft -> sent` webhook
+     * transition — the opposite of
+     * test_sending_multiple_envelopes_for_the_same_client_in_quick_succession_notifies_independently
+     * above, which covers the *unbatched* (batch_id null) case this must
+     * not regress.
+     */
+    public function test_envelopes_sharing_a_batch_id_notify_the_client_only_once(): void
+    {
+        Mail::fake();
+
+        $batchId = (string) Str::ulid();
+        $envelopeOne = $this->distinctEnvelope($batchId);
+        $envelopeTwo = $this->distinctEnvelope($batchId);
+        $envelopeThree = $this->distinctEnvelope($batchId);
+
+        $this->useCase->handle($this->event('sent', $envelopeOne));
+        $this->useCase->handle($this->event('sent', $envelopeTwo));
+        $this->useCase->handle($this->event('sent', $envelopeThree));
+
+        Mail::assertQueuedCount(1);
+        Mail::assertQueued(
+            DocumentReadyForSignatureEmail::class,
+            fn ($mail) => $mail->hasTo($this->tenant['client']->email),
+        );
+    }
+
+    /**
+     * A batch collapsing the *client's* email must not touch guest co-signer
+     * notifications at all — each batched envelope's own co-signer still
+     * gets their own independent email with their own token, exactly as the
+     * unbatched case already guarantees (see
+     * test_co_signer_invitations_across_multiple_envelopes_are_independent).
+     */
+    public function test_batched_envelopes_still_email_each_guest_co_signer_independently(): void
+    {
+        Mail::fake();
+
+        $batchId = (string) Str::ulid();
+        $envelopeOne = $this->distinctEnvelope($batchId);
+        Signer::factory()->create(['envelope_id' => $envelopeOne->id, 'provider_signer_id' => '2', 'email' => 'co1@example.com']);
+        $envelopeTwo = $this->distinctEnvelope($batchId);
+        Signer::factory()->create(['envelope_id' => $envelopeTwo->id, 'provider_signer_id' => '2', 'email' => 'co2@example.com']);
+
+        $this->useCase->handle($this->event('sent', $envelopeOne));
+        $this->useCase->handle($this->event('sent', $envelopeTwo));
+
+        $mails = Mail::queued(GuestSigningInvitationEmail::class);
+        $this->assertCount(2, $mails);
+        $this->assertNotNull($mails->first(fn ($mail) => $mail->hasTo('co1@example.com')));
+        $this->assertNotNull($mails->first(fn ($mail) => $mail->hasTo('co2@example.com')));
+    }
+
     public function test_delivered_event_marks_envelope_viewed_without_touching_document_status(): void
     {
         $envelope = $this->envelope(EnvelopeStatus::Sent, DocumentStatus::Sent);
@@ -428,6 +560,139 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
             ->once();
     }
 
+    /**
+     * .claude/rules/matter.md, "Matter Progress timeline" — the milestone
+     * progression this use case now drives alongside the envelope/document
+     * transitions above.
+     */
+    public function test_sent_event_advances_the_matters_review_milestone(): void
+    {
+        $review = Milestone::factory()->create([
+            'matter_id' => $this->tenant['matter']->id,
+            'name' => DefaultMilestone::REVIEW,
+            'status' => 'pending',
+            'completed_at' => null,
+        ]);
+        $discovery = Milestone::factory()->create([
+            'matter_id' => $this->tenant['matter']->id,
+            'name' => DefaultMilestone::DISCOVERY,
+            'status' => 'pending',
+            'completed_at' => null,
+        ]);
+
+        $envelope = $this->envelope(EnvelopeStatus::Draft, DocumentStatus::Draft);
+        $this->useCase->handle($this->event('sent', $envelope));
+
+        $this->assertSame('completed', $review->fresh()->status);
+        $this->assertNotNull($review->fresh()->completed_at);
+
+        // Discovery has no automatic signal — see
+        // MilestoneProgressionService's own docblock — so it must stay
+        // untouched by an envelope being sent.
+        $this->assertSame('pending', $discovery->fresh()->status);
+    }
+
+    /**
+     * A single document finishing signing must not mark the whole matter's
+     * "Completed" milestone done while a sibling document on the same
+     * matter still has an unfinished envelope.
+     */
+    public function test_completed_event_does_not_advance_the_completed_milestone_while_another_envelope_on_the_matter_is_unfinished(): void
+    {
+        // ProviderTenantScenario itself creates one baseline Envelope
+        // against the tenant's document (never transitioned) — remove it so
+        // "every envelope on the matter" reflects only the envelopes this
+        // test explicitly sets up, per .claude/rules/signature.md's own
+        // note that a Document can accumulate more than one Envelope.
+        $this->tenant['envelope']->delete();
+
+        $completedMilestone = Milestone::factory()->create([
+            'matter_id' => $this->tenant['matter']->id,
+            'name' => DefaultMilestone::COMPLETED,
+            'status' => 'pending',
+            'completed_at' => null,
+        ]);
+
+        $envelope = $this->envelope(EnvelopeStatus::Viewed, DocumentStatus::Sent);
+
+        // A second document/envelope on the same matter, still in flight.
+        $secondDocument = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'matter_id' => $this->tenant['matter']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'status' => DocumentStatus::Sent,
+        ]);
+        Envelope::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'document_id' => $secondDocument->id,
+            'status' => EnvelopeStatus::Sent,
+            'provider_envelope_id' => 'docusign-env-still-in-flight',
+        ]);
+
+        $this->useCase->handle($this->event('completed', $envelope));
+
+        $this->assertSame(EnvelopeStatus::Completed, $envelope->fresh()->status);
+        $this->assertSame('pending', $completedMilestone->fresh()->status);
+    }
+
+    /**
+     * Once every envelope across every document on the matter has
+     * independently reached Completed, the matter's "Completed" milestone
+     * advances — this is the fix for the "stuck at 0%"/faded-forever
+     * "Completed" step reported against the portal timeline. See
+     * .claude/rules/matter.md.
+     */
+    public function test_completed_event_advances_the_completed_milestone_once_every_envelope_on_the_matter_is_done(): void
+    {
+        // See the previous test's own comment — remove the scenario's
+        // baseline (never-transitioned) Envelope so this matter has exactly
+        // one real envelope, the one this test completes.
+        $this->tenant['envelope']->delete();
+
+        $completedMilestone = Milestone::factory()->create([
+            'matter_id' => $this->tenant['matter']->id,
+            'name' => DefaultMilestone::COMPLETED,
+            'status' => 'pending',
+            'completed_at' => null,
+        ]);
+
+        $envelope = $this->envelope(EnvelopeStatus::Viewed, DocumentStatus::Sent);
+
+        $this->useCase->handle($this->event('completed', $envelope));
+
+        $this->assertSame(EnvelopeStatus::Completed, $envelope->fresh()->status);
+        $this->assertSame('completed', $completedMilestone->fresh()->status);
+        $this->assertNotNull($completedMilestone->fresh()->completed_at);
+    }
+
+    /**
+     * A redundant/no-op reconciliation (DocuSign confirms a status PactTrack
+     * already has — see ReconcileStaleEnvelopes) must not re-run milestone
+     * progression in a way that breaks idempotency; calling completeMilestone
+     * twice is a documented no-op, not an error.
+     */
+    public function test_a_redundant_completed_event_does_not_error_after_the_milestone_already_advanced(): void
+    {
+        Milestone::factory()->create([
+            'matter_id' => $this->tenant['matter']->id,
+            'name' => DefaultMilestone::COMPLETED,
+            'status' => 'pending',
+            'completed_at' => null,
+        ]);
+
+        $envelope = $this->envelope(EnvelopeStatus::Completed, DocumentStatus::Completed);
+
+        // Must not throw — exercises the already-terminal no-op branch with
+        // milestone progression now sitting in the same call path.
+        $this->useCase->handle($this->event('completed', $envelope));
+
+        $this->assertDatabaseCount('audit_logs', 0);
+    }
+
     private function envelope(EnvelopeStatus $envelopeStatus, DocumentStatus $documentStatus): Envelope
     {
         $document = $this->tenant['document'];
@@ -452,7 +717,7 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
      * `where('provider_envelope_id', ...)` lookup match the wrong (or same)
      * row.
      */
-    private function distinctEnvelope(): Envelope
+    private function distinctEnvelope(?string $batchId = null): Envelope
     {
         $document = $this->tenant['document'];
         $document->forceFill(['status' => DocumentStatus::Draft])->save();
@@ -463,6 +728,7 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
             'client_id' => $this->tenant['client']->id,
             'document_id' => $document->id,
             'status' => EnvelopeStatus::Draft,
+            'batch_id' => $batchId,
             'provider_envelope_id' => 'docusign-env-' . $document->id . '-' . uniqid(),
         ]);
     }

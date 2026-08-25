@@ -55,3 +55,14 @@ Run a specific class through PHPUnit:
 ```shell
 ./vendor/bin/phpunit --filter=SomeTest
 ```
+### Running Reconcile Stale Envelopes:
+```shell
+docker compose -f docker-compose.yml -f                    
+  docker-compose.dev.yml exec backend php artisan            
+  signature:reconcile-stale-envelopes -v
+```
+```shell
+docker compose -f docker-compose.yml -f                    
+  docker-compose.dev.yml exec backend php artisan            
+  signature:reconcile-stale-envelopes --now -v 
+```

@@ -24,6 +24,17 @@ class DocumentResource extends JsonResource
             'archived_at' => $this->archived_at?->toIso8601String(),
             'matter_id' => $this->matter_id,
             'matter_name' => $this->whenLoaded('matter', fn () => $this->matter?->name),
+            /**
+             * The document's matter's own public_id (a ULID) — needed by the
+             * upload-success modal on /dashboard/documents to link straight
+             * to `/dashboard/matters/{public_id}` (the Matter Detail route,
+             * see .claude/rules/matter.md) without a second request.
+             * `whenLoaded` like matter_name above; DocumentController::store()
+             * loads `matter` for exactly this before returning its response —
+             * every other caller of this resource already eager-loads it
+             * (EloquentDocumentRepository::forProvider/forFolders/forMatter).
+             */
+            'matter_public_id' => $this->whenLoaded('matter', fn () => $this->matter?->public_id),
             'client_id' => $this->client_id,
             'client_name' => $this->whenLoaded('client', fn () => $this->client?->name),
             'client_email' => $this->whenLoaded('client', fn () => $this->client?->email),
@@ -42,6 +53,22 @@ class DocumentResource extends JsonResource
             'envelope_public_id' => $this->whenLoaded(
                 'envelopes',
                 fn () => $this->envelopes->sortByDesc('created_at')->first()?->public_id
+            ),
+            /**
+             * The same most-recent envelope's own status (draft/sent/.../
+             * voided/etc — see EnvelopeStatus), alongside envelope_public_id
+             * above. Document.status is NOT a reliable proxy for this: it
+             * only mirrors Sent/PartiallySigned/Completed/Voided (see
+             * RecordSignatureCompletionUseCase::DOCUMENT_STATUS_MAP), so a
+             * declined/expired/still-draft envelope leaves Document.status
+             * stuck at whatever it was — exactly the gap that would make the
+             * Matter Detail page's "Prepare for Signature" vs "View
+             * Signature" choice wrong for those statuses. See
+             * .claude/rules/matter.md.
+             */
+            'envelope_status' => $this->whenLoaded(
+                'envelopes',
+                fn () => $this->envelopes->sortByDesc('created_at')->first()?->status?->value
             ),
             'uploaded_by' => $this->uploaded_by,
             'uploaded_by_name' => $this->whenLoaded('uploader', fn () => $this->uploader?->name),

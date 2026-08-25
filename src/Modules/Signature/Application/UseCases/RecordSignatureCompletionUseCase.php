@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Mail;
 use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Services\MilestoneProgressionService;
+use PactTrackSDK\SharedResources\Modules\Matter\Domain\ValueObjects\DefaultMilestone;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\DocumentReadyForSignatureEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\GuestSigningInvitationEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
@@ -81,6 +83,7 @@ class RecordSignatureCompletionUseCase
     public function __construct(
         private readonly DocumentRepository $documents,
         private readonly GuestSigningTokenService $guestSigningTokenService,
+        private readonly MilestoneProgressionService $milestoneProgression,
     ) {
     }
 
@@ -168,9 +171,12 @@ class RecordSignatureCompletionUseCase
         }
 
         $this->syncDocumentStatus($envelope);
+        $this->advanceMatterMilestones($envelope, $previousStatus);
 
         if ($previousStatus === EnvelopeStatus::Draft && $envelope->status === EnvelopeStatus::Sent) {
-            $this->notifyClient($envelope);
+            if ($this->shouldNotifyClientForBatch($envelope)) {
+                $this->notifyClient($envelope);
+            }
             $this->notifyCoSigners($envelope);
         }
 
@@ -241,6 +247,85 @@ class RecordSignatureCompletionUseCase
         if ($document !== null && $document->status !== $target) {
             $this->documents->save($document, ['status' => $target]);
         }
+    }
+
+    /**
+     * Ties two of a matter's default milestones (see
+     * .claude/rules/matter.md, "Matter Progress timeline") to signals this
+     * use case already observes — a no-op when the envelope's document has
+     * no matter (see .claude/rules/matter.md, "Notes"). "Review" advances
+     * the first time any envelope on the matter is actually sent; matching
+     * the notifyClient()/notifyCoSigners() guard above rather than every
+     * `sent` webhook keeps this from re-checking on a redundant redelivery.
+     * "Completed" only advances once every envelope across every document on
+     * the matter has independently reached `Envelope::Completed` — a single
+     * document finishing signing does not mean the whole matter is done.
+     */
+    private function advanceMatterMilestones(Envelope $envelope, EnvelopeStatus $previousStatus): void
+    {
+        $matterId = $envelope->document()->value('matter_id');
+
+        if ($matterId === null) {
+            return;
+        }
+
+        if ($previousStatus === EnvelopeStatus::Draft && $envelope->status === EnvelopeStatus::Sent) {
+            $this->milestoneProgression->completeMilestone($matterId, DefaultMilestone::REVIEW);
+        }
+
+        if ($envelope->status === EnvelopeStatus::Completed && $this->allEnvelopesCompletedForMatter($matterId)) {
+            $this->milestoneProgression->completeMilestone($matterId, DefaultMilestone::COMPLETED);
+        }
+    }
+
+    /**
+     * True only when the matter has at least one envelope and every one of
+     * them — across every document on the matter — has reached
+     * EnvelopeStatus::Completed. A matter with zero envelopes has not
+     * "finished signing"; it simply hasn't sent anything yet. Queried fresh
+     * from the database rather than via any in-memory collection, since
+     * $envelope's own just-persisted `completed` status must be included.
+     */
+    private function allEnvelopesCompletedForMatter(int $matterId): bool
+    {
+        $statuses = Envelope::query()
+            ->whereHas('document', fn ($query) => $query->where('matter_id', $matterId))
+            ->pluck('status');
+
+        return $statuses->isNotEmpty()
+            && $statuses->every(fn (EnvelopeStatus $status) => $status === EnvelopeStatus::Completed);
+    }
+
+    /**
+     * The one sanctioned exception to "notification dispatch is per-envelope,
+     * never batched" (see .claude/rules/signature.md) — envelopes created
+     * together by "Prepare All for Signature" on the Matter Detail page
+     * share a `batch_id` (see .claude/rules/matter.md and
+     * Envelope::scopeInBatch()) and collapse into a single client email:
+     * whichever envelope in the batch is the *first* to leave `draft` sends
+     * it, every later one in the same batch stays silent. An envelope with
+     * no batch_id (the single-document path, unaffected by this) always
+     * returns true here, preserving the existing one-email-per-envelope
+     * behavior exactly.
+     *
+     * "First to leave draft" is read as "no sibling in this batch has left
+     * draft yet" rather than tracked with a separate flag — every mark*()
+     * transition is forward-only (see Envelope::assertNotTerminal()), so
+     * once a sibling is no longer `draft` it can never fall back to it, and
+     * this check needs nothing beyond the status column already being kept
+     * current by this same use case.
+     */
+    private function shouldNotifyClientForBatch(Envelope $envelope): bool
+    {
+        if ($envelope->batch_id === null) {
+            return true;
+        }
+
+        return ! Envelope::query()
+            ->inBatch($envelope->batch_id)
+            ->where('id', '!=', $envelope->id)
+            ->where('status', '!=', EnvelopeStatus::Draft)
+            ->exists();
     }
 
     /**

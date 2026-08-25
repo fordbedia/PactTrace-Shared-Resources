@@ -16,13 +16,13 @@ use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\Reconcil
  */
 class ReconcileStaleDocusignEnvelopes extends Command
 {
-    protected $signature = 'signature:reconcile-stale-envelopes';
+    protected $signature = 'signature:reconcile-stale-envelopes {--now : Check every in-flight envelope immediately, ignoring the staleness window — for testing, not the scheduled run}';
 
     protected $description = 'Catch up envelopes stuck (draft, or sent/viewed/partially_signed) when DocuSign Connect never delivered — or delayed — the webhook that would have advanced them';
 
     public function handle(ReconcileStaleEnvelopes $useCase): int
     {
-        $result = $useCase->handle();
+        $result = $useCase->handle(ignoreStaleness: (bool) $this->option('now'));
 
         $this->info("Checked {$result['checked']} stale envelope(s); reconciled {$result['reconciled']}.");
 

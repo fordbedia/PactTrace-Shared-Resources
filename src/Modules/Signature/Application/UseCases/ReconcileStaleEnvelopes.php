@@ -75,7 +75,7 @@ class ReconcileStaleEnvelopes
      * getting re-checked every scheduled run past this window until it
      * either progresses or DocuSign confirms it hasn't — that's intentional.
      */
-    private const STALE_IN_FLIGHT_AFTER_MINUTES = 15;
+    private const STALE_IN_FLIGHT_AFTER_MINUTES = 2;
 
     /**
      * DocuSign's own term for an envelope that's a genuine, untouched
@@ -99,9 +99,15 @@ class ReconcileStaleEnvelopes
     }
 
     /**
+     * @param bool $ignoreStaleness Skip the age checks and ask DocuSign about
+     *        every non-terminal envelope right now — for manually forcing a
+     *        check while testing (`--now` on the console command), not for
+     *        the scheduled run. Bypassing the window on every scheduled tick
+     *        would poll DocuSign for envelopes that are simply, normally,
+     *        still waiting on a human to sign.
      * @return array{checked: int, reconciled: int}
      */
-    public function handle(): array
+    public function handle(bool $ignoreStaleness = false): array
     {
         $stale = Envelope::query()
             // Deliberately cross-workspace: this is a background admin job
@@ -111,15 +117,21 @@ class ReconcileStaleEnvelopes
             ->acrossWorkspaces()
             ->where('provider', 'docusign')
             ->whereNotNull('provider_envelope_id')
-            ->where(function ($query) {
+            ->where(function ($query) use ($ignoreStaleness) {
                 $query
-                    ->where(function ($draft) {
-                        $draft->where('status', EnvelopeStatus::Draft)
-                            ->where('created_at', '<=', now()->subMinutes(self::STALE_DRAFT_AFTER_MINUTES));
+                    ->where(function ($draft) use ($ignoreStaleness) {
+                        $draft->where('status', EnvelopeStatus::Draft);
+
+                        if (! $ignoreStaleness) {
+                            $draft->where('created_at', '<=', now()->subMinutes(self::STALE_DRAFT_AFTER_MINUTES));
+                        }
                     })
-                    ->orWhere(function ($inFlight) {
-                        $inFlight->whereIn('status', self::IN_FLIGHT_STATUSES)
-                            ->where('updated_at', '<=', now()->subMinutes(self::STALE_IN_FLIGHT_AFTER_MINUTES));
+                    ->orWhere(function ($inFlight) use ($ignoreStaleness) {
+                        $inFlight->whereIn('status', self::IN_FLIGHT_STATUSES);
+
+                        if (! $ignoreStaleness) {
+                            $inFlight->where('updated_at', '<=', now()->subMinutes(self::STALE_IN_FLIGHT_AFTER_MINUTES));
+                        }
                     });
             })
             ->get();

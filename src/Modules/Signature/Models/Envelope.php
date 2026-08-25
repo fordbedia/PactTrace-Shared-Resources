@@ -27,6 +27,7 @@ class Envelope extends Model
         'client_id',
         'provider',
         'provider_envelope_id',
+        'batch_id',
         'status',
         'sent_at',
         'completed_at',
@@ -142,6 +143,17 @@ class Envelope extends Model
             ])
             ->orderByRaw('sent_at IS NULL, sent_at asc')
             ->orderBy('created_at');
+    }
+
+    /**
+     * Every envelope created by one "Prepare All for Signature" click — see
+     * .claude/rules/matter.md and the migration that added this column.
+     * Used by RecordSignatureCompletionUseCase to decide whether a client
+     * has already been notified for this batch.
+     */
+    public function scopeInBatch(Builder $query, string $batchId): Builder
+    {
+        return $query->where('batch_id', $batchId);
     }
 
     private function assertNotTerminal(): void

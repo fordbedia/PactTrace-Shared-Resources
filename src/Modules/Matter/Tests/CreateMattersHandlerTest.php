@@ -52,7 +52,19 @@ class CreateMattersHandlerTest extends BaseTest
             $milestones->pluck('name')->all(),
         );
         $this->assertSame('Completed', $milestones->last()->name);
-        $this->assertTrue($milestones->every(fn ($milestone) => $milestone->status === 'pending'));
+
+        // "Engagement" is seeded already completed — a matter existing at
+        // all means the client is engaged, see DefaultMilestoneSeeder.
+        // Every other milestone waits on its own later trigger — see
+        // MilestoneProgressionService.
+        $engagement = $milestones->firstWhere('name', 'Engagement');
+        $this->assertSame('completed', $engagement->status);
+        $this->assertNotNull($engagement->completed_at);
+
+        $this->assertTrue(
+            $milestones->reject(fn ($milestone) => $milestone->name === 'Engagement')
+                ->every(fn ($milestone) => $milestone->status === 'pending'),
+        );
     }
 
     public function test_updating_an_existing_matter_does_not_reseed_or_duplicate_milestones(): void

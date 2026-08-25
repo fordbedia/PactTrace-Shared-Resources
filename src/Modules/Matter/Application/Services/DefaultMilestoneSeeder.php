@@ -19,6 +19,12 @@ use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
  * `seed()` is itself idempotent (a no-op once the Matter already has any
  * milestones) so a caller never has to track "did I already seed this one"
  * separately — the guard lives here, not in the caller.
+ *
+ * `Engagement` is seeded already `completed` — a Matter existing at all
+ * means the client is engaged, so there is no later signal to wait for (see
+ * Application\Services\MilestoneProgressionService, which handles the
+ * remaining milestones that *do* have a later trigger). Every other
+ * milestone starts `pending`.
  */
 class DefaultMilestoneSeeder
 {
@@ -29,10 +35,13 @@ class DefaultMilestoneSeeder
         }
 
         foreach (DefaultMilestone::ordered() as $milestone) {
+            $isEngagement = $milestone->name === DefaultMilestone::ENGAGEMENT;
+
             $matter->milestones()->create([
                 'name' => $milestone->name,
-                'status' => 'pending',
+                'status' => $isEngagement ? 'completed' : 'pending',
                 'position' => $milestone->position,
+                'completed_at' => $isEngagement ? now() : null,
             ]);
         }
     }

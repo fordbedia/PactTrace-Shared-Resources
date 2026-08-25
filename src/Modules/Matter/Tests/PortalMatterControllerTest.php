@@ -201,4 +201,128 @@ class PortalMatterControllerTest extends BaseTest
         $this->assertContains($this->tenant['matter']->public_id, $ids);
         $this->assertNotContains($this->tenant['otherMatter']->public_id, $ids);
     }
+
+    /**
+     * A Matter is reused for the whole engagement, so more than one Document
+     * — each with its own Envelope — can legitimately be pending signature
+     * at once (see .claude/rules/matter.md). Both must come back from this
+     * matter-scoped endpoint so the portal can render a "Review & Sign"
+     * action for each, instead of the old single-envelope card sourced from
+     * the unscoped `GET /api/signature/pending`.
+     */
+    public function test_pending_envelopes_includes_every_non_terminal_envelope_on_the_matter(): void
+    {
+        $matter = $this->tenant['matter'];
+        // The scenario's own baseline envelope defaults to a non-terminal
+        // status too — remove it so this test's assertions reflect only the
+        // two envelopes it explicitly sets up.
+        $this->tenant['envelope']->delete();
+
+        $documentOne = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'matter_id' => $matter->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'name' => 'Engagement Letter.pdf',
+            'status' => 'sent',
+        ]);
+        $envelopeOne = Envelope::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'document_id' => $documentOne->id,
+            'status' => 'sent',
+            'sent_at' => now()->subDay(),
+        ]);
+
+        $documentTwo = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'matter_id' => $matter->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'name' => 'NDA.pdf',
+            'status' => 'partially_signed',
+        ]);
+        $envelopeTwo = Envelope::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'document_id' => $documentTwo->id,
+            'status' => 'partially_signed',
+            'sent_at' => now()->subHours(6),
+        ]);
+
+        $response = $this->actingAs($this->tenant['clientUser'])
+            ->getJson("/api/v1/portal/matters/{$matter->public_id}");
+
+        $response->assertOk();
+
+        $envelopeIds = array_column($response->json('data.pending_envelopes'), 'envelope_id');
+        $this->assertContains($envelopeOne->public_id, $envelopeIds);
+        $this->assertContains($envelopeTwo->public_id, $envelopeIds);
+        $this->assertCount(2, $envelopeIds);
+
+        $byId = array_column($response->json('data.pending_envelopes'), null, 'envelope_id');
+        $this->assertSame('NDA.pdf', $byId[$envelopeTwo->public_id]['document_name']);
+        $this->assertSame('partially_signed', $byId[$envelopeTwo->public_id]['status']);
+    }
+
+    /**
+     * Once one of a matter's two envelopes reaches a terminal state
+     * (completed here), it must drop out of `pending_envelopes` while the
+     * other, still-active envelope stays — the portal must never offer a
+     * "Review & Sign" action for a document that's already fully signed.
+     */
+    public function test_pending_envelopes_excludes_a_completed_envelope_but_keeps_the_other(): void
+    {
+        $matter = $this->tenant['matter'];
+        $this->tenant['envelope']->delete();
+
+        $completedDocument = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'matter_id' => $matter->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'status' => 'completed',
+        ]);
+        $completedEnvelope = Envelope::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'document_id' => $completedDocument->id,
+            'status' => 'completed',
+            'sent_at' => now()->subDays(3),
+            'completed_at' => now()->subDay(),
+        ]);
+
+        $pendingDocument = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'matter_id' => $matter->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'status' => 'sent',
+        ]);
+        $pendingEnvelope = Envelope::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'document_id' => $pendingDocument->id,
+            'status' => 'sent',
+            'sent_at' => now()->subHour(),
+        ]);
+
+        $response = $this->actingAs($this->tenant['clientUser'])
+            ->getJson("/api/v1/portal/matters/{$matter->public_id}");
+
+        $response->assertOk();
+
+        $envelopeIds = array_column($response->json('data.pending_envelopes'), 'envelope_id');
+        $this->assertContains($pendingEnvelope->public_id, $envelopeIds);
+        $this->assertNotContains($completedEnvelope->public_id, $envelopeIds);
+        $this->assertCount(1, $envelopeIds);
+    }
 }
