@@ -536,6 +536,41 @@ class DocumentControllerTest extends BaseTest
             ->assertJsonValidationErrors('file');
     }
 
+    /**
+     * Every extension DocuSign's eSignature API accepts as a source document
+     * — PactTrack's own upload validation must not be any stricter than
+     * that, since these are the same files that later get sent to DocuSign
+     * for signature (see .claude/rules/document.md and
+     * .claude/rules/signature.md). `.wpd`, `.xps` and `.msg` are singled out
+     * in StoreDocumentRequest's own docblock as extensions that a
+     * content-sniffing `mimes:` rule can silently reject depending on the
+     * host's MIME database — this data provider is what actually proves the
+     * chosen `extensions:` rule accepts all of them, not just the
+     * commonly-recognised ones.
+     */
+    #[DataProvider('docusignSupportedExtensions')]
+    public function test_it_accepts_every_docusign_supported_extension(string $extension): void
+    {
+        $response = $this->actingAs($this->tenant['owner'])->postJson('/api/documents', [
+            'file' => UploadedFile::fake()->create("document.{$extension}", 4),
+        ]);
+
+        $response->assertSuccessful()->assertJsonPath('data.name', "document.{$extension}");
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function docusignSupportedExtensions(): array
+    {
+        $extensions = [
+            'doc', 'docm', 'docx', 'dot', 'dotm', 'dotx',
+            'htm', 'html', 'msg', 'pdf', 'rtf', 'txt', 'wpd', 'xhtml', 'xps',
+        ];
+
+        return array_combine($extensions, array_map(fn (string $ext) => [$ext], $extensions));
+    }
+
     public function test_it_rejects_a_file_over_the_size_limit(): void
     {
         $this->actingAs($this->tenant['owner'])

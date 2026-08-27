@@ -20,10 +20,26 @@ class StoreDocumentRequest extends FormRequest
         return true;
     }
 
+    /**
+     * The extensions DocuSign's eSignature API itself accepts as source
+     * documents for envelope creation — PactTrack's own upload validation
+     * shouldn't be any stricter than what the document is eventually sent
+     * through for signing (see .claude/rules/signature.md).
+     *
+     * Deliberately validated with `extensions:` (the client-reported file
+     * extension) rather than `mimes:` (content sniffed via PHP's fileinfo/
+     * libmagic through Symfony's MimeTypes guesser). `.wpd`, `.xps` and
+     * `.msg` are not reliably content-sniffed to a matching MIME type across
+     * environments/libmagic versions — `mimes:` would silently reject valid
+     * files of those types on a host where detection misses. `extensions:`
+     * is deterministic regardless of the host's MIME database.
+     */
+    private const ALLOWED_EXTENSIONS = 'doc,docm,docx,dot,dotm,dotx,htm,html,msg,pdf,rtf,txt,wpd,xhtml,xps';
+
     public function rules(): array
     {
         return [
-            'file' => ['required', 'file', 'max:51200', 'mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg'],
+            'file' => ['required', 'file', 'max:51200', 'extensions:' . self::ALLOWED_EXTENSIONS],
             'matter_id' => ['nullable', 'integer', 'exists:matters,id'],
             'client_id' => ['nullable', 'integer', 'exists:clients,id'],
             'folder_id' => ['nullable', 'integer', 'exists:folders,id'],
