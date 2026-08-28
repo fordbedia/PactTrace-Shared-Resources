@@ -43,4 +43,27 @@ class Message extends Model
     {
         return $this->hasMany(MessageAttachment::class);
     }
+
+    /** Was this message sent by someone other than the given user? */
+    public function isFrom(int $userId): bool
+    {
+        return (int) $this->sender_id === $userId;
+    }
+
+    public function isRead(): bool
+    {
+        return $this->read_at !== null;
+    }
+
+    /**
+     * Stamps the message as read, once. A no-op if it already is — so a
+     * "mark thread read" sweep can call this over every message without
+     * churning `read_at` on the ones already stamped.
+     */
+    public function markRead(): void
+    {
+        if ($this->read_at === null) {
+            $this->forceFill(['read_at' => now()])->save();
+        }
+    }
 }
