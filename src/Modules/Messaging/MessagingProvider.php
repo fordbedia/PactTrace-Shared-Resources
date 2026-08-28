@@ -4,6 +4,8 @@ namespace PactTrackSDK\SharedResources\Modules\Messaging;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use PactTrackSDK\SharedResources\Modules\Messaging\Application\Port\Repository\MessageRepository;
+use PactTrackSDK\SharedResources\Modules\Messaging\Infrastructure\Repositories\Eloquent\EloquentMessageRepository;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
 use PactTrackSDK\SharedResources\Modules\Messaging\Policies\MessageThreadPolicy;
 
@@ -22,6 +24,10 @@ class MessagingProvider extends ServiceProvider
         foreach ($this->providers as $provider) {
             $this->app->register($provider);
         }
+
+        // Persistence port -> Eloquent adapter, same hexagonal binding
+        // shape as DocumentProvider (FolderRepository/DocumentRepository).
+        $this->app->singleton(MessageRepository::class, EloquentMessageRepository::class);
     }
 
     public function boot(): void

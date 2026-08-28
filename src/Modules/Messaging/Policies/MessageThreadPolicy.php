@@ -36,4 +36,15 @@ class MessageThreadPolicy extends TenantScopedPolicy
     {
         return $this->check($user, Permission::MessageSend, $thread);
     }
+
+    /**
+     * Archiving (soft-deleting) a thread is a mutation of the conversation,
+     * so it takes the same `message.send` permission as replying — a
+     * view-only client role holds neither. Tenant scoping is applied by the
+     * base check() against the thread.
+     */
+    public function archive(User $user, MessageThread $thread): bool
+    {
+        return $this->check($user, Permission::MessageSend, $thread);
+    }
 }

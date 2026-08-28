@@ -77,8 +77,37 @@ class SearchClientsHandlerTest extends BaseTest
         $this->assertSame($mine->id, $results->first()->id);
     }
 
-    private function client(string $name, string $status, bool $withUser, ?Provider $provider = null): Client
+    public function test_the_result_set_is_capped_at_the_requested_limit(): void
     {
+        // The New Message modal (/dashboard/messages) asks for 5; more than
+        // 5 clients match the empty search, so the cap must actually apply.
+        for ($i = 0; $i < 8; $i++) {
+            $this->client("Client Number {$i}", 'active', withUser: true);
+        }
+
+        $results = $this->handler->handle(new ClientSearchData($this->provider->id, '', 5));
+
+        $this->assertCount(5, $results);
+    }
+
+    public function test_a_partial_email_match_is_returned_like_a_partial_name(): void
+    {
+        $byEmail = $this->client('Priya Nair', 'active', withUser: true, email: 'priya@harmon-estates.test');
+        $this->client('Sam Delgado', 'active', withUser: true, email: 'sam@othertld.test');
+
+        $results = $this->handler->handle(new ClientSearchData($this->provider->id, 'harmon-estates', 20));
+
+        $this->assertCount(1, $results);
+        $this->assertSame($byEmail->id, $results->first()->id);
+    }
+
+    private function client(
+        string $name,
+        string $status,
+        bool $withUser,
+        ?Provider $provider = null,
+        ?string $email = null,
+    ): Client {
         $provider ??= $this->provider;
 
         $userId = null;
@@ -92,6 +121,7 @@ class SearchClientsHandlerTest extends BaseTest
             'name' => $name,
             'status' => $status,
             'user_id' => $userId,
+            ...($email !== null ? ['email' => $email] : []),
         ]);
     }
 }
