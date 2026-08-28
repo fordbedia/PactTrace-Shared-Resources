@@ -13,18 +13,35 @@ use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 use PactTrackSDK\SharedResources\Modules\Messaging\Database\Factories\MessageThreadFactory;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 
 /**
- * A conversation between a provider and one of its clients, optionally
- * scoped to a matter. `last_message_at` is a denormalized column for cheap
- * inbox sorting (see .claude/rules/messaging.md) — it is kept current by
- * recordActivity() from the Application layer whenever a Message is added,
- * never by a DB trigger.
+ * A conversation about one matter between exactly ONE staff member and the
+ * matter's client. This is a hard product rule — PactTrack does not support
+ * group message threads (see .claude/rules/messaging.md):
+ *
+ *  - `matter_id` is required. Every thread belongs to exactly one matter;
+ *    there is no "client, no matter" case for messaging (unlike Documents).
+ *  - `client_id` is DERIVED from `matter.client_id` by the Application
+ *    layer — a Matter belongsTo exactly one Client — and is never taken
+ *    from request input.
+ *  - `staff_user_id` is the single staff member the client is conversing
+ *    with. It is the identity every reply is authorised against
+ *    (MessageThreadPolicy::reply) — not a "created by" audit field. If a
+ *    second staffer wants to talk to the same client about the same
+ *    matter, that is a second thread, never multiple staff on one thread.
+ *  - `subject` is required and is what distinguishes two threads between
+ *    the same staffer and client on the same matter. The DB enforces one
+ *    thread per (provider_id, matter_id, staff_user_id, subject).
+ *
+ * `last_message_at` is a denormalized column for cheap inbox sorting — it
+ * is kept current by recordActivity() from the Application layer whenever a
+ * Message is added, never by a DB trigger.
  *
  * Archiving a thread is a soft delete (`deleted_at`) — the SoftDeletes
- * trait excludes archived threads from the "All" and "Unread" inbox queries
- * automatically, so nothing hand-writes a `whereNull('deleted_at')` clause.
- * The row and its messages are preserved for the audit trail.
+ * trait excludes archived threads from the inbox queries automatically, so
+ * nothing hand-writes a `whereNull('deleted_at')` clause. The row and its
+ * messages are preserved for the audit trail.
  */
 class MessageThread extends Model
 {
@@ -34,6 +51,7 @@ class MessageThread extends Model
     protected $fillable = [
         'provider_id',
         'client_id',
+        'staff_user_id',
         'matter_id',
         'subject',
         'last_message_at',
@@ -63,6 +81,15 @@ class MessageThread extends Model
         return $this->belongsTo(Matter::class);
     }
 
+    /**
+     * The one staff member on the other end of this conversation — the
+     * only user permitted to reply into it from the provider side.
+     */
+    public function staffMember(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'staff_user_id');
+    }
+
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class, 'thread_id');
@@ -81,8 +108,8 @@ class MessageThread extends Model
 
     /**
      * Marks the moment the most recent message landed on this thread and
-     * persists it. Called from SendMessageAction right after a Message is
-     * created — the one place `last_message_at` is allowed to move.
+     * persists it. Called from AppendMessageToThread right after a Message
+     * is created — the one place `last_message_at` is allowed to move.
      */
     public function recordActivity(\DateTimeInterface $at): void
     {
@@ -110,8 +137,12 @@ class MessageThread extends Model
     /**
      * Stamps every not-yet-read message on this thread that the given user
      * did not send, in a single UPDATE. Idempotent — a message already
-     * stamped is left untouched. This is what drops a thread out of the
-     * "Unread" tab and decrements the sidebar badge.
+     * stamped is left untouched.
+     *
+     * `messages.read_at` is a single column, not per-recipient: a thread is
+     * exactly one staffer + one client, so "not sent by me and unread" is
+     * unambiguous from either side. This is what drops a thread out of the
+     * "Unread" tab / portal unread state and decrements the sidebar badge.
      */
     public function markReadFor(int $userId): void
     {
@@ -139,6 +170,12 @@ class MessageThread extends Model
     public function scopeForProvider(Builder $query, int $providerId): Builder
     {
         return $query->where('provider_id', $providerId);
+    }
+
+    /** Threads on one matter (the portal's per-matter messaging widget). */
+    public function scopeForMatter(Builder $query, int $matterId): Builder
+    {
+        return $query->where('matter_id', $matterId);
     }
 
     /**

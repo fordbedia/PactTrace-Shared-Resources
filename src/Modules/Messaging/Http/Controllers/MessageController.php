@@ -10,33 +10,35 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
-use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\ArchiveThreadAction;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\GetUnreadThreadCountAction;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\ListMatterMessagesAction;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\ListProviderThreadsAction;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\MarkThreadReadAction;
+use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\ReplyToThreadAction;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\SendMessageAction;
+use PactTrackSDK\SharedResources\Modules\Messaging\Application\DTO\ReplyMessageData;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\DTO\SendMessageData;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\DTO\ThreadListData;
+use PactTrackSDK\SharedResources\Modules\Messaging\Http\Requests\ReplyMessageRequest;
 use PactTrackSDK\SharedResources\Modules\Messaging\Http\Requests\SendMessageRequest;
 use PactTrackSDK\SharedResources\Modules\Messaging\Http\Resources\MessageResource;
 use PactTrackSDK\SharedResources\Modules\Messaging\Http\Resources\MessageThreadResource;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
 
 /**
- * Inbound adapter for in-portal messaging — the /dashboard/messages inbox
- * (threads / showThread / unreadCount / archive / markRead), the New
- * Message modal (store), and a matter's message list (indexForMatter).
+ * Inbound adapter for the provider-side /dashboard/messages inbox — the
+ * All/Unread tabs, the sidebar badge, opening a thread, archiving, marking
+ * read, the New Message modal (store), and replying into a thread (reply).
  *
  * On real `auth:sanctum` middleware (see routes/api.php), not the
  * ResolvesActingUser local-dev bypass the older modules still carry — this
- * is new surface built after the User module's Sanctum auth landed, so it
- * follows the modern pattern MattersController / EnvelopeDetailController
- * already use. Thin by design: validation in SendMessageRequest / DTOs,
- * orchestration in the Application\Action classes, persistence and storage
- * behind the MessageRepository / DocumentStorage ports.
+ * follows the modern MattersController / EnvelopeDetailController pattern.
+ * The client-portal side of messaging is a separate adapter
+ * (PortalMessagingController), same split as PortalMatterController vs
+ * MattersController. Thin by design: validation in the FormRequests / DTOs,
+ * orchestration in the Application\Action classes.
  */
 class MessageController extends Controller
 {
@@ -44,11 +46,10 @@ class MessageController extends Controller
      * GET /api/v1/messages/threads?filter=all|unread&page=&per_page=
      *
      * One page of the inbox for the signed-in provider. Both tabs are the
-     * same query narrowed by `filter` (see ThreadListData) — "Archived" is
-     * not a tab: an archived thread is soft-deleted and excluded by the
-     * model's SoftDeletes trait. Returns a LengthAwarePaginator through
-     * MessageThreadResource::collection(), so the response carries the
-     * standard `links` / `meta` blocks, same shape as MattersController.
+     * same query narrowed by `filter` (see ThreadListData). Returns a
+     * LengthAwarePaginator through MessageThreadResource::collection(), so
+     * the response carries the standard `links` / `meta` blocks, same
+     * shape as MattersController.
      */
     public function threads(Request $request, ListProviderThreadsAction $action): AnonymousResourceCollection
     {
@@ -65,9 +66,7 @@ class MessageController extends Controller
      * GET /api/v1/messages/unread-count
      *
      * The single figure behind the "Unread" tab pill and the sidebar
-     * "Messages" badge — one server-computed source of truth, so the two
-     * can never disagree. Same `viewAny` gate as the list: it's the same
-     * read, expressed as one aggregate.
+     * "Messages" badge — one server-computed source of truth.
      */
     public function unreadCount(Request $request, GetUnreadThreadCountAction $action): JsonResponse
     {
@@ -84,8 +83,9 @@ class MessageController extends Controller
      * GET /api/v1/messages/threads/{thread}
      *
      * One thread with its full conversation (oldest first), for the
-     * /dashboard/messages conversation pane. `{thread}` binds by `id`;
-     * `view` gate applies tenant scoping. An archived thread is
+     * /dashboard/messages conversation pane. `view` gate applies tenant
+     * scoping — any staff user in the provider may read it (the
+     * audit-trail/continuity guarantee); an archived thread is
      * soft-deleted and 404s here.
      */
     public function showThread(Request $request, MessageThread $thread): MessageThreadResource
@@ -93,16 +93,14 @@ class MessageController extends Controller
         Gate::forUser($request->user())->authorize('view', $thread);
 
         return MessageThreadResource::make(
-            $thread->load(['client', 'conversation.sender', 'conversation.attachments']),
+            $thread->load(['client', 'staffMember', 'matter', 'conversation.sender', 'conversation.attachments']),
         );
     }
 
     /**
      * DELETE /api/v1/messages/threads/{thread}
      *
-     * Archive a conversation — a soft delete. It leaves both inbox tabs
-     * immediately; the row and its messages stay for the audit trail
-     * (MessageThread::withTrashed()). `archive` gate = `message.send`
+     * Archive a conversation — a soft delete. `archive` gate = `message.send`
      * permission + tenant scoping.
      */
     public function archive(Request $request, MessageThread $thread, ArchiveThreadAction $action): Response
@@ -117,9 +115,7 @@ class MessageController extends Controller
     /**
      * POST /api/v1/messages/threads/{thread}/read
      *
-     * Marks the thread read for the signed-in user (stamps every message
-     * they did not send that has no `read_at`). This is what drops the
-     * thread out of the "Unread" tab and decrements the sidebar badge.
+     * Marks the thread read for the signed-in user. `view` gate.
      */
     public function markRead(Request $request, MessageThread $thread, MarkThreadReadAction $action): MessageThreadResource
     {
@@ -129,52 +125,40 @@ class MessageController extends Controller
 
         $action->handle($thread, (int) $user->id);
 
-        return MessageThreadResource::make($thread->load(['client']));
+        return MessageThreadResource::make($thread->load(['client', 'staffMember']));
     }
 
     /**
      * POST /api/v1/messages
      *
-     * Starts (or continues) a conversation with a client. `client_id` is
-     * the source of truth for who the thread is with; if `matter_id` is
-     * also given, the matter's own client wins and is used instead — a
-     * Matter belongsTo exactly one Client (see .claude/rules/matter.md), so
-     * a stale page or non-frontend caller submitting a disagreeing pair is
-     * reconciled here rather than trusted, the same rule
-     * DocumentController::store() applies.
+     * Starts a NEW conversation from the staff New Message modal. Matter
+     * first: `matter_id` is required, the client is the matter's own
+     * client (never a submitted `client_id`), the staff party is the
+     * authenticated user, and `subject` is required. Re-using an identical
+     * subject on the same matter continues that thread rather than forking
+     * a duplicate (SendMessageAction / the DB unique key).
      */
     public function store(SendMessageRequest $request, SendMessageAction $action): MessageResource
     {
         $user = $request->user();
-        $providerId = (int) $user->provider_id;
 
-        /** @var Client $client */
-        $client = Client::query()->findOrFail($request->integer('client_id'));
+        /** @var Matter $matter */
+        $matter = Matter::query()->findOrFail($request->integer('matter_id'));
 
-        // Permission (message.send) + tenant scoping on the client.
-        Gate::forUser($user)->authorize('create', [MessageThread::class, $client]);
+        // Tenant scoping (rejects another provider's matter the `exists`
+        // rule alone would allow) + `message.send` against the matter's
+        // client.
+        Gate::forUser($user)->authorize('view', $matter);
+        Gate::forUser($user)->authorize('create', [MessageThread::class, $matter->client]);
 
-        $matterId = null;
-        $clientId = $client->id;
-
-        if ($request->filled('matter_id')) {
-            /** @var Matter $matter */
-            $matter = Matter::query()->findOrFail($request->integer('matter_id'));
-
-            // Rejects a matter from another tenant (the exists: rule only
-            // checks the row is real, not that it's ours).
-            Gate::forUser($user)->authorize('view', $matter);
-
-            $matterId = $matter->id;
-            $clientId = $matter->client_id;
-        }
-
-        $data = SendMessageData::fromRequest(
-            request: $request,
-            provider_id: $providerId,
+        $data = new SendMessageData(
+            provider_id: (int) $matter->provider_id,
             sender_id: (int) $user->id,
-            client_id: $clientId,
-            matter_id: $matterId,
+            staff_user_id: (int) $user->id,
+            client_id: (int) $matter->client_id,
+            matter_id: (int) $matter->id,
+            subject: trim((string) $request->input('subject')),
+            body: trim((string) $request->input('body')),
             attachments: array_values($request->file('attachments', [])),
         );
 
@@ -182,11 +166,36 @@ class MessageController extends Controller
     }
 
     /**
+     * POST /api/v1/messages/threads/{thread}
+     *
+     * Replies into an existing thread. `reply` gate enforces the
+     * one-staff-member-per-thread rule: only the thread's own
+     * `staff_user_id` may post from the provider side — a different
+     * staffer viewing the same thread is read-only.
+     */
+    public function reply(
+        ReplyMessageRequest $request,
+        MessageThread $thread,
+        ReplyToThreadAction $action,
+    ): MessageResource {
+        $user = $request->user();
+
+        Gate::forUser($user)->authorize('reply', $thread);
+
+        $data = new ReplyMessageData(
+            sender_id: (int) $user->id,
+            body: trim((string) $request->input('body')),
+            attachments: array_values($request->file('attachments', [])),
+        );
+
+        return MessageResource::make($action->handle($thread, $data));
+    }
+
+    /**
      * GET /api/v1/matters/{matter}/messages
      *
      * Every message on the matter, oldest first. `{matter}` binds by
-     * Matter::public_id (its default route key). Same `view` gate as the
-     * Matter Detail page itself.
+     * Matter::public_id. Same `view` gate as the Matter Detail page.
      */
     public function indexForMatter(
         Request $request,

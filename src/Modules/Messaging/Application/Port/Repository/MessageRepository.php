@@ -13,7 +13,7 @@ use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
 /**
  * Persistence port for the Messaging module — same hexagonal shape as the
  * Document module's FolderRepository (its Eloquent adapter,
- * EloquentFolderRepository, is the literal template for
+ * EloquentMessageRepository, is the literal template for
  * EloquentMessageRepository). Application-layer actions depend on this
  * interface, never on Eloquent directly, so the store can be swapped or
  * faked in isolation.
@@ -24,10 +24,10 @@ interface MessageRepository
 
     /**
      * One page of a provider's non-archived threads for the inbox — newest
-     * activity first, with `client`, `matter` and `latestMessage`
-     * eager-loaded and an `unread_messages_count` withCount alias
-     * (messages the given user has not read). Archived (soft-deleted)
-     * threads are excluded by the model's SoftDeletes trait.
+     * activity first, with `client`, `matter`, `staffMember` and
+     * `latestMessage` eager-loaded and an `unread_messages_count`
+     * withCount alias (messages the given user has not read). Archived
+     * (soft-deleted) threads are excluded by the model's SoftDeletes trait.
      *
      * @return LengthAwarePaginator<int, MessageThread>
      */
@@ -59,16 +59,31 @@ interface MessageRepository
     public function countUnreadThreadsForProvider(int $providerId, int $currentUserId): int;
 
     /**
-     * The one open thread between a provider and a client for a given
-     * matter scope (matter_id may be null — a thread not tied to any
-     * matter). Created if it does not exist yet; `subject` is only applied
-     * on creation, never overwritten on an existing thread.
+     * Every non-archived thread on one matter, newest activity first, with
+     * `staffMember` and `latestMessage` eager-loaded and the per-row
+     * `unread_messages_count` alias for the given user. Backs the client
+     * portal's per-matter messaging widget — a matter has exactly one
+     * client, so "threads on this matter" is already "the client's
+     * threads".
+     *
+     * @return Collection<int, MessageThread>
+     */
+    public function threadsForMatter(int $providerId, int $matterId, int $currentUserId): Collection;
+
+    /**
+     * Resolve-or-open the one thread for a (matter, staff member, subject)
+     * within a provider. `client_id` is stored from the caller (already
+     * derived from the matter), never matched on. `subject` is applied
+     * only when the row is created — an existing thread keeps whatever
+     * subject it had. Mirrors the DB's own
+     * `message_threads_scope_subject_unique` key.
      */
     public function firstOrCreateThread(
         int $providerId,
+        int $matterId,
+        int $staffUserId,
         int $clientId,
-        ?int $matterId,
-        ?string $subject,
+        string $subject,
     ): MessageThread;
 
     public function createMessage(int $threadId, int $senderId, string $body): Message;

@@ -7,6 +7,7 @@ namespace PactTrackSDK\SharedResources\Modules\Messaging\Tests;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
+use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\AppendMessageToThread;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\SendMessageAction;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\DTO\SendMessageData;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Port\Repository\MessageRepository;
@@ -19,11 +20,10 @@ use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
 use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
 
 /**
- * The orchestration behind the New Message modal's Send button. Same style
- * as CreateFolderTest — the action is thin, so the coverage that matters is
- * the contract: one thread per (provider, client, matter), attachments
- * stored through the port, `last_message_at` moved forward, and a
- * NewMessage broadcast fired to *others*.
+ * Orchestration behind a NEW conversation (staff New Message modal / portal
+ * staff directory). The contract that matters: one thread per
+ * (provider, matter, staff member, subject), attachments stored through the
+ * port, `last_message_at` moved forward, a NewMessage broadcast to *others*.
  */
 class SendMessageActionTest extends BaseTest
 {
@@ -40,7 +40,10 @@ class SendMessageActionTest extends BaseTest
         $this->storage = new InMemoryDocumentStorage();
         $this->action = new SendMessageAction(
             app(MessageRepository::class),
-            new MessageAttachmentStorageService($this->storage),
+            new AppendMessageToThread(
+                app(MessageRepository::class),
+                new MessageAttachmentStorageService($this->storage),
+            ),
         );
         $this->tenant = ProviderTenantScenario::make('send-msg');
 
@@ -49,11 +52,14 @@ class SendMessageActionTest extends BaseTest
 
     private function data(array $overrides = []): SendMessageData
     {
+        $matter = $this->tenant['matter'];
+
         return new SendMessageData(
-            provider_id: $overrides['provider_id'] ?? $this->tenant['provider']->id,
+            provider_id: $overrides['provider_id'] ?? $matter->provider_id,
             sender_id: $overrides['sender_id'] ?? $this->tenant['owner']->id,
-            client_id: $overrides['client_id'] ?? $this->tenant['client']->id,
-            matter_id: $overrides['matter_id'] ?? null,
+            staff_user_id: $overrides['staff_user_id'] ?? $this->tenant['owner']->id,
+            client_id: $overrides['client_id'] ?? $matter->client_id,
+            matter_id: $overrides['matter_id'] ?? $matter->id,
             subject: $overrides['subject'] ?? 'Intro',
             body: $overrides['body'] ?? 'Hello, sending the first note.',
             attachments: $overrides['attachments'] ?? [],
@@ -66,9 +72,10 @@ class SendMessageActionTest extends BaseTest
 
         $this->assertInstanceOf(Message::class, $message);
         $this->assertDatabaseHas('message_threads', [
-            'provider_id' => $this->tenant['provider']->id,
-            'client_id' => $this->tenant['client']->id,
-            'matter_id' => null,
+            'provider_id' => $this->tenant['matter']->provider_id,
+            'client_id' => $this->tenant['matter']->client_id,
+            'staff_user_id' => $this->tenant['owner']->id,
+            'matter_id' => $this->tenant['matter']->id,
             'subject' => 'Intro',
         ]);
         $this->assertDatabaseHas('messages', [
@@ -78,7 +85,7 @@ class SendMessageActionTest extends BaseTest
         ]);
     }
 
-    public function test_a_second_message_to_the_same_client_reuses_the_thread(): void
+    public function test_reusing_the_same_subject_continues_the_thread_but_a_new_subject_forks_one(): void
     {
         $first = $this->action->handle($this->data(['body' => 'one']));
         $second = $this->action->handle($this->data(['body' => 'two']));
@@ -86,16 +93,16 @@ class SendMessageActionTest extends BaseTest
         $this->assertSame($first->thread_id, $second->thread_id);
         $this->assertSame(1, MessageThread::query()->count());
         $this->assertSame(2, Message::query()->count());
+
+        $this->action->handle($this->data(['subject' => 'A different topic', 'body' => 'three']));
+        $this->assertSame(2, MessageThread::query()->count());
     }
 
     public function test_it_moves_last_message_at_forward(): void
     {
-        $thread = MessageThread::factory()->create([
-            'provider_id' => $this->tenant['provider']->id,
-            'client_id' => $this->tenant['client']->id,
-            'matter_id' => null,
-            'last_message_at' => now()->subDays(3),
-        ]);
+        $thread = MessageThread::factory()
+            ->forMatter($this->tenant['matter'], $this->tenant['owner'], 'Intro')
+            ->create(['last_message_at' => now()->subDays(3)]);
 
         $message = $this->action->handle($this->data());
 
@@ -119,7 +126,7 @@ class SendMessageActionTest extends BaseTest
         $this->assertCount(2, $message->attachments);
         foreach ($message->attachments as $attachment) {
             $this->assertStringStartsWith(
-                'message-attachments/' . $this->tenant['provider']->id . '/',
+                'message-attachments/' . $this->tenant['matter']->provider_id . '/',
                 $attachment->s3_path,
             );
             $this->assertArrayHasKey($attachment->s3_path, $this->storage->files);
@@ -139,8 +146,8 @@ class SendMessageActionTest extends BaseTest
 
 /**
  * A DocumentStorage that keeps everything in an array — local to this test,
- * same shape as the one in DocumentUploadServiceTest, so SendMessageAction's
- * attachment path is exercised without a real disk.
+ * same shape as the one in DocumentUploadServiceTest, so the attachment
+ * path is exercised without a real disk.
  */
 class InMemoryDocumentStorage implements DocumentStorage
 {

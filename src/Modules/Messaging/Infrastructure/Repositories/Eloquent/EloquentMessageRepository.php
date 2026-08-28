@@ -30,20 +30,22 @@ class EloquentMessageRepository extends BaseRepository implements MessageReposit
 
     public function firstOrCreateThread(
         int $providerId,
+        int $matterId,
+        int $staffUserId,
         int $clientId,
-        ?int $matterId,
-        ?string $subject,
+        string $subject,
     ): MessageThread {
         return $this->model->newQuery()->firstOrCreate(
             [
+                // Mirrors message_threads_scope_subject_unique. client_id
+                // is derived from the matter, so it is stored, not matched.
                 'provider_id' => $providerId,
-                'client_id' => $clientId,
                 'matter_id' => $matterId,
+                'staff_user_id' => $staffUserId,
+                'subject' => $subject,
             ],
             [
-                // Applied only when the row is created — an existing
-                // thread keeps whatever subject it already had.
-                'subject' => $subject,
+                'client_id' => $clientId,
                 'last_message_at' => now(),
             ],
         );
@@ -110,6 +112,18 @@ class EloquentMessageRepository extends BaseRepository implements MessageReposit
             ->count();
     }
 
+    public function threadsForMatter(int $providerId, int $matterId, int $currentUserId): Collection
+    {
+        return $this->model->newQuery()
+            ->forProvider($providerId)
+            ->forMatter($matterId)
+            ->with(['staffMember', 'latestMessage'])
+            ->withCount($this->unreadCountAlias($currentUserId))
+            ->orderByDesc('last_message_at')
+            ->orderByDesc('id')
+            ->get();
+    }
+
     /**
      * The shared base query for both inbox tabs: this provider's
      * non-archived threads, newest activity first, with everything the
@@ -120,12 +134,27 @@ class EloquentMessageRepository extends BaseRepository implements MessageReposit
     {
         return $this->model->newQuery()
             ->forProvider($providerId)
-            ->with(['client', 'matter', 'latestMessage'])
-            ->withCount(['messages as unread_messages_count' => function (Builder $messages) use ($currentUserId): void {
-                $messages->where('sender_id', '!=', $currentUserId)->whereNull('read_at');
-            }])
+            ->with(['client', 'matter', 'staffMember', 'latestMessage'])
+            ->withCount($this->unreadCountAlias($currentUserId))
             ->orderByDesc('last_message_at')
             ->orderByDesc('id');
+    }
+
+    /**
+     * `unread_messages_count` = messages on the thread the given user did
+     * not send that have no `read_at`. One definition, reused by every
+     * listing query so the inbox, the portal widget and the badge can't
+     * disagree.
+     *
+     * @return array<string, callable(Builder): void>
+     */
+    private function unreadCountAlias(int $currentUserId): array
+    {
+        return [
+            'messages as unread_messages_count' => function (Builder $messages) use ($currentUserId): void {
+                $messages->where('sender_id', '!=', $currentUserId)->whereNull('read_at');
+            },
+        ];
     }
 
     public function messagesForMatter(int $providerId, int $matterId): Collection

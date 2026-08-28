@@ -31,14 +31,19 @@ class MessageThreadResource extends JsonResource
             'id' => $this->id,
             'provider_id' => $this->provider_id,
             'client_id' => $this->client_id,
+            'staff_user_id' => $this->staff_user_id,
             'matter_id' => $this->matter_id,
             'subject' => $this->subject,
             'last_message_at' => $this->last_message_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
 
-            // Inbox-row fields — flat, whenLoaded, no queries.
+            // Inbox-row / portal-row fields — flat, whenLoaded, no queries.
             'client_name' => $this->whenLoaded('client', fn () => $this->client?->name),
             'client_company' => $this->whenLoaded('client', fn () => $this->client?->company_name),
+            // The one staff member on the thread — the portal widget's
+            // left-pane rows show this instead of the client.
+            'staff_name' => $this->whenLoaded('staffMember', fn () => $this->staffMember?->name),
+            'staff_title' => $this->whenLoaded('staffMember', fn () => $this->staffMember?->title),
             'matter_name' => $this->whenLoaded('matter', fn () => $this->matter?->name),
             'matter_public_id' => $this->whenLoaded('matter', fn () => $this->matter?->public_id),
             'last_message_preview' => $this->whenLoaded('latestMessage', fn () => $this->latestMessage?->body),

@@ -7,19 +7,22 @@ namespace PactTrackSDK\SharedResources\Modules\Messaging\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Validation only for POST /api/v1/messages. Authorization happens in
- * MessageController against the resolved Client (and Matter, if given) via
- * MessageThreadPolicy::create — a FormRequest's authorize() has no natural
- * place to build those parent records, so it stays a pass-through here,
- * matching StoreDocumentRequest in the Document module.
+ * Validation only for POST /api/v1/messages — the first message of a new
+ * conversation from the staff New Message modal. Authorization happens in
+ * MessageController against the resolved Matter's client via
+ * MessageThreadPolicy::create.
+ *
+ * `client_id` is deliberately NOT accepted — it is derived from the
+ * matter's own `client_id`. `staff_user_id` is not accepted either: a
+ * staffer always starts a thread as themselves (the portal directory is
+ * the only place a staffer is chosen, and that is a different route).
  */
 class SendMessageRequest extends FormRequest
 {
     /**
      * Per-file attachment ceiling. Laravel's `max` file rule is in
-     * kilobytes, so 5 MB == 5120. This is the server-side enforcement of
-     * the same limit the New Message modal pre-checks client-side — see
-     * .claude/rules/messaging.md, "Attachment size limit".
+     * kilobytes, so 5 MB == 5120 — see .claude/rules/messaging.md,
+     * "Attachment size limit".
      */
     public const MAX_ATTACHMENT_KB = 5120;
 
@@ -34,9 +37,8 @@ class SendMessageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'client_id' => ['required', 'integer', 'exists:clients,id'],
-            'matter_id' => ['nullable', 'integer', 'exists:matters,id'],
-            'subject' => ['nullable', 'string', 'max:255'],
+            'matter_id' => ['required', 'integer', 'exists:matters,id'],
+            'subject' => ['required', 'string', 'max:255'],
             'body' => ['required', 'string', 'max:20000'],
             'attachments' => ['nullable', 'array', 'max:10'],
             'attachments.*' => ['file', 'max:' . self::MAX_ATTACHMENT_KB],

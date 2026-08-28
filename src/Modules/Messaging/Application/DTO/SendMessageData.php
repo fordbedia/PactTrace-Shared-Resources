@@ -4,21 +4,25 @@ declare(strict_types=1);
 
 namespace PactTrackSDK\SharedResources\Modules\Messaging\Application\DTO;
 
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
 
 /**
- * The input to SendMessageAction — one message posted from the New Message
- * modal (/dashboard/messages). Parsed once here so neither the action nor
- * the repository ever sees an Illuminate\Http\Request, matching the
- * Document module's DocumentData / DocumentListData.
+ * The input to SendMessageAction — the first message of a NEW conversation,
+ * from the staff New Message modal (/dashboard/messages) or the portal
+ * staff-contact directory. Replies into an existing thread use
+ * ReplyMessageData instead.
  *
- * `client_id` is the source of truth for who the thread is with. When
- * `matter_id` is also given, the controller has already reconciled it
- * against the matter's own client (a Matter belongsTo exactly one Client —
- * see .claude/rules/matter.md) before constructing this, the same
- * "derive from the resolved parent, don't trust the request" rule the
- * Document module applies.
+ * Every scoping value is resolved by the controller BEFORE this is built,
+ * never trusted from request input:
+ *
+ *  - `matter_id` is required (every thread belongs to one matter);
+ *  - `client_id` is the matter's own `client_id` — a Matter belongsTo
+ *    exactly one Client (.claude/rules/matter.md);
+ *  - `staff_user_id` is the authenticated user on the staff side, or the
+ *    directory-selected staffer (validated to belong to the provider) on
+ *    the portal side;
+ *  - `subject` is required and is what distinguishes two threads on the
+ *    same matter with the same staffer.
  *
  * @param list<UploadedFile> $attachments
  */
@@ -30,35 +34,12 @@ final readonly class SendMessageData
     public function __construct(
         public int $provider_id,
         public int $sender_id,
+        public int $staff_user_id,
         public int $client_id,
-        public ?int $matter_id,
-        public ?string $subject,
+        public int $matter_id,
+        public string $subject,
         public string $body,
         public array $attachments = [],
     ) {
-    }
-
-    /**
-     * @param list<UploadedFile> $attachments
-     */
-    public static function fromRequest(
-        FormRequest $request,
-        int $provider_id,
-        int $sender_id,
-        int $client_id,
-        ?int $matter_id,
-        array $attachments,
-    ): self {
-        $subject = $request->input('subject');
-
-        return new self(
-            provider_id: $provider_id,
-            sender_id: $sender_id,
-            client_id: $client_id,
-            matter_id: $matter_id,
-            subject: is_string($subject) && trim($subject) !== '' ? trim($subject) : null,
-            body: trim((string) $request->input('body')),
-            attachments: array_values($attachments),
-        );
     }
 }
