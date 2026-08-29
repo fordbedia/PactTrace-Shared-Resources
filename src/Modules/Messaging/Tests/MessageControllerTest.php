@@ -11,6 +11,7 @@ use Laravel\Sanctum\Sanctum;
 use Laravel\Sanctum\SanctumServiceProvider;
 use PactTrackSDK\SharedResources\Modules\Messaging\Events\NewMessage;
 use PactTrackSDK\SharedResources\Modules\Messaging\Http\Requests\SendMessageRequest;
+use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageAttachment;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
 use PactTrackSDK\SharedResources\TestCase\Extras\LoadsModuleApiRoutes;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
@@ -223,6 +224,161 @@ class MessageControllerTest extends BaseTest
 
         $this->assertDatabaseCount('messages', 0);
         $this->assertDatabaseCount('message_attachments', 0);
+    }
+
+    public function test_up_to_five_attachments_are_accepted(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $files = [];
+        for ($i = 1; $i <= SendMessageRequest::MAX_ATTACHMENTS; $i++) {
+            $files[] = UploadedFile::fake()->create("doc{$i}.pdf", 200);
+        }
+
+        $this->postJson('/api/v1/messages', [
+            'matter_id' => $this->tenant['matter']->id,
+            'subject' => 'Five files',
+            'body' => 'All five attached.',
+            'attachments' => $files,
+        ])->assertCreated();
+
+        $this->assertDatabaseCount('message_attachments', SendMessageRequest::MAX_ATTACHMENTS);
+    }
+
+    public function test_a_sixth_attachment_is_rejected_and_nothing_is_saved(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $files = [];
+        for ($i = 1; $i <= SendMessageRequest::MAX_ATTACHMENTS + 1; $i++) {
+            $files[] = UploadedFile::fake()->create("doc{$i}.pdf", 200);
+        }
+
+        $this->postJson('/api/v1/messages', [
+            'matter_id' => $this->tenant['matter']->id,
+            'subject' => 'Too many',
+            'body' => 'Six attached.',
+            'attachments' => $files,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('attachments');
+
+        $this->assertDatabaseCount('messages', 0);
+        $this->assertDatabaseCount('message_attachments', 0);
+    }
+
+    public function test_the_sixth_attachment_cap_also_applies_to_a_reply(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $thread = MessageThread::factory()
+            ->forMatter($this->tenant['matter'], $this->tenant['owner'])
+            ->create();
+
+        $files = [];
+        for ($i = 1; $i <= SendMessageRequest::MAX_ATTACHMENTS + 1; $i++) {
+            $files[] = UploadedFile::fake()->create("doc{$i}.pdf", 200);
+        }
+
+        $this->postJson("/api/v1/messages/threads/{$thread->id}", [
+            'body' => 'Six attached.',
+            'attachments' => $files,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('attachments');
+
+        $this->assertDatabaseCount('message_attachments', 0);
+    }
+
+    public function test_a_reply_accepts_up_to_five_attachments(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $thread = MessageThread::factory()
+            ->forMatter($this->tenant['matter'], $this->tenant['owner'])
+            ->create();
+
+        $files = [];
+        for ($i = 1; $i <= SendMessageRequest::MAX_ATTACHMENTS; $i++) {
+            $files[] = UploadedFile::fake()->create("r{$i}.pdf", 200);
+        }
+
+        $this->postJson("/api/v1/messages/threads/{$thread->id}", [
+            'body' => 'Five on a reply.',
+            'attachments' => $files,
+        ])->assertCreated();
+
+        $this->assertDatabaseCount('message_attachments', SendMessageRequest::MAX_ATTACHMENTS);
+    }
+
+    public function test_a_reply_rejects_a_file_over_five_megabytes(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $thread = MessageThread::factory()
+            ->forMatter($this->tenant['matter'], $this->tenant['owner'])
+            ->create();
+
+        $this->postJson("/api/v1/messages/threads/{$thread->id}", [
+            'body' => 'Too big on a reply.',
+            'attachments' => [
+                UploadedFile::fake()->create('huge.pdf', SendMessageRequest::MAX_ATTACHMENT_KB + 1),
+            ],
+        ])->assertStatus(422)->assertJsonValidationErrors('attachments.0');
+
+        $this->assertDatabaseCount('message_attachments', 0);
+    }
+
+    /* ── downloadAttachment ───────────────────────────────────────────── */
+
+    private function attachmentOnThread(TestScenarioCollection $tenant, string $bytes): MessageAttachment
+    {
+        $thread = MessageThread::factory()
+            ->forMatter($tenant['matter'], $tenant['owner'])
+            ->create();
+
+        $message = $thread->messages()->create([
+            'sender_id' => $tenant['owner']->id,
+            'body' => 'see attached',
+        ]);
+
+        $path = "message-attachments/{$tenant['provider']->id}/" . uniqid('', true) . '-brief.pdf';
+        Storage::disk(self::DISK)->put($path, $bytes);
+
+        return MessageAttachment::factory()->create([
+            'message_id' => $message->id,
+            'file_name' => 'brief.pdf',
+            'mime_type' => 'application/pdf',
+            'size' => strlen($bytes),
+            's3_path' => $path,
+        ]);
+    }
+
+    public function test_a_staffer_downloads_an_attachment_on_their_providers_thread(): void
+    {
+        Sanctum::actingAs($this->tenant['staff']);
+        $attachment = $this->attachmentOnThread($this->tenant, 'THE-REAL-BYTES');
+
+        $response = $this->get("/api/v1/messages/attachments/{$attachment->id}");
+
+        $response->assertOk();
+        $this->assertSame('THE-REAL-BYTES', $response->streamedContent());
+        $this->assertStringContainsString('application/pdf', $response->headers->get('content-type'));
+    }
+
+    public function test_a_staffer_cannot_download_another_providers_attachment(): void
+    {
+        Sanctum::actingAs($this->otherTenant['owner']);
+        $attachment = $this->attachmentOnThread($this->tenant, 'nope');
+
+        $this->get("/api/v1/messages/attachments/{$attachment->id}")->assertForbidden();
+    }
+
+    public function test_downloading_an_attachment_requires_authentication(): void
+    {
+        $attachment = $this->attachmentOnThread($this->tenant, 'nope');
+
+        $this->getJson("/api/v1/messages/attachments/{$attachment->id}")->assertUnauthorized();
     }
 
     /* ── indexForMatter ───────────────────────────────────────────────── */

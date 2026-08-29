@@ -92,6 +92,8 @@ interface MessageRepository
         int $messageId,
         string $fileName,
         ?string $s3Path,
+        ?string $mimeType = null,
+        ?int $size = null,
         ?int $documentId = null,
     ): MessageAttachment;
 

@@ -55,10 +55,12 @@ class MessageThread extends Model
         'matter_id',
         'subject',
         'last_message_at',
+        'staff_reminder_sent_at',
     ];
 
     protected $casts = [
         'last_message_at' => 'datetime',
+        'staff_reminder_sent_at' => 'datetime',
     ];
 
     protected static function newFactory(): MessageThreadFactory
@@ -143,6 +145,12 @@ class MessageThread extends Model
      * exactly one staffer + one client, so "not sent by me and unread" is
      * unambiguous from either side. This is what drops a thread out of the
      * "Unread" tab / portal unread state and decrements the sidebar badge.
+     *
+     * When it is the thread's own staff member reading, this also closes any
+     * outstanding "unread client message" reminder episode by clearing
+     * `staff_reminder_sent_at` — so the next client message that goes unread
+     * can trigger a fresh reminder. See .claude/rules/messaging.md,
+     * "Unread-message reminder email (staff)".
      */
     public function markReadFor(int $userId): void
     {
@@ -150,6 +158,19 @@ class MessageThread extends Model
             ->where('sender_id', '!=', $userId)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
+
+        if ((int) $this->staff_user_id === $userId) {
+            // Targeted UPDATE rather than a guarded forceFill()->save(): the
+            // in-memory `staff_reminder_sent_at` may be stale (the reminder job
+            // set it on a separately-loaded instance), and this must not churn
+            // any other column on the row.
+            static::query()
+                ->whereKey($this->getKey())
+                ->whereNotNull('staff_reminder_sent_at')
+                ->update(['staff_reminder_sent_at' => null]);
+
+            $this->staff_reminder_sent_at = null;
+        }
     }
 
     /**

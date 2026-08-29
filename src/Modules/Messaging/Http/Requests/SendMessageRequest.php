@@ -26,6 +26,14 @@ class SendMessageRequest extends FormRequest
      */
     public const MAX_ATTACHMENT_KB = 5120;
 
+    /**
+     * Most files one message may carry. A message is not a second
+     * document-upload pipeline — the Document module exists for genuine
+     * multi-file case management. Enforced server-side regardless of the
+     * frontend; see .claude/rules/messaging.md, "Attachment size limit".
+     */
+    public const MAX_ATTACHMENTS = 5;
+
     public function authorize(): bool
     {
         return true;
@@ -40,7 +48,7 @@ class SendMessageRequest extends FormRequest
             'matter_id' => ['required', 'integer', 'exists:matters,id'],
             'subject' => ['required', 'string', 'max:255'],
             'body' => ['required', 'string', 'max:20000'],
-            'attachments' => ['nullable', 'array', 'max:10'],
+            'attachments' => ['nullable', 'array', 'max:' . self::MAX_ATTACHMENTS],
             'attachments.*' => ['file', 'max:' . self::MAX_ATTACHMENT_KB],
         ];
     }
@@ -51,6 +59,7 @@ class SendMessageRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'attachments.max' => 'You can attach up to ' . self::MAX_ATTACHMENTS . ' files per message.',
             'attachments.*.max' => 'Each attachment must be 5 MB or smaller.',
         ];
     }

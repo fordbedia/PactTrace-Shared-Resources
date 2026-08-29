@@ -26,7 +26,7 @@ class ReplyMessageRequest extends FormRequest
     {
         return [
             'body' => ['required', 'string', 'max:20000'],
-            'attachments' => ['nullable', 'array', 'max:10'],
+            'attachments' => ['nullable', 'array', 'max:' . SendMessageRequest::MAX_ATTACHMENTS],
             'attachments.*' => ['file', 'max:' . SendMessageRequest::MAX_ATTACHMENT_KB],
         ];
     }
@@ -37,6 +37,7 @@ class ReplyMessageRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'attachments.max' => 'You can attach up to ' . SendMessageRequest::MAX_ATTACHMENTS . ' files per message.',
             'attachments.*.max' => 'Each attachment must be 5 MB or smaller.',
         ];
     }

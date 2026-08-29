@@ -16,7 +16,13 @@ class MessageAttachment extends Model
         'message_id',
         'document_id',
         'file_name',
+        'mime_type',
+        'size',
         's3_path',
+    ];
+
+    protected $casts = [
+        'size' => 'integer',
     ];
 
     protected static function newFactory(): MessageAttachmentFactory

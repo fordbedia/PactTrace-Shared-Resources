@@ -12,6 +12,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\ArchiveThreadAction;
+use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\DownloadMessageAttachment;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\GetUnreadThreadCountAction;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\ListMatterMessagesAction;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\ListProviderThreadsAction;
@@ -25,7 +26,9 @@ use PactTrackSDK\SharedResources\Modules\Messaging\Http\Requests\ReplyMessageReq
 use PactTrackSDK\SharedResources\Modules\Messaging\Http\Requests\SendMessageRequest;
 use PactTrackSDK\SharedResources\Modules\Messaging\Http\Resources\MessageResource;
 use PactTrackSDK\SharedResources\Modules\Messaging\Http\Resources\MessageThreadResource;
+use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageAttachment;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Inbound adapter for the provider-side /dashboard/messages inbox — the
@@ -206,6 +209,39 @@ class MessageController extends Controller
 
         return MessageResource::collection(
             $action->handle((int) $matter->provider_id, (int) $matter->id),
+        );
+    }
+
+    /**
+     * GET /api/v1/messages/attachments/{attachment}
+     *
+     * Serves one message attachment's bytes. Authorised by
+     * MessageThreadPolicy::view on the attachment's own thread — the same
+     * gate as reading the conversation, so any staffer in the provider can
+     * fetch it and a member of another tenant cannot. Served `inline` so
+     * images/PDFs open in a tab; other types download.
+     */
+    public function downloadAttachment(
+        Request $request,
+        MessageAttachment $attachment,
+        DownloadMessageAttachment $action,
+    ): StreamedResponse {
+        $attachment->loadMissing('message.thread');
+        $thread = $attachment->message?->thread;
+
+        abort_if($thread === null, 404);
+
+        Gate::forUser($request->user())->authorize('view', $thread);
+
+        $file = $action->handle($attachment);
+
+        return response()->streamDownload(
+            static function () use ($file): void {
+                echo $file->contents;
+            },
+            $file->fileName,
+            ['Content-Type' => $file->mimeType],
+            'inline',
         );
     }
 }

@@ -64,12 +64,16 @@ class EloquentMessageRepository extends BaseRepository implements MessageReposit
         int $messageId,
         string $fileName,
         ?string $s3Path,
+        ?string $mimeType = null,
+        ?int $size = null,
         ?int $documentId = null,
     ): MessageAttachment {
         return MessageAttachment::query()->create([
             'message_id' => $messageId,
             'document_id' => $documentId,
             'file_name' => $fileName,
+            'mime_type' => $mimeType,
+            'size' => $size,
             's3_path' => $s3Path,
         ]);
     }

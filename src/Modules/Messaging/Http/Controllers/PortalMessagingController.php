@@ -12,6 +12,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\DownloadMessageAttachment;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\GetProviderStaffDirectoryAction;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\ListMatterThreadsAction;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\MarkThreadReadAction;
@@ -24,9 +25,11 @@ use PactTrackSDK\SharedResources\Modules\Messaging\Http\Requests\StartPortalThre
 use PactTrackSDK\SharedResources\Modules\Messaging\Http\Resources\MessageResource;
 use PactTrackSDK\SharedResources\Modules\Messaging\Http\Resources\MessageThreadResource;
 use PactTrackSDK\SharedResources\Modules\Messaging\Http\Resources\PortalStaffResource;
+use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageAttachment;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Inbound adapter for the client-portal messaging widget on
@@ -201,6 +204,44 @@ class PortalMessagingController extends Controller
         $action->handle($thread, (int) $user->id);
 
         return MessageThreadResource::make($thread->load(['staffMember']));
+    }
+
+    /**
+     * GET /api/v1/portal/message-attachments/{attachment}
+     *
+     * Serves one message attachment's bytes to the portal client. The
+     * `view` policy on the attachment's thread confines a client to files
+     * on their own conversations — a guessed id from another client's (or
+     * another tenant's) thread is denied by the same client_id/tenant
+     * scoping the conversation itself sits behind. Served `inline`.
+     */
+    public function downloadAttachment(
+        Request $request,
+        MessageAttachment $attachment,
+        DownloadMessageAttachment $action,
+    ): StreamedResponse|JsonResponse {
+        $user = $this->requireClient($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $attachment->loadMissing('message.thread');
+        $thread = $attachment->message?->thread;
+
+        abort_if($thread === null, 404);
+
+        Gate::forUser($user)->authorize('view', $thread);
+
+        $file = $action->handle($attachment);
+
+        return response()->streamDownload(
+            static function () use ($file): void {
+                echo $file->contents;
+            },
+            $file->fileName,
+            ['Content-Type' => $file->mimeType],
+            'inline',
+        );
     }
 
     /**

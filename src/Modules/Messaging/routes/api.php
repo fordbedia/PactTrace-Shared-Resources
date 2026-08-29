@@ -39,6 +39,9 @@ Route::prefix('v1')->group(function () {
         // the thread's own staff_user_id may post from the provider side.
         Route::post('/messages/threads/{thread}', [MessageController::class, 'reply']);
 
+        // Download one message attachment — `view` policy on its thread.
+        Route::get('/messages/attachments/{attachment}', [MessageController::class, 'downloadAttachment']);
+
         // A matter's own flat message list (Matter Detail page).
         Route::get('/matters/{matter}/messages', [MessageController::class, 'indexForMatter']);
     });
@@ -50,4 +53,5 @@ Route::prefix('v1')->group(function () {
     Route::get('/portal/message-threads/{thread}', [PortalMessagingController::class, 'showThread']);
     Route::post('/portal/message-threads/{thread}', [PortalMessagingController::class, 'reply']);
     Route::post('/portal/message-threads/{thread}/read', [PortalMessagingController::class, 'markRead']);
+    Route::get('/portal/message-attachments/{attachment}', [PortalMessagingController::class, 'downloadAttachment']);
 });

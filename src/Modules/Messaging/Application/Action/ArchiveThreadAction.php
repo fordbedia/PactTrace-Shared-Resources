@@ -24,6 +24,6 @@ class ArchiveThreadAction
     {
         $thread->archive();
 
-        broadcast(new InboxUpdated((int) $thread->provider_id, $thread->id));
+        broadcast(new InboxUpdated((int) $thread->provider_id, $thread->id, (int) $thread->client_id));
     }
 }
