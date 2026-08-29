@@ -37,6 +37,9 @@ class UserResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
+            // Free-text job title, shown in the portal staff directory.
+            // Display only — unrelated to role/permissions.
+            'title' => $this->title,
             'email_verified_at' => $this->email_verified_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

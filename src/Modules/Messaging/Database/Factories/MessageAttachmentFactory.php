@@ -24,6 +24,8 @@ class MessageAttachmentFactory extends Factory
             'message_id' => Message::factory(),
             'document_id' => null,
             'file_name' => fake()->word() . '.pdf',
+            'mime_type' => 'application/pdf',
+            'size' => fake()->numberBetween(1_000, 500_000),
             's3_path' => 'attachments/' . fake()->uuid() . '.pdf',
         ];
     }

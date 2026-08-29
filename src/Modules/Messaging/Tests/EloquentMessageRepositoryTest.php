@@ -12,11 +12,10 @@ use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
 use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
 
 /**
- * The Eloquent adapter behind MessageRepository — modeled on
- * EloquentFolderRepository, so the value of covering it is the contract:
- * a thread is opened once per (provider, client, matter) and its subject is
- * never overwritten afterwards; the matter message list is provider-scoped
- * and oldest-first.
+ * The Eloquent adapter behind MessageRepository. The contract that matters:
+ * a thread is opened once per (provider, matter, staff member, subject) and
+ * its subject/client are never overwritten afterwards; the matter thread
+ * list and matter message list are provider-scoped.
  */
 class EloquentMessageRepositoryTest extends BaseTest
 {
@@ -32,64 +31,50 @@ class EloquentMessageRepositoryTest extends BaseTest
         $this->tenant = ProviderTenantScenario::make('msg-repo');
     }
 
-    public function test_first_or_create_thread_opens_one_thread_and_reuses_it(): void
+    private function open(string $subject, ?int $staffId = null, ?int $matterId = null): MessageThread
     {
-        $first = $this->repository->firstOrCreateThread(
+        return $this->repository->firstOrCreateThread(
             $this->tenant['provider']->id,
-            $this->tenant['client']->id,
-            null,
-            'Trust amendment',
+            $matterId ?? $this->tenant['matter']->id,
+            $staffId ?? $this->tenant['owner']->id,
+            $this->tenant['matter']->client_id,
+            $subject,
         );
-
-        $second = $this->repository->firstOrCreateThread(
-            $this->tenant['provider']->id,
-            $this->tenant['client']->id,
-            null,
-            'A different subject entirely',
-        );
-
-        $this->assertTrue($first->is($second));
-        $this->assertSame(1, MessageThread::query()->count());
-        // Subject is applied on creation only — the second call must not
-        // overwrite it.
-        $this->assertSame('Trust amendment', $second->refresh()->subject);
     }
 
-    public function test_threads_are_distinct_per_matter_scope(): void
+    public function test_first_or_create_thread_opens_one_thread_and_reuses_it(): void
     {
-        $noMatter = $this->repository->firstOrCreateThread(
-            $this->tenant['provider']->id,
-            $this->tenant['client']->id,
-            null,
-            null,
-        );
+        $first = $this->open('Trust amendment');
+        $again = $this->open('Trust amendment');
 
-        $onMatter = $this->repository->firstOrCreateThread(
-            $this->tenant['provider']->id,
-            $this->tenant['client']->id,
-            $this->tenant['matter']->id,
-            null,
-        );
+        $this->assertTrue($first->is($again));
+        $this->assertSame(1, MessageThread::query()->count());
+        $this->assertSame($this->tenant['matter']->client_id, (int) $first->client_id);
+    }
 
-        $this->assertFalse($noMatter->is($onMatter));
+    public function test_threads_are_distinct_per_subject(): void
+    {
+        $a = $this->open('Retainer questions');
+        $b = $this->open('Document request — W2s');
+
+        $this->assertFalse($a->is($b));
+        $this->assertSame(2, MessageThread::query()->count());
+    }
+
+    public function test_threads_are_distinct_per_staff_member(): void
+    {
+        $withOwner = $this->open('Same subject', staffId: $this->tenant['owner']->id);
+        $withStaff = $this->open('Same subject', staffId: $this->tenant['staff']->id);
+
+        $this->assertFalse($withOwner->is($withStaff));
         $this->assertSame(2, MessageThread::query()->count());
     }
 
     public function test_create_message_and_attachment_persist_against_the_thread(): void
     {
-        $thread = $this->repository->firstOrCreateThread(
-            $this->tenant['provider']->id,
-            $this->tenant['client']->id,
-            null,
-            null,
-        );
+        $thread = $this->open('Draft review');
 
-        $message = $this->repository->createMessage(
-            $thread->id,
-            $this->tenant['owner']->id,
-            'Here is the draft.',
-        );
-
+        $message = $this->repository->createMessage($thread->id, $this->tenant['owner']->id, 'Here is the draft.');
         $attachment = $this->repository->createAttachment(
             $message->id,
             'draft.pdf',
@@ -113,25 +98,19 @@ class EloquentMessageRepositoryTest extends BaseTest
 
     public function test_messages_for_matter_are_scoped_to_the_provider_and_ordered_oldest_first(): void
     {
-        $mineThread = $this->repository->firstOrCreateThread(
-            $this->tenant['provider']->id,
-            $this->tenant['client']->id,
-            $this->tenant['matter']->id,
-            null,
-        );
+        $mineThread = $this->open('Mine');
 
         $older = $this->repository->createMessage($mineThread->id, $this->tenant['owner']->id, 'first');
         $older->forceFill(['created_at' => now()->subHour()])->save();
-        $newer = $this->repository->createMessage($mineThread->id, $this->tenant['owner']->id, 'second');
+        $this->repository->createMessage($mineThread->id, $this->tenant['owner']->id, 'second');
 
-        // A different provider's thread on a matter of the same integer id
-        // range must not leak in.
         $otherTenant = ProviderTenantScenario::make('msg-repo-other');
         $otherThread = $this->repository->firstOrCreateThread(
             $otherTenant['provider']->id,
-            $otherTenant['client']->id,
             $otherTenant['matter']->id,
-            null,
+            $otherTenant['owner']->id,
+            $otherTenant['matter']->client_id,
+            'Not mine',
         );
         $this->repository->createMessage($otherThread->id, $otherTenant['owner']->id, 'not mine');
 
@@ -144,6 +123,32 @@ class EloquentMessageRepositoryTest extends BaseTest
         $this->assertTrue($results->every(fn (Message $m) => $m->thread_id === $mineThread->id));
     }
 
+    public function test_threads_for_matter_returns_only_this_matters_threads_with_unread_for_the_user(): void
+    {
+        $user = $this->tenant['owner'];
+        $client = $this->tenant['clientUser'];
+
+        $withUnread = $this->open('Has unread');
+        $this->repository->createMessage($withUnread->id, $client->id, 'from the client'); // unread for owner
+
+        $allRead = $this->open('All read');
+        $this->repository->createMessage($allRead->id, $user->id, 'from the owner');       // sent by owner
+
+        // A thread on a different matter of the same provider must not leak in.
+        $this->open('Other matter', matterId: $this->tenant['otherMatter']->id);
+
+        $threads = $this->repository->threadsForMatter(
+            $this->tenant['provider']->id,
+            $this->tenant['matter']->id,
+            (int) $user->id,
+        );
+
+        $byId = $threads->keyBy('id');
+        $this->assertEqualsCanonicalizing([$withUnread->id, $allRead->id], $byId->keys()->all());
+        $this->assertSame(1, (int) $byId[$withUnread->id]->unread_messages_count);
+        $this->assertSame(0, (int) $byId[$allRead->id]->unread_messages_count);
+    }
+
     /* ── inbox paging (All / Unread tabs) ─────────────────────────────── */
 
     public function test_paginate_threads_excludes_archived_and_annotates_unread(): void
@@ -151,9 +156,9 @@ class EloquentMessageRepositoryTest extends BaseTest
         $user = $this->tenant['owner'];
         $client = $this->tenant['clientUser'];
 
-        $withUnread = $this->openThreadWithMessage($client->id);       // unread for the owner
-        $allRead = $this->openThreadWithMessage($user->id, matterId: $this->tenant['matter']->id); // sent by owner
-        $archived = $this->openThreadWithMessage($client->id, subject: 'archived one');
+        $withUnread = $this->openThreadWithMessage('unread one', $client->id);
+        $allRead = $this->openThreadWithMessage('read one', $user->id);
+        $archived = $this->openThreadWithMessage('archived one', $client->id);
         $archived->refresh()->archive();
 
         $page = $this->repository->paginateThreadsForProvider(
@@ -178,8 +183,8 @@ class EloquentMessageRepositoryTest extends BaseTest
         $user = $this->tenant['owner'];
         $client = $this->tenant['clientUser'];
 
-        $unread = $this->openThreadWithMessage($client->id);
-        $this->openThreadWithMessage($user->id, matterId: $this->tenant['matter']->id); // owner's own => read
+        $unread = $this->openThreadWithMessage('unread', $client->id);
+        $this->openThreadWithMessage('read', $user->id);
 
         $page = $this->repository->paginateUnreadThreadsForProvider(
             $this->tenant['provider']->id,
@@ -194,7 +199,6 @@ class EloquentMessageRepositoryTest extends BaseTest
             (int) $user->id,
         ));
 
-        // Reading it drops it from both.
         $unread->refresh()->markReadFor((int) $user->id);
 
         $this->assertCount(0, $this->repository->paginateUnreadThreadsForProvider(
@@ -209,20 +213,9 @@ class EloquentMessageRepositoryTest extends BaseTest
         ));
     }
 
-    /**
-     * A distinct thread (not firstOrCreate — that keys only on
-     * provider/client/matter, so it can't mint several no-matter threads
-     * for one client) with a single message from the given sender.
-     */
-    private function openThreadWithMessage(int $senderId, ?int $matterId = null, ?string $subject = null): MessageThread
+    private function openThreadWithMessage(string $subject, int $senderId): MessageThread
     {
-        $thread = MessageThread::factory()->create([
-            'provider_id' => $this->tenant['provider']->id,
-            'client_id' => $this->tenant['client']->id,
-            'matter_id' => $matterId,
-            'subject' => $subject,
-        ]);
-
+        $thread = $this->open($subject);
         $this->repository->createMessage($thread->id, $senderId, 'body');
 
         return $thread;
