@@ -32,4 +32,35 @@ class AuditLogFactory extends Factory
             'metadata' => [],
         ];
     }
+
+    /**
+     * A system-initiated row: no tenant, no actor. These belong to no
+     * provider and must never surface in a portal listing.
+     */
+    public function system(): static
+    {
+        return $this->state(fn (): array => [
+            'provider_id' => null,
+            'user_id' => null,
+        ]);
+    }
+
+    public function forProvider(Provider|int $provider): static
+    {
+        return $this->state(fn (): array => [
+            'provider_id' => $provider instanceof Provider ? $provider->id : $provider,
+        ]);
+    }
+
+    public function byUser(User|int|null $user): static
+    {
+        return $this->state(fn (): array => [
+            'user_id' => $user instanceof User ? $user->id : $user,
+        ]);
+    }
+
+    public function action(string $action): static
+    {
+        return $this->state(fn (): array => ['action' => $action]);
+    }
 }
