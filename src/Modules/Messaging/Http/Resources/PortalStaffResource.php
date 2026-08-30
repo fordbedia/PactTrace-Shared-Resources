@@ -9,9 +9,15 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 
 /**
- * One staff member in the client portal's contact directory. Allow-list —
- * a portal client sees only a name and a display title, never the
- * staffer's email, role, permissions or provider internals.
+ * One contact in the client portal's "Message your team" modal for a
+ * matter. Allow-list — a portal client sees only a name and this person's
+ * relationship to the matter, never the staffer's email, title, role,
+ * permissions or provider internals.
+ *
+ * `relationship` (`'owner'` | `'assigned'`) is the transient tag
+ * GetMatterContactDirectory attaches — the portal renders it as
+ * "Owner" / "Assigned to this matter", which is the information a client
+ * actually needs here, not a job title.
  *
  * @mixin User
  */
@@ -22,7 +28,7 @@ class PortalStaffResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'title' => $this->title,
+            'relationship' => $this->matter_relationship ?? null,
         ];
     }
 }

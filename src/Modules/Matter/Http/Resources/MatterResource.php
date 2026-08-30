@@ -26,6 +26,7 @@ class MatterResource extends JsonResource
             'provider_id' => $this->provider_id,
             'workspace_id' => $this->workspace_id,
             'client_id' => $this->client_id,
+            'assigned_staff_id' => $this->assigned_staff_id,
             'name' => $this->name,
             'description' => $this->description,
             'status' => $this->status,
@@ -36,6 +37,11 @@ class MatterResource extends JsonResource
             /** @see MatterProgressCalculator */
             'progress' => app(MatterProgressCalculator::class)->calculate($this->resource),
             'client' => ClientResource::make($this->whenLoaded('client')),
+            'assigned_staff' => $this->whenLoaded('assignedStaff', fn () => $this->assignedStaff ? [
+                'id' => $this->assignedStaff->id,
+                'name' => $this->assignedStaff->name,
+                'title' => $this->assignedStaff->title,
+            ] : null),
             'milestones' => MilestoneResource::collection($this->whenLoaded('milestones')),
         ];
     }

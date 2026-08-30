@@ -4,9 +4,7 @@ namespace PactTrackSDK\SharedResources\Modules\Messaging;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use PactTrackSDK\SharedResources\Modules\Messaging\Application\Port\Query\ProviderStaffDirectory;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Port\Repository\MessageRepository;
-use PactTrackSDK\SharedResources\Modules\Messaging\Infrastructure\Queries\EloquentProviderStaffDirectory;
 use PactTrackSDK\SharedResources\Modules\Messaging\Infrastructure\Repositories\Eloquent\EloquentMessageRepository;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
 use PactTrackSDK\SharedResources\Modules\Messaging\Policies\MessageThreadPolicy;
@@ -30,9 +28,6 @@ class MessagingProvider extends ServiceProvider
         // Persistence port -> Eloquent adapter, same hexagonal binding
         // shape as DocumentProvider (FolderRepository/DocumentRepository).
         $this->app->singleton(MessageRepository::class, EloquentMessageRepository::class);
-
-        // Read model for the portal staff contact directory.
-        $this->app->singleton(ProviderStaffDirectory::class, EloquentProviderStaffDirectory::class);
     }
 
     public function boot(): void

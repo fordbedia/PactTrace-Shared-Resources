@@ -12,6 +12,7 @@ use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
 use PactTrackSDK\SharedResources\Modules\Matter\Database\Factories\MatterFactory;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use PactTrackSDK\SharedResources\Modules\Workspace\Models\Concerns\BelongsToWorkspace;
 
 class Matter extends Model
@@ -22,6 +23,7 @@ class Matter extends Model
         'provider_id',
         'workspace_id',
         'client_id',
+        'assigned_staff_id',
         'name',
         'description',
         'status',
@@ -70,6 +72,18 @@ class Matter extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * The provider-side staff member (or the owner) currently designated as
+     * this matter's point of contact — nullable. The provider's owner is
+     * always an implicit fallback contact regardless of this value and is
+     * never stored here; see Provider::owner() and .claude/rules/matter.md,
+     * "Matter-level assigned staff".
+     */
+    public function assignedStaff(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_staff_id');
     }
 
     public function milestones(): HasMany

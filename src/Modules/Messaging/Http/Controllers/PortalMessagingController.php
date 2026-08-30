@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\DownloadMessageAttachment;
-use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\GetProviderStaffDirectoryAction;
+use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\GetMatterContactDirectory;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\ListMatterThreadsAction;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\MarkThreadReadAction;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Action\ReplyToThreadAction;
@@ -77,15 +77,17 @@ class PortalMessagingController extends Controller
     /**
      * GET /api/v1/portal/matters/{matter}/staff-directory
      *
-     * Every provider-side user (owner + staff) the client can start a
-     * conversation with. Provider resolved from the matter, never from
-     * client input. Flat list — there is no assigned-staff / featured
-     * contact concept on Matter today (see .claude/rules/messaging.md).
+     * The curated contact set for THIS matter — the provider's owner
+     * (always, as the fallback contact) plus the matter's assigned staff
+     * member when one is set, de-duplicated. Not the old flat "every
+     * provider-side user" roster. Provider/matter resolved from the route,
+     * never from client input. See GetMatterContactDirectory and
+     * .claude/rules/matter.md, "Matter-level assigned staff".
      */
     public function staffDirectory(
         Request $request,
         Matter $matter,
-        GetProviderStaffDirectoryAction $action,
+        GetMatterContactDirectory $action,
     ): AnonymousResourceCollection|JsonResponse {
         $user = $this->requireClient($request);
         if ($user instanceof JsonResponse) {
@@ -94,7 +96,9 @@ class PortalMessagingController extends Controller
 
         Gate::forUser($user)->authorize('view', $matter);
 
-        return PortalStaffResource::collection($action->handle((int) $matter->provider_id));
+        $matter->loadMissing(['provider.owner', 'assignedStaff']);
+
+        return PortalStaffResource::collection($action->handle($matter));
     }
 
     /**

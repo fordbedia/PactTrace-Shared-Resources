@@ -7,6 +7,7 @@ use PactTrackSDK\SharedResources\Modules\Matter\Http\Controllers\PortalMatterCon
 Route::prefix('v1')->group(function () {
 	Route::middleware('auth:sanctum')->group(function () {
 		Route::get('/matters/clients/search', [MattersController::class, 'searchClients']);
+		Route::get('/matters/assignable-staff', [MattersController::class, 'assignableStaff']);
 		Route::get('/matters/search', [MattersController::class, 'search']);
 		Route::get('/matters/stats', [MattersController::class, 'stats']);
 		Route::apiResource('/matters', MattersController::class);

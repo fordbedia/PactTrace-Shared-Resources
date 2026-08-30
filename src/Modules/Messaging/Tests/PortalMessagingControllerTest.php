@@ -104,24 +104,87 @@ class PortalMessagingControllerTest extends BaseTest
             ->assertUnauthorized();
     }
 
-    /* ── staff directory ──────────────────────────────────────────────── */
+    /* ── contact directory (owner + assigned staff, matter-scoped) ─────── */
 
-    public function test_staff_directory_lists_only_this_providers_provider_side_users(): void
+    public function test_directory_for_a_matter_with_no_assigned_staff_returns_only_the_owner(): void
     {
+        // ProviderTenantScenario's matter has no assigned_staff_id.
         $response = $this->actingAs($this->tenant['clientUser'])
             ->getJson("/api/v1/portal/matters/{$this->matterKey()}/staff-directory");
 
         $response->assertOk();
-        $ids = collect($response->json('data'))->pluck('id')->all();
 
-        $this->assertContains($this->tenant['owner']->id, $ids);
-        $this->assertContains($this->tenant['staff']->id, $ids);
-        $this->assertNotContains($this->tenant['clientUser']->id, $ids, 'a client is never in the directory');
-        $this->assertNotContains($this->other['owner']->id, $ids, 'no cross-tenant staff');
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertSame($this->tenant['owner']->id, $data[0]['id']);
+        $this->assertSame('owner', $data[0]['relationship']);
+
+        // Allow-list: no email / title leak.
+        $this->assertArrayNotHasKey('email', $data[0]);
+        $this->assertArrayNotHasKey('title', $data[0]);
+    }
+
+    public function test_directory_for_a_matter_with_an_assigned_staff_returns_owner_and_that_staffer(): void
+    {
+        $this->tenant['matter']->forceFill([
+            'assigned_staff_id' => $this->tenant['staff']->id,
+        ])->save();
+
+        $response = $this->actingAs($this->tenant['clientUser'])
+            ->getJson("/api/v1/portal/matters/{$this->matterKey()}/staff-directory");
+
+        $response->assertOk();
+
+        $rows = collect($response->json('data'))->keyBy('id');
+        $this->assertEqualsCanonicalizing(
+            [$this->tenant['owner']->id, $this->tenant['staff']->id],
+            $rows->keys()->all(),
+        );
+        $this->assertSame('owner', $rows[$this->tenant['owner']->id]['relationship']);
+        $this->assertSame('assigned', $rows[$this->tenant['staff']->id]['relationship']);
+
+        // Never another tenant's people.
+        $ids = $rows->keys()->all();
+        $this->assertNotContains($this->other['owner']->id, $ids);
         $this->assertNotContains($this->other['staff']->id, $ids);
+    }
 
-        // Allow-list: no email leaks.
-        $this->assertArrayNotHasKey('email', $response->json('data.0'));
+    public function test_directory_de_duplicates_when_the_assigned_staff_is_the_owner(): void
+    {
+        $this->tenant['matter']->forceFill([
+            'assigned_staff_id' => $this->tenant['owner']->id,
+        ])->save();
+
+        $response = $this->actingAs($this->tenant['clientUser'])
+            ->getJson("/api/v1/portal/matters/{$this->matterKey()}/staff-directory");
+
+        $response->assertOk();
+
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertSame($this->tenant['owner']->id, $data[0]['id']);
+    }
+
+    public function test_a_client_can_start_a_thread_from_a_directory_contact(): void
+    {
+        $this->tenant['matter']->forceFill([
+            'assigned_staff_id' => $this->tenant['staff']->id,
+        ])->save();
+
+        $this->actingAs($this->tenant['clientUser'])
+            ->postJson("/api/v1/portal/matters/{$this->matterKey()}/message-threads", [
+                'staff_user_id' => $this->tenant['staff']->id,
+                'subject' => 'Coverage question',
+                'body' => 'Who should I contact while you are away?',
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('message_threads', [
+            'matter_id' => $this->tenant['matter']->id,
+            'client_id' => $this->tenant['matter']->client_id,
+            'staff_user_id' => $this->tenant['staff']->id,
+            'subject' => 'Coverage question',
+        ]);
     }
 
     /* ── client-initiated thread ──────────────────────────────────────── */

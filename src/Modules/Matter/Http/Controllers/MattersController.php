@@ -14,11 +14,14 @@ use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\CreateMatters
 use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\ListMattersHandler;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\SearchMatterClientsHandler;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\SearchMattersHandler;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\UpdateMattersHandler;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\ClientSearchData;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\MatterSearchData;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\MattersData;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\MattersListData;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Query\AssignableMatterStaff;
 use PactTrackSDK\SharedResources\Modules\Matter\Http\Requests\MattersRequest;
+use PactTrackSDK\SharedResources\Modules\Matter\Http\Resources\AssignableStaffResource;
 use PactTrackSDK\SharedResources\Modules\Matter\Http\Resources\MatterResource;
 use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterCountFormatter;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
@@ -56,6 +59,22 @@ class MattersController extends Controller
         $data = MatterSearchData::fromRequest($request, auth()->user()->provider_id);
 
         return MatterResource::collection($handler->handle($data));
+    }
+
+    /**
+     * Provider-side users (owner + staff) selectable as a matter's assigned
+     * point of contact — backs the "Assigned Staff" picker on the New Matter
+     * drawer and the Matter Detail page. A read, so it uses the same
+     * `viewAny` gate as index()/search(); tenant scoping is in the query
+     * itself (`AssignableMatterStaff::forProvider`).
+     */
+    public function assignableStaff(AssignableMatterStaff $staff)
+    {
+        Gate::authorize('viewAny', Matter::class);
+
+        return AssignableStaffResource::collection(
+            $staff->forProvider(auth()->user()->provider_id),
+        );
     }
 
     /**
@@ -129,15 +148,31 @@ class MattersController extends Controller
     {
         Gate::authorize('view', $matter);
 
-        return new MatterResource($matter->load(['client', 'milestones']));
+        return new MatterResource($matter->load(['client', 'assignedStaff', 'milestones']));
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update the specified resource. Reached today by the Matter Detail
+     * page's inline "Assigned Staff" control (a partial PATCH of just
+     * `assigned_staff_id`, including clearing it back to null), but accepts
+     * a full matter body too — MattersRequest treats every field as
+     * `sometimes` on a non-POST request. Gated by `MatterPolicy::update`
+     * (`Permission::MatterUpdate` + tenant scope), which the whole `staff`
+     * role already holds — any staffer can step in and reassign coverage,
+     * not just the owner or the current assignee. See .claude/rules/matter.md.
      */
-    public function update(Request $request, string $id)
-    {
-        //
+    public function update(
+        MattersRequest $request,
+        Matter $matter,
+        UpdateMattersHandler $handler,
+    ) {
+        Gate::authorize('update', $matter);
+
+        $data = MattersData::fromMatter($matter, $request->validated());
+
+        $matter = $handler->handle($matter, $data);
+
+        return new MatterResource($matter->load(['client', 'assignedStaff', 'milestones']));
     }
 
     /**

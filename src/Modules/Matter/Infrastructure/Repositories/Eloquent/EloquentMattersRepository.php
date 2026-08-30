@@ -27,7 +27,22 @@ class EloquentMattersRepository extends BaseRepository implements MattersReposit
 			'status' => $data->status,
 			'start_date' => $data->start_date,
 			'due_date' => $data->due_date,
+			'assigned_staff_id' => $data->assigned_staff_id,
 		]);
+	}
+
+	public function updateMatter(Matter $matter, MattersData $data): Matter
+	{
+		$matter->fill([
+			'name' => $data->name,
+			'description' => $data->description,
+			'status' => $data->status,
+			'start_date' => $data->start_date,
+			'due_date' => $data->due_date,
+			'assigned_staff_id' => $data->assigned_staff_id,
+		])->save();
+
+		return $matter;
 	}
 
 	public function makeModel(): string

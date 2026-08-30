@@ -4,9 +4,21 @@ namespace PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Reposito
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\MattersData;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 
 interface MattersRepository
 {
+	/**
+	 * Persist changes to an already-resolved matter (the Matter Detail
+	 * page's edit / assign-staff flow). Distinct from `upsert()`'s
+	 * create-or-update-by-key: the caller already holds the row, so this
+	 * updates that instance directly and never risks minting a duplicate
+	 * when a scoping column (e.g. a legacy null `workspace_id`) doesn't
+	 * match the key.
+	 */
+	public function updateMatter(Matter $matter, MattersData $data): Matter;
+
 	/**
 	 * Clients selectable as the owner of a new matter — the "Search or select
 	 * client…" field on the New Matter drawer. Scoped to the actor's tenant
