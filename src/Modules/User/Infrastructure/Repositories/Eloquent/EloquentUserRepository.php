@@ -50,4 +50,26 @@ class EloquentUserRepository extends BaseRepository implements UserRepository
 
 		return $user;
 	}
+
+	/**
+	 * The provider-side users (owner + staff) backing /dashboard/team.
+	 *
+	 * A provider id is required in practice — omitting it (the historical
+	 * signature) returns every user across every tenant and is only kept for
+	 * back-compat. When given, the result is scoped to that provider AND to
+	 * provider-side roles, so client-role logins never leak into the team list.
+	 */
+	public function all(?int $providerId = null)
+	{
+		$query = $this->model->newQuery();
+
+		if ($providerId !== null) {
+			$query->where('provider_id', $providerId)
+				->whereHas('roles', function ($roleQuery): void {
+					$roleQuery->whereIn('name', [Role::Owner->value, Role::Staff->value]);
+				});
+		}
+
+		return $query->get();
+	}
 }

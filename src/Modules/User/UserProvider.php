@@ -7,15 +7,19 @@ use Illuminate\Support\ServiceProvider;
 use PactTrackSDK\SharedResources\Modules\User\Console\Commands\NotifyTrialEnding;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\TeamInvitationRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\AccessTokenIssuer;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Auth\SanctumTokenIssuer;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentProviderRepository;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentSubscriptionRepository;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentTeamInvitationRepository;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentUserRepository;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use PactTrackSDK\SharedResources\Modules\User\Policies\ProviderPolicy;
+use PactTrackSDK\SharedResources\Modules\User\Policies\UserPolicy;
 
 class UserProvider extends ServiceProvider
 {
@@ -30,6 +34,7 @@ class UserProvider extends ServiceProvider
      */
     protected array $policies = [
         Provider::class => ProviderPolicy::class,
+        User::class => UserPolicy::class,
     ];
 
     /**
@@ -51,6 +56,7 @@ class UserProvider extends ServiceProvider
      */
     protected array $ports = [
         UserRepository::class => EloquentUserRepository::class,
+        TeamInvitationRepository::class => EloquentTeamInvitationRepository::class,
         ProviderRepository::class => EloquentProviderRepository::class,
         SubdomainAvailability::class => EloquentProviderRepository::class,
         SubscriptionRepository::class => EloquentSubscriptionRepository::class,

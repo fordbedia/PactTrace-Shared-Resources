@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\RegistrationController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\SessionController;
+use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\TeamController;
+use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\TeamInvitationController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\UserController;
 
 /*
@@ -36,5 +38,27 @@ Route::prefix('v1')->group(function () {
 
 	Route::middleware('auth:sanctum')->group(function () {
 		Route::apiResource('user', UserController::class);
+
+		// ------------------------------------------------------------------
+		// Team administration (staff-facing). A previous version registered
+		// `Route::apiResource('/', TeamController::class)`, which produced a
+		// malformed `{}` route parameter and bare route names (`store`,
+		// `show`, …) with no `team.` prefix. `members` is a real resource
+		// name; `{member}` is a real binding parameter.
+		// ------------------------------------------------------------------
+		Route::prefix('team')->name('team.')->group(function () {
+			Route::apiResource('members', TeamController::class);
+		});
+	});
+
+	// Team invitation accept flow — OUTSIDE auth:sanctum on purpose: the
+	// person accepting has no account yet, so the token in the URL is the
+	// only credential (same reasoning as the logout route above and the
+	// client-invitation routes).
+	Route::prefix('team')->name('team.')->group(function () {
+		Route::get('invitations/{token}', [TeamInvitationController::class, 'show'])
+			->name('invitations.show');
+		Route::post('invitations/{token}/accept', [TeamInvitationController::class, 'accept'])
+			->name('invitations.accept');
 	});
 });

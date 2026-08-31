@@ -34,6 +34,10 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            // Added alongside `status` by the 2026_08_30 migration; cast here so
+            // /dashboard/team can emit them as ISO-8601 rather than raw DB strings.
+            'deactivated_at' => 'datetime',
+            'last_active_at' => 'datetime',
         ];
     }
 
