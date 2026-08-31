@@ -11,6 +11,8 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\InviteTeamMember;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\ListTeamMembers;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\ResendTeamInvitation;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\TeamInvitationNotAcceptableException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use PactTrackSDK\SharedResources\Modules\User\Http\Requests\TeamInviteFormRequest;
 use PactTrackSDK\SharedResources\Modules\User\Http\Resources\TeamInvitationResource;
@@ -55,7 +57,7 @@ class TeamController extends Controller
         $members = $this->listMember->handle($providerId);
 
         $filter = (string) $request->query('filter', 'all');
-        if (in_array($filter, [Role::Owner->value, Role::Staff->value], true)) {
+        if (in_array($filter, [Role::Owner->value, Role::Admin->value, Role::Staff->value], true)) {
             $members = $members
                 ->filter(fn ($member) => $this->memberRole($member) === $filter)
                 ->values();
@@ -108,6 +110,45 @@ class TeamController extends Controller
         return response()->json([
             'data' => new TeamInvitationResource($invitation),
         ], 201);
+    }
+
+    /**
+     * POST /api/v1/team/invitations/{invitation}/resend — re-send a pending
+     * invite's email with a fresh token.
+     *
+     * Same gate as inviting (`invite` / `user.invite`, Owner only) — whoever
+     * can invite can resend; there is no separate "can resend" concept. The
+     * `{invitation}` route-model binding 404s an unknown id; the explicit
+     * provider check 404s (not 403 — don't confirm it exists) another
+     * tenant's invitation. Per-invitation throttle is on the route.
+     */
+    public function resend(
+        Request $request,
+        TeamInvitation $invitation,
+        ResendTeamInvitation $useCase,
+    ): JsonResponse {
+        Gate::authorize('invite', User::class);
+
+        abort_unless(
+            (int) $invitation->provider_id === (int) $request->user()->provider_id,
+            404,
+        );
+
+        try {
+            $invitation = $useCase->handle($invitation, $request->user());
+        } catch (TeamInvitationNotAcceptableException $e) {
+            // Reachable only for reason 'accepted' — a real login exists now,
+            // there is nothing to resend. A clear 422 the frontend renders as
+            // its own message, not a bare 404/500.
+            return response()->json([
+                'message' => $e->getMessage(),
+                'reason' => $e->reason,
+            ], 422);
+        }
+
+        return response()->json([
+            'data' => new TeamInvitationResource($invitation),
+        ]);
     }
 
     public function show(string $id)

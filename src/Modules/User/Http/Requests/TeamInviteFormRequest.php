@@ -40,8 +40,9 @@ class TeamInviteFormRequest extends FormRequest
             // Can't invite someone who already has a login.
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
             'title' => ['nullable', 'string', 'max:255'],
-            // Provider-side roles only — never accept 'client' here.
-            'role' => ['required', Rule::in(['owner', 'staff'])],
+            // The invite modal's two choices. 'owner' is not invitable (one per
+            // tenant, set at sign-up); 'client' is a different flow entirely.
+            'role' => ['required', Rule::in(['admin', 'staff'])],
         ];
     }
 
@@ -49,7 +50,7 @@ class TeamInviteFormRequest extends FormRequest
     {
         return [
             'email.unique' => 'Someone with that email already has an account.',
-            'role.in' => 'A team member must be invited as an owner or staff.',
+            'role.in' => 'A team member must be invited as an admin or staff.',
         ];
     }
 }

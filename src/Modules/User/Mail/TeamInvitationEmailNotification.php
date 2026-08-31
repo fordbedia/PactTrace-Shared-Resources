@@ -12,7 +12,8 @@ use Illuminate\Queue\SerializesModels;
 
 /**
  * The email a newly-invited team member receives — dispatched from
- * {@see \PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\InviteTeamMember}.
+ * {@see \PactTrackSDK\SharedResources\Modules\User\Application\Services\SendTeamInvitationEmail},
+ * shared by the invite (InviteTeamMember) and resend (ResendTeamInvitation) paths.
  *
  * Design: the provider-branded card from
  * Dashboard/Client-facing-provider-email-template.html (the firm's own accent
@@ -22,7 +23,8 @@ use Illuminate\Queue\SerializesModels;
  * Constructor takes scalars only (serialisation-safe for the queue) — same
  * shape as the Notification module's Mailables. The `acceptUrl` is built by
  * {@see \PactTrackSDK\SharedResources\Modules\User\Http\Controllers\TeamInvitationController::acceptUrl()},
- * the controller that actually consumes the token on the other end.
+ * the controller that actually consumes the token on the other end (the one
+ * URL builder for this link).
  */
 class TeamInvitationEmailNotification extends Mailable
 {

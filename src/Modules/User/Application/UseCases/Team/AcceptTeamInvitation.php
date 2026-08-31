@@ -7,9 +7,9 @@ namespace PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\TeamInvitationRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Services\UserRegistration;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\TeamInvitationNotAcceptableException;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use PactTrackSDK\SharedResources\SDK\Application\Ports\Transactional;
-use RuntimeException;
 
 /**
  * Use case behind "Accept Invitation" for a team member — the counterpart to
@@ -31,21 +31,30 @@ class AcceptTeamInvitation
     }
 
     /**
-     * @throws RuntimeException when the token is unknown, expired, or already
-     *                          used — the controller maps this to a clean 4xx,
-     *                          since an expired invite is an ordinary outcome.
+     * @throws TeamInvitationNotAcceptableException  when the token is unknown,
+     *         expired, or already used — carries a `reason` the controller maps
+     *         to a 404/410 + body, since a dead invite is an ordinary outcome,
+     *         not a bug. (Extends RuntimeException.)
      */
     public function handle(string $token, string $name, string $password): User
     {
         $invitation = $this->invitations->findByToken($token);
 
-        if (! $invitation || ! $invitation->isPending()) {
-            throw new RuntimeException('This invitation is invalid or has expired.');
+        if ($invitation === null) {
+            throw TeamInvitationNotAcceptableException::unknown();
+        }
+
+        if (($reason = $invitation->unusableReason()) !== null) {
+            throw TeamInvitationNotAcceptableException::forReason($reason);
         }
 
         return $this->transaction->run(function () use ($invitation, $name, $password): User {
-            // $invitation->role is cast to the Role enum, and the column only
-            // ever holds 'owner'/'staff' — never 'client'.
+            // $invitation->role is a Role enum and the invite column only ever
+            // holds 'admin' or 'staff' (never 'owner'/'client' — see
+            // TeamInviteFormRequest / the team_invitations migration). Each
+            // carries its own permission set via Role::permissions(), applied
+            // by UserRegistration::register()'s assignRole() — "Admin" is a
+            // first-class role now, not staff-plus-layered-permissions.
             $user = $this->registration->register(
                 $name,
                 $invitation->email,
@@ -55,12 +64,6 @@ class AcceptTeamInvitation
 
             $user->title = $invitation->title;
             $user->save();
-
-			// Layer the specific elevated permissions directly onto that
-			// one user with spatie's direct-permission API
-			if ($invitation->role === 'owner') {
-				$user->givePermissionTo(['user.invite', 'user.update', 'user.delete']);
-			}
 
             $this->registration->attachToProvider($user, (int) $invitation->provider_id);
 

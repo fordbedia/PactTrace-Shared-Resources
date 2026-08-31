@@ -108,6 +108,32 @@ class TeamMembersIndexControllerTest extends BaseTest
         $this->assertNull($invite['name']);
     }
 
+    public function test_admin_role_members_appear_in_the_list_and_are_filterable(): void
+    {
+        $admin = User::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'email' => 'anadmin@example.test',
+        ]);
+        $admin->assignRole(Role::Admin->value);
+
+        Sanctum::actingAs($this->tenant['owner']);
+
+        // Unfiltered list includes the admin (regression: the provider-side
+        // role whitelist used to be owner+staff only, silently dropping admin).
+        $all = $this->getJson('/api/v1/team/members')->assertOk();
+        $adminRow = collect($all->json('data'))->firstWhere('email', 'anadmin@example.test');
+        $this->assertNotNull($adminRow);
+        $this->assertSame('admin', $adminRow['role']);
+        $this->assertSame('users', $adminRow['source']);
+
+        // ?filter=admin narrows to just the admin.
+        $filtered = $this->getJson('/api/v1/team/members?filter=admin')->assertOk();
+        $emails = collect($filtered->json('data'))->pluck('email');
+        $this->assertTrue($emails->contains('anadmin@example.test'));
+        $this->assertFalse($emails->contains($this->tenant['staff']->email));
+        $this->assertFalse($emails->contains($this->tenant['owner']->email));
+    }
+
     public function test_the_list_is_paginated(): void
     {
         // Scenario already gives owner + staff (2). Add 18 more staff → 20.

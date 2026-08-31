@@ -5,20 +5,36 @@ declare(strict_types=1);
 namespace PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects;
 
 /**
- * The three actor types in PactTrack.
+ * The four actor types in PactTrack.
  *
  * Roles are global rather than per-tenant (spatie's `teams` feature is
  * deliberately off): a `users` row carries a single `provider_id`, so a user
  * only ever acts inside one provider and a per-tenant role pivot would add a
  * dimension the schema cannot express anyway. Tenant isolation is enforced by
  * the policies comparing `provider_id`, not by scoping the role itself.
+ *
+ * Declaration order is privilege order — `primaryRole()` returns the first case
+ * a user holds, so authorisation never silently downgrades. Owner > Admin >
+ * Staff > Client.
  */
 enum Role: string
 {
-    /** The paying customer — the solo attorney/consultant who owns the tenant. */
+    /**
+     * The paying customer — the solo attorney/consultant who owns the tenant.
+     * Exactly one per provider (`providers.owner_user_id`); created at sign-up,
+     * never invited.
+     */
     case Owner = 'owner';
 
-    /** Someone working inside the provider's practice, but not the account owner. */
+    /**
+     * A staff member who also administers the roster — Staff's permissions plus
+     * user.invite/update/delete. This is what the "Invite a team member" modal
+     * calls "Admin"; it is NOT the tenant account owner (no billing, branding
+     * or workspace-structure control).
+     */
+    case Admin = 'admin';
+
+    /** Someone working inside the provider's practice, but not an administrator. */
     case Staff = 'staff';
 
     /** A client of the provider, logging in to their portal. */
@@ -31,6 +47,7 @@ enum Role: string
     {
         return match ($this) {
             self::Owner => 'Provider Admin',
+            self::Admin => 'Admin',
             self::Staff => 'Staff',
             self::Client => 'Client',
         };
@@ -46,6 +63,16 @@ enum Role: string
         return match ($this) {
             // The account owner can do everything within their own tenant.
             self::Owner => Permission::cases(),
+
+            // Everything Staff can do, plus managing the roster — but still no
+            // branding, billing or workspace-structure control. Spread from
+            // Staff so the two never drift.
+            self::Admin => [
+                ...self::Staff->permissions(),
+                Permission::UserInvite,
+                Permission::UserUpdate,
+                Permission::UserDelete,
+            ],
 
             // Staff run the day-to-day engagement but do not administer the
             // tenant itself: no branding, billing, or managing other staff.
@@ -133,7 +160,7 @@ enum Role: string
      */
     public static function providerSide(): array
     {
-        return [self::Owner, self::Staff];
+        return [self::Owner, self::Admin, self::Staff];
     }
 
     public function isProviderSide(): bool

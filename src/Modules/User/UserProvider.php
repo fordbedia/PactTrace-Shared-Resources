@@ -2,7 +2,10 @@
 
 namespace PactTrackSDK\SharedResources\Modules\User;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use PactTrackSDK\SharedResources\Modules\User\Console\Commands\NotifyTrialEnding;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
@@ -79,6 +82,20 @@ class UserProvider extends ServiceProvider
         foreach ($this->policies as $model => $policy) {
             Gate::policy($model, $policy);
         }
+
+        // Per acting-user + invitation resend limiter (route:
+        // POST team/invitations/{invitation}/resend). Keyed so one admin
+        // hammering one pending invite is what gets throttled, not resends
+        // across the whole tenant. The app has no other rate-limit
+        // convention to match — login/register are unthrottled today.
+        RateLimiter::for('team-invitation-resend', function (Request $request): Limit {
+            $invitation = $request->route('invitation');
+            $invitationKey = is_object($invitation) ? $invitation->getKey() : $invitation;
+
+            return Limit::perMinute(2)->by(
+                ($request->user()?->getAuthIdentifier() ?? $request->ip()) . '|' . $invitationKey
+            );
+        });
 
         if ($this->app->runningInConsole()) {
             $this->commands([

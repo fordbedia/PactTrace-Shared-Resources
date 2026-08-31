@@ -68,6 +68,30 @@ class RolePermissionTest extends BaseTest
         $this->assertFalse($user->hasPermissionTo(Permission::ClientDelete->value));
     }
 
+    public function test_admin_is_staff_plus_roster_management(): void
+    {
+        $admin = $this->userWithRole(Role::Admin);
+        $staff = SpatieRole::query()->where('name', Role::Staff->value)->firstOrFail();
+
+        // A strict superset of Staff.
+        foreach ($staff->permissions->pluck('name') as $staffPermission) {
+            $this->assertTrue(
+                $admin->hasPermissionTo($staffPermission),
+                "Admin is missing Staff's [{$staffPermission}]."
+            );
+        }
+
+        // Plus exactly the three roster-management permissions.
+        $this->assertTrue($admin->hasPermissionTo(Permission::UserInvite->value));
+        $this->assertTrue($admin->hasPermissionTo(Permission::UserUpdate->value));
+        $this->assertTrue($admin->hasPermissionTo(Permission::UserDelete->value));
+
+        // But not the tenant-running controls.
+        $this->assertFalse($admin->hasPermissionTo(Permission::ProviderUpdate->value));
+        $this->assertFalse($admin->hasPermissionTo(Permission::ProviderManageBilling->value));
+        $this->assertFalse($admin->hasPermissionTo(Permission::WorkspaceCreate->value));
+    }
+
     public function test_client_can_participate_but_not_manage(): void
     {
         $user = $this->userWithRole(Role::Client);
@@ -87,8 +111,18 @@ class RolePermissionTest extends BaseTest
     public function test_primary_role_reflects_the_assigned_role(): void
     {
         $this->assertSame(Role::Owner, $this->userWithRole(Role::Owner)->primaryRole());
+        $this->assertSame(Role::Admin, $this->userWithRole(Role::Admin)->primaryRole());
         $this->assertSame(Role::Staff, $this->userWithRole(Role::Staff)->primaryRole());
         $this->assertSame(Role::Client, $this->userWithRole(Role::Client)->primaryRole());
+    }
+
+    public function test_admin_outranks_staff_when_both_are_assigned(): void
+    {
+        $user = User::factory()->create();
+        $user->assignRole(Role::Staff->value);
+        $user->assignRole(Role::Admin->value);
+
+        $this->assertSame(Role::Admin, $user->fresh()->primaryRole());
     }
 
     public function test_a_user_with_no_role_has_no_primary_role(): void
@@ -114,6 +148,7 @@ class RolePermissionTest extends BaseTest
     public function test_provider_side_classification(): void
     {
         $this->assertTrue($this->userWithRole(Role::Owner)->isProviderSide());
+        $this->assertTrue($this->userWithRole(Role::Admin)->isProviderSide());
         $this->assertTrue($this->userWithRole(Role::Staff)->isProviderSide());
         $this->assertFalse($this->userWithRole(Role::Client)->isProviderSide());
         $this->assertTrue($this->userWithRole(Role::Client)->isClientUser());

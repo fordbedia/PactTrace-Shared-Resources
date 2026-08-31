@@ -6,34 +6,31 @@ namespace PactTrackSDK\SharedResources\Modules\User\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
-use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\TeamInvitationRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Services\UserAuthentication;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\AcceptTeamInvitation;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\GetTeamInvitation;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\TeamInvitationNotAcceptableException;
 use PactTrackSDK\SharedResources\Modules\User\Http\Requests\AcceptTeamInvitationRequest;
+use PactTrackSDK\SharedResources\Modules\User\Http\Resources\PublicTeamInvitationResource;
 use PactTrackSDK\SharedResources\Modules\User\Http\Resources\UserResource;
-use RuntimeException;
 
 /**
  * The invitee-facing half of the team invitation flow — the page reached from
  * the "Accept Invitation" email. Both actions are unauthenticated: a
  * brand-new team member has no session, so the token itself is what proves
  * they belong here (same reasoning as ClientInvitationController and the
- * deliberately-unauthenticated logout route).
+ * deliberately-unauthenticated logout route). Both routes are throttled in
+ * routes/api.php — the token is a bearer credential.
  */
 class TeamInvitationController extends Controller
 {
-    public function __construct(
-        private readonly TeamInvitationRepository $invitations,
-    ) {
-    }
-
     /**
      * The invitee-facing accept link embedded in the invitation email
-     * (built by InviteTeamMember). It points at the frontend accept page,
-     * which then drives the two actions below — `show()` to render who
+     * (built by SendTeamInvitationEmail). It points at the frontend accept
+     * page, which then drives the two actions below — `show()` to render who
      * invited them and to where, then `accept()` to POST their name +
      * password against the same token. Kept here, on the controller that
-     * consumes the token, so the URL shape has one owner.
+     * consumes the token, so the URL shape has exactly one owner.
      */
     public static function acceptUrl(string $token): string
     {
@@ -46,40 +43,32 @@ class TeamInvitationController extends Controller
      *
      * Lets the accept-invitation page render who invited them and to where,
      * and say something concrete when a link is dead instead of failing only
-     * on submit. 404 = unknown link; 410 = expired or already used.
+     * on submit. 404 = unknown link; 410 = expired or already used, told
+     * apart by the `reason` field so the page can word each case.
      */
-    public function show(string $token): JsonResponse
+    public function show(string $token, GetTeamInvitation $useCase): JsonResponse
     {
-        $invitation = $this->invitations->findByToken($token);
+        $invitation = $useCase->handle($token);
 
         if ($invitation === null) {
-            return response()->json([
-                'message' => 'This invitation link is invalid.',
-            ], 404);
+            return $this->problem(TeamInvitationNotAcceptableException::unknown());
         }
 
-        if (! $invitation->isPending()) {
-            return response()->json([
-                'message' => 'This invitation link has expired or was already used.',
-            ], 410);
+        if (($reason = $invitation->unusableReason()) !== null) {
+            return $this->problem(TeamInvitationNotAcceptableException::forReason($reason));
         }
 
-        $invitation->loadMissing('provider');
-
-        return response()->json([
-            'email' => $invitation->email,
-            'role' => $invitation->role->value,
-            'title' => $invitation->title,
-            'provider_name' => $invitation->provider->business_name,
-            'expires_at' => $invitation->expires_at->toIso8601String(),
-        ]);
+        return response()->json(new PublicTeamInvitationResource($invitation));
     }
 
     /**
      * POST /api/v1/team/invitations/{token}/accept
      *
-     * Creates the team member's login, attaches it to the tenant, and signs
-     * them straight in — mirroring RegistrationController / ClientInvitationController.
+     * Re-validates the token server-side (never trusts that show() ran first),
+     * creates the team member's login, attaches it to the tenant, and signs
+     * them straight in — mirroring RegistrationController /
+     * ClientInvitationController. Auto sign-in because a new hire should land
+     * in the dashboard, not on a login form for the password they just set.
      */
     public function accept(
         AcceptTeamInvitationRequest $request,
@@ -93,8 +82,8 @@ class TeamInvitationController extends Controller
                 $request->string('name')->toString(),
                 $request->string('password')->toString(),
             );
-        } catch (RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 410);
+        } catch (TeamInvitationNotAcceptableException $e) {
+            return $this->problem($e);
         }
 
         $authentication->login($user);
@@ -102,5 +91,18 @@ class TeamInvitationController extends Controller
         return response()->json([
             'user' => new UserResource($user->loadAuthPayload()),
         ]);
+    }
+
+    /**
+     * One shape for every "this link can't be used" outcome, on both actions:
+     * `{ message, reason }` with the status the exception itself decides
+     * (404 unknown / 410 expired|accepted).
+     */
+    private function problem(TeamInvitationNotAcceptableException $e): JsonResponse
+    {
+        return response()->json([
+            'message' => $e->getMessage(),
+            'reason' => $e->reason,
+        ], $e->httpStatus());
     }
 }

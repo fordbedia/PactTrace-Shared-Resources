@@ -48,17 +48,31 @@ Route::prefix('v1')->group(function () {
 		// ------------------------------------------------------------------
 		Route::prefix('team')->name('team.')->group(function () {
 			Route::apiResource('members', TeamController::class);
+
+			// Re-send a pending invite with a fresh token. Same permission as
+			// inviting (checked in the controller). `throttle:team-invitation-resend`
+			// is a named limiter keyed per acting-user + invitation id — see
+			// UserProvider::boot() — so the same pending invite can't be
+			// spammed at the mail provider.
+			Route::post('invitations/{invitation}/resend', [TeamController::class, 'resend'])
+				->middleware('throttle:team-invitation-resend')
+				->name('invitations.resend');
 		});
 	});
 
 	// Team invitation accept flow — OUTSIDE auth:sanctum on purpose: the
 	// person accepting has no account yet, so the token in the URL is the
 	// only credential (same reasoning as the logout route above and the
-	// client-invitation routes).
+	// client-invitation routes). Throttled by IP because the token is a
+	// bearer credential and there is no session to key on — the app has no
+	// other convention here (login/register are unthrottled), so these pick a
+	// conservative Breeze-style ceiling.
 	Route::prefix('team')->name('team.')->group(function () {
 		Route::get('invitations/{token}', [TeamInvitationController::class, 'show'])
+			->middleware('throttle:10,1')
 			->name('invitations.show');
 		Route::post('invitations/{token}/accept', [TeamInvitationController::class, 'accept'])
+			->middleware('throttle:6,1')
 			->name('invitations.accept');
 	});
 });

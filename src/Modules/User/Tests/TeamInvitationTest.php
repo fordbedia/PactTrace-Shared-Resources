@@ -9,6 +9,8 @@ use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\TeamInvitationRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\AcceptTeamInvitation;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\InviteTeamMember;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\ResendTeamInvitation;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\TeamInvitationNotAcceptableException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use PactTrackSDK\SharedResources\Modules\User\Mail\TeamInvitationEmailNotification;
 use PactTrackSDK\SharedResources\Modules\User\Models\TeamInvitation;
@@ -73,6 +75,30 @@ class TeamInvitationTest extends BaseTest
         $invitation = TeamInvitation::factory()->forProvider($this->tenant['provider'])->role('staff')->create();
 
         $this->assertSame(Role::Staff, $invitation->role);
+    }
+
+    public function test_unusable_reason_names_why_a_link_is_dead(): void
+    {
+        $provider = $this->tenant['provider'];
+
+        $this->assertNull(
+            TeamInvitation::factory()->forProvider($provider)->create()->unusableReason(),
+        );
+        $this->assertSame(
+            'expired',
+            TeamInvitation::factory()->forProvider($provider)->expired()->create()->unusableReason(),
+        );
+        $this->assertSame(
+            'accepted',
+            TeamInvitation::factory()->forProvider($provider)->accepted()->create()->unusableReason(),
+        );
+
+        // Both true → "already used" is the more useful thing to say.
+        $both = TeamInvitation::factory()->forProvider($provider)->create([
+            'expires_at' => now()->subDay(),
+            'accepted_at' => now()->subHour(),
+        ]);
+        $this->assertSame('accepted', $both->unusableReason());
     }
 
     /* ── Repository ─────────────────────────────────────────────────────── */
@@ -215,6 +241,43 @@ class TeamInvitationTest extends BaseTest
         ]);
     }
 
+    public function test_accepting_an_admin_invite_grants_the_admin_role_and_roster_management_only(): void
+    {
+        $invitation = $this->pendingInvitation(['role' => 'admin']);
+
+        $user = $this->accept()->handle($invitation->token, 'Adah Admin', 'a-strong-password');
+
+        // Admin is its own first-class role — not staff, not owner.
+        $this->assertSame(Role::Admin, $user->primaryRole());
+        $this->assertTrue($user->hasRole('admin'));
+        $this->assertFalse($user->hasRole('staff'));
+        $this->assertFalse($user->hasRole('owner'));
+
+        // Everything Staff can do…
+        $this->assertTrue($user->hasPermissionTo('client.create'));
+        $this->assertTrue($user->hasPermissionTo('matter.create'));
+        // …plus roster management…
+        $this->assertTrue($user->hasPermissionTo('user.invite'));
+        $this->assertTrue($user->hasPermissionTo('user.update'));
+        $this->assertTrue($user->hasPermissionTo('user.delete'));
+        // …but none of the owner-only tenant controls.
+        $this->assertFalse($user->hasPermissionTo('provider.manage-billing'));
+        $this->assertFalse($user->hasPermissionTo('provider.update'));
+        $this->assertFalse($user->hasPermissionTo('workspace.create'));
+    }
+
+    public function test_accepting_a_staff_invite_grants_no_roster_management(): void
+    {
+        $invitation = $this->pendingInvitation(['role' => 'staff']);
+
+        $user = $this->accept()->handle($invitation->token, 'Sam Staff', 'a-strong-password');
+
+        $this->assertSame(Role::Staff, $user->primaryRole());
+        $this->assertFalse($user->hasPermissionTo('user.invite'));
+        $this->assertFalse($user->hasPermissionTo('user.update'));
+        $this->assertFalse($user->hasPermissionTo('user.delete'));
+    }
+
     public function test_a_token_cannot_be_accepted_twice(): void
     {
         $invitation = $this->pendingInvitation();
@@ -251,5 +314,68 @@ class TeamInvitationTest extends BaseTest
         }
 
         $this->assertSame($usersBefore, User::count());
+    }
+
+    public function test_accept_rejection_carries_the_reason(): void
+    {
+        $expired = $this->pendingInvitation(['expires_at' => now()->subDay()]);
+
+        try {
+            $this->accept()->handle($expired->token, 'Nope', 'a-strong-password');
+            $this->fail('Expected rejection.');
+        } catch (TeamInvitationNotAcceptableException $e) {
+            $this->assertSame('expired', $e->reason);
+            $this->assertSame(410, $e->httpStatus());
+        }
+
+        try {
+            $this->accept()->handle('no-such-token', 'Nope', 'a-strong-password');
+            $this->fail('Expected rejection.');
+        } catch (TeamInvitationNotAcceptableException $e) {
+            $this->assertSame('unknown', $e->reason);
+            $this->assertSame(404, $e->httpStatus());
+        }
+    }
+
+    /* ── ResendTeamInvitation ───────────────────────────────────────────── */
+
+    private function resend(): ResendTeamInvitation
+    {
+        return $this->app->make(ResendTeamInvitation::class);
+    }
+
+    public function test_resend_rotates_the_token_and_resets_expiry(): void
+    {
+        $invitation = $this->pendingInvitation(['expires_at' => now()->addDay()]);
+        $oldToken = $invitation->token;
+        $oldExpiry = $invitation->expires_at;
+
+        $updated = $this->resend()->handle($invitation, $this->tenant['owner']);
+
+        $this->assertNotSame($oldToken, $updated->token);
+        $this->assertTrue($updated->expires_at->greaterThan($oldExpiry));
+        $this->assertNull($this->repo()->findByToken($oldToken), 'old token must resolve to nothing');
+
+        Mail::assertSent(
+            TeamInvitationEmailNotification::class,
+            fn (TeamInvitationEmailNotification $mail) => $mail->hasTo($invitation->email),
+        );
+    }
+
+    public function test_resend_refuses_an_already_accepted_invitation(): void
+    {
+        $invitation = $this->pendingInvitation();
+        $this->accept()->handle($invitation->token, 'Joined Already', 'a-strong-password');
+
+        Mail::fake();
+
+        try {
+            $this->resend()->handle($invitation->fresh(), $this->tenant['owner']);
+            $this->fail('Expected an accepted invitation to be un-resendable.');
+        } catch (TeamInvitationNotAcceptableException $e) {
+            $this->assertSame('accepted', $e->reason);
+        }
+
+        Mail::assertNothingSent();
     }
 }

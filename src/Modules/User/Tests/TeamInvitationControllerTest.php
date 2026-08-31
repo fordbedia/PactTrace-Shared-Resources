@@ -174,6 +174,31 @@ class TeamInvitationControllerTest extends BaseTest
             ->assertJsonMissingPath('token');
     }
 
+    public function test_expired_and_used_links_report_distinct_reasons_on_get(): void
+    {
+        $expired = TeamInvitation::factory()
+            ->forProvider($this->tenant['provider'])
+            ->expired()
+            ->create();
+
+        $this->getJson("/api/v1/team/invitations/{$expired->token}")
+            ->assertStatus(410)
+            ->assertJsonPath('reason', 'expired');
+
+        $used = TeamInvitation::factory()
+            ->forProvider($this->tenant['provider'])
+            ->accepted()
+            ->create();
+
+        $this->getJson("/api/v1/team/invitations/{$used->token}")
+            ->assertStatus(410)
+            ->assertJsonPath('reason', 'accepted');
+
+        $this->getJson('/api/v1/team/invitations/never-issued')
+            ->assertStatus(404)
+            ->assertJsonPath('reason', 'unknown');
+    }
+
     /* ── POST /api/v1/team/invitations/{token}/accept ───────────────────── */
 
     public function test_accepting_a_valid_token_creates_the_login_and_signs_in(): void
@@ -203,6 +228,80 @@ class TeamInvitationControllerTest extends BaseTest
             'provider_id' => $this->tenant['provider']->id,
         ]);
         $this->assertNotNull($invitation->fresh()->accepted_at);
+    }
+
+    public function test_accept_creates_exactly_one_hashed_login_with_the_invited_role(): void
+    {
+        $invitation = TeamInvitation::factory()
+            ->forProvider($this->tenant['provider'])
+            ->create([
+                'email' => 'one@example.test',
+                'role' => 'staff',
+                'invited_by_user_id' => $this->tenant['owner']->id,
+            ]);
+
+        $before = User::count();
+
+        $this->postJson("/api/v1/team/invitations/{$invitation->token}/accept", [
+            'name' => 'Solo Row',
+            'password' => 'a-strong-password',
+            'password_confirmation' => 'a-strong-password',
+        ])->assertOk();
+
+        $this->assertSame($before + 1, User::count());
+
+        $user = User::where('email', 'one@example.test')->firstOrFail();
+
+        // Stored hashed, never in the clear.
+        $this->assertNotSame('a-strong-password', $user->password);
+        $this->assertTrue(password_verify('a-strong-password', $user->password));
+
+        // The role from the invitation, with that role's real permission set —
+        // not a blank/default account.
+        $this->assertTrue($user->hasRole('staff'));
+        $this->assertTrue($user->hasPermissionTo('client.view'));
+        $this->assertFalse($user->hasPermissionTo('user.invite'));
+
+        // The invitation is consumed — the same link cannot mint a second row.
+        $this->assertNotNull($invitation->fresh()->accepted_at);
+        $this->postJson("/api/v1/team/invitations/{$invitation->token}/accept", [
+            'name' => 'Impostor',
+            'password' => 'a-strong-password',
+            'password_confirmation' => 'a-strong-password',
+        ])->assertStatus(410)->assertJsonPath('reason', 'accepted');
+
+        $this->assertSame($before + 1, User::count());
+    }
+
+    public function test_accepting_an_admin_invite_yields_an_admin_login_with_roster_management_permissions(): void
+    {
+        $invitation = TeamInvitation::factory()
+            ->forProvider($this->tenant['provider'])
+            ->create([
+                'email' => 'admin@example.test',
+                'role' => 'admin',
+                'invited_by_user_id' => $this->tenant['owner']->id,
+            ]);
+
+        $response = $this->postJson("/api/v1/team/invitations/{$invitation->token}/accept", [
+            'name' => 'Adah Admin',
+            'password' => 'a-strong-password',
+            'password_confirmation' => 'a-strong-password',
+        ])->assertOk();
+
+        $response->assertJsonPath('user.role', 'admin');
+
+        $permissions = $response->json('user.permissions');
+        $this->assertContains('user.invite', $permissions);
+        $this->assertContains('user.update', $permissions);
+        $this->assertContains('user.delete', $permissions);
+        // Not a back-door to the whole tenant.
+        $this->assertNotContains('provider.manage-billing', $permissions);
+        $this->assertNotContains('workspace.create', $permissions);
+
+        $user = User::where('email', 'admin@example.test')->firstOrFail();
+        $this->assertTrue($user->hasRole('admin'));
+        $this->assertFalse($user->hasRole('owner'));
     }
 
     public function test_accepting_the_same_token_twice_is_410(): void
@@ -235,7 +334,29 @@ class TeamInvitationControllerTest extends BaseTest
             'name' => 'Too Late',
             'password' => 'a-strong-password',
             'password_confirmation' => 'a-strong-password',
-        ])->assertStatus(410);
+        ])->assertStatus(410)->assertJsonPath('reason', 'expired');
+    }
+
+    public function test_accept_re_validates_the_token_and_reports_a_distinct_reason(): void
+    {
+        // Server-side re-check: a used link POSTed straight to accept (no
+        // preceding GET) still fails, and says *why*.
+        $used = TeamInvitation::factory()
+            ->forProvider($this->tenant['provider'])
+            ->accepted()
+            ->create(['invited_by_user_id' => $this->tenant['owner']->id]);
+
+        $this->postJson("/api/v1/team/invitations/{$used->token}/accept", [
+            'name' => 'Second Comer',
+            'password' => 'a-strong-password',
+            'password_confirmation' => 'a-strong-password',
+        ])->assertStatus(410)->assertJsonPath('reason', 'accepted');
+
+        $this->postJson('/api/v1/team/invitations/never-issued/accept', [
+            'name' => 'Nobody',
+            'password' => 'a-strong-password',
+            'password_confirmation' => 'a-strong-password',
+        ])->assertStatus(404)->assertJsonPath('reason', 'unknown');
     }
 
     public function test_accept_validates_password_confirmation_and_length(): void
