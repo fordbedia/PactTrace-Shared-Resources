@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace PactTrackSDK\SharedResources\Modules\Notification\Application\Ports\Repository;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use PactTrackSDK\SharedResources\Modules\Notification\Application\DTO\AuditLogListData;
+use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
 
 /**
  * Read-only access to the compliance audit trail — see
@@ -35,4 +37,17 @@ interface AuditLogRepository
      * @return list<string>
      */
     public function distinctActions(int $providerId): array;
+
+    /**
+     * The newest `$limit` audit rows for one tenant — the `/dashboard`
+     * "Recent Activity" timeline. A thin, small-limit read over the same
+     * `audit_logs` table and the same tenant scoping as
+     * `paginateFiltered()`, deliberately not a second activity-feed
+     * implementation. `user` is eager-loaded like the paginated listing;
+     * null-`provider_id` (system-initiated) rows belong to no tenant and are
+     * excluded for free by the `where provider_id = ?`.
+     *
+     * @return Collection<int, AuditLog>
+     */
+    public function recentForProvider(int $providerId, int $limit): Collection;
 }

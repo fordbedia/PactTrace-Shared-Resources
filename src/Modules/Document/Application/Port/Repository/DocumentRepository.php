@@ -3,11 +3,36 @@
 namespace PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 
 interface DocumentRepository
 {
     public function create(array $data): Document;
+
+    /**
+     * How many non-archived documents a tenant has in the given lifecycle
+     * states — backs the `/dashboard` "Docs Awaiting" card (`Sent` +
+     * `PartiallySigned`, the same "awaiting signature" set the client portal's
+     * status pills use). A `COUNT` in SQL, never a fetched collection.
+     *
+     * @param array<int, DocumentStatus> $statuses
+     */
+    public function countByStatusForProvider(int $providerId, array $statuses): int;
+
+    /**
+     * The tenant's most-recently-updated non-archived documents for the
+     * `/dashboard` "Recent Documents" list, optionally narrowed to a set of
+     * lifecycle states (the All / Pending / Signed / Draft filter pills —
+     * the folding to real DocumentStatus values happens in the caller's DTO,
+     * not here). Newest first, `uploader`/`matter`/`client`/`envelopes`
+     * eager-loaded so DocumentResource renders without an N+1.
+     *
+     * @param array<int, DocumentStatus> $statuses empty = no status filter
+     * @return Collection<int, Document>
+     */
+    public function recentForProvider(int $providerId, array $statuses, int $limit): Collection;
 
     /**
      * One page of every document belonging to a provider — "All Documents"

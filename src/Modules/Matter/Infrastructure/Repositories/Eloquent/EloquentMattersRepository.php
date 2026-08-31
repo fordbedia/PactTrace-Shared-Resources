@@ -2,6 +2,7 @@
 
 namespace PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Repositories\Eloquent;
 
+use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
@@ -174,5 +175,26 @@ class EloquentMattersRepository extends BaseRepository implements MattersReposit
 		}
 
 		return $query->count();
+	}
+
+	public function countCreatedSince(int $providerId, DateTimeInterface $since): int
+	{
+		return $this->model->newQuery()
+			->where('provider_id', $providerId)
+			->where('created_at', '>=', $since)
+			->count();
+	}
+
+	public function inProgressForProvider(int $providerId, int $limit): Collection
+	{
+		return $this->model->newQuery()
+			->with(['client', 'milestones', 'assignedStaff'])
+			->where('provider_id', $providerId)
+			->whereIn('status', ['active', 'on_hold'])
+			// Soonest deadline first; matters with no due date sort to the end.
+			->orderByRaw('due_date IS NULL, due_date asc')
+			->orderByDesc('updated_at')
+			->limit($limit)
+			->get();
 	}
 }

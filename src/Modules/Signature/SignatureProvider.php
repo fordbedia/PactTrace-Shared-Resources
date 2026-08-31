@@ -4,8 +4,10 @@ namespace PactTrackSDK\SharedResources\Modules\Signature;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\Port\Repository\EnvelopeReadRepository;
 use PactTrackSDK\SharedResources\Modules\Signature\Console\Commands\ReconcileStaleDocusignEnvelopes;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Ports\ESignatureProvider;
+use PactTrackSDK\SharedResources\Modules\Signature\Infrastructure\Repositories\Eloquent\EloquentEnvelopeReadRepository;
 use PactTrackSDK\SharedResources\Modules\Signature\Infrastructure\Docusign\DocusignSignatureProvider;
 use PactTrackSDK\SharedResources\Modules\Signature\Infrastructure\Docusign\JwtGrantAuthenticator;
 use PactTrackSDK\SharedResources\Modules\Signature\Infrastructure\Fake\FakeSignatureProvider;
@@ -28,6 +30,10 @@ class SignatureProvider extends ServiceProvider
         foreach ($this->providers as $provider) {
             $this->app->register($provider);
         }
+
+        // Read-only aggregate access to `envelopes` for the /dashboard
+        // "Signed This Month" card and "Signatures — Last 7 Days" chart.
+        $this->app->singleton(EnvelopeReadRepository::class, EloquentEnvelopeReadRepository::class);
 
         // Bind the e-signature port to the DocuSign adapter (or the Fake,
         // via SIGNATURE_PROVIDER=fake — see config/services.php). Swapping

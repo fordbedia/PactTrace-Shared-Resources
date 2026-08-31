@@ -2,6 +2,7 @@
 
 namespace PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Repository;
 
+use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\MattersData;
@@ -72,4 +73,22 @@ interface MattersRepository
 	public function countOnHold(int $providerId): int;
 
 	public function countCompleted(int $providerId): int;
+
+	/**
+	 * Matters created at or after `$since` for one tenant, any status — the
+	 * "+N this week" delta on the `/dashboard` "Active Matters" card. A
+	 * creation count, not a status count: it answers "how many new matters
+	 * did this provider open recently", which is what the artboard's trend
+	 * indicator means.
+	 */
+	public function countCreatedSince(int $providerId, DateTimeInterface $since): int;
+
+	/**
+	 * The tenant's in-progress matters (status `active` or `on_hold`) for the
+	 * `/dashboard` "Matters in Progress" panel — soonest `due_date` first
+	 * (matters with no due date last), then most-recently-updated. Eager-loads
+	 * `client`, `milestones` (so MatterProgressCalculator reuses them without
+	 * an N+1) and `assignedStaff`, matching MatterResource's expectations.
+	 */
+	public function inProgressForProvider(int $providerId, int $limit): Collection;
 }

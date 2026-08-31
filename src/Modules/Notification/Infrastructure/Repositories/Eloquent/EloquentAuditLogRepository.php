@@ -6,6 +6,7 @@ namespace PactTrackSDK\SharedResources\Modules\Notification\Infrastructure\Repos
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use PactTrackSDK\SharedResources\Modules\Notification\Application\DTO\AuditLogListData;
 use PactTrackSDK\SharedResources\Modules\Notification\Application\Ports\Repository\AuditLogRepository;
 use PactTrackSDK\SharedResources\Modules\Notification\Infrastructure\Repositories\BaseRepository;
@@ -48,6 +49,16 @@ class EloquentAuditLogRepository extends BaseRepository implements AuditLogRepos
         }
 
         return $query->paginate($data->per_page, ['*'], 'page', $data->page);
+    }
+
+    public function recentForProvider(int $providerId, int $limit): Collection
+    {
+        return $this->baseQuery($providerId)
+            ->with('user')
+            ->latest()
+            ->latest('id')
+            ->limit($limit)
+            ->get();
     }
 
     public function distinctActions(int $providerId): array

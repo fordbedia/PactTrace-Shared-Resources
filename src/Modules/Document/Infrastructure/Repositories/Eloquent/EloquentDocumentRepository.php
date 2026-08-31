@@ -3,7 +3,9 @@
 namespace PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Repositories\BaseRepository;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 
@@ -50,6 +52,34 @@ class EloquentDocumentRepository extends BaseRepository implements DocumentRepos
 			->latest();
 
 		return $this->paginate($query, $perPage, ['*'], 'page', $page);
+	}
+
+	public function countByStatusForProvider(int $providerId, array $statuses): int
+	{
+		return $this->model->newQuery()
+			->where('provider_id', $providerId)
+			->whereNull('archived_at')
+			->whereIn('status', array_map(static fn (DocumentStatus $s): string => $s->value, $statuses))
+			->count();
+	}
+
+	public function recentForProvider(int $providerId, array $statuses, int $limit): Collection
+	{
+		return $this->model->newQuery()
+			->where('provider_id', $providerId)
+			->whereNull('archived_at')
+			->when(
+				$statuses !== [],
+				fn ($query) => $query->whereIn(
+					'status',
+					array_map(static fn (DocumentStatus $s): string => $s->value, $statuses),
+				),
+			)
+			->with(['uploader', 'matter', 'client', 'envelopes'])
+			->latest('updated_at')
+			->latest('id')
+			->limit($limit)
+			->get();
 	}
 
 	public function totalSizeForProvider(int $providerId, ?int $clientId = null): int

@@ -2,6 +2,7 @@
 
 namespace PactTrackSDK\SharedResources\Modules\Client\Infrastructure\Repositories\Eloquent;
 
+use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use PactTrackSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
@@ -109,6 +110,21 @@ class EloquentClientRepository extends BaseRepository implements ClientRepositor
 		}
 
 		return $this->paginate($query, $perPage, ['*'], 'page', $page);
+	}
+
+	public function countForProvider(int $providerId): int
+	{
+		return $this->model->newQuery()
+			->where('provider_id', $providerId)
+			->count();
+	}
+
+	public function countCreatedSince(int $providerId, DateTimeInterface $since): int
+	{
+		return $this->model->newQuery()
+			->where('provider_id', $providerId)
+			->where('created_at', '>=', $since)
+			->count();
 	}
 
 	public function makeModel(): string

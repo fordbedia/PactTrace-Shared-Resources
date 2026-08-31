@@ -19,6 +19,7 @@ use PactTrackSDK\SharedResources\Modules\Signature\SignatureProvider;
 use PactTrackSDK\SharedResources\Modules\Messaging\MessagingProvider;
 use PactTrackSDK\SharedResources\Modules\Notification\NotificationProvider;
 use PactTrackSDK\SharedResources\Modules\Workspace\WorkspaceProvider;
+use PactTrackSDK\SharedResources\Modules\Dashboard\DashboardProvider;
 
 class SharedResourceServiceProvider extends ServiceProvider
 {
@@ -36,7 +37,8 @@ class SharedResourceServiceProvider extends ServiceProvider
 		SignatureProvider::class,
 		MessagingProvider::class,
 		NotificationProvider::class,
-		WorkspaceProvider::class,
+		WorkspaceProvider::class,		DashboardProvider::class,
+
 
     ];
 

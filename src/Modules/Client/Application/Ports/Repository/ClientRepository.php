@@ -2,6 +2,7 @@
 
 namespace PactTrackSDK\SharedResources\Modules\Client\Application\Ports\Repository;
 
+use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use PactTrackSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
@@ -10,6 +11,20 @@ use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 interface ClientRepository
 {
 	public function upsert(ClientData $data): Client;
+
+	/**
+	 * Every client row for one tenant, any status — backs the `/dashboard`
+	 * "Clients" card. Matches the scope of `/dashboard/clients`' "All" tab
+	 * (`paginateAll`, no status filter) so the headline figure equals the
+	 * list the user sees on click-through. A `COUNT`, never fetched rows.
+	 */
+	public function countForProvider(int $providerId): int;
+
+	/**
+	 * Clients created at or after `$since` for one tenant — the "+N this
+	 * month" delta on the `/dashboard` "Clients" card.
+	 */
+	public function countCreatedSince(int $providerId, DateTimeInterface $since): int;
 
 	/**
 	 * Clients selectable when filing a document — the "Search or select
