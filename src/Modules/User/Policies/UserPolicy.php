@@ -36,4 +36,28 @@ class UserPolicy extends TenantScopedPolicy
     {
         return $this->check($user, Permission::UserInvite);
     }
+
+    /**
+     * Change a teammate's role, or remove a teammate from the roster.
+     *
+     * Deliberately stricter than `invite`: `user.invite` / `user.update` /
+     * `user.delete` are all held by the Admin role too (see
+     * Role::permissions()), but membership and role changes are
+     * higher-blast-radius — a non-owner could otherwise demote or remove the
+     * Owner, or escalate their own role — so this gate additionally requires
+     * the actor to *be* the provider's account owner
+     * (`providers.owner_user_id`, via TenantScopedPolicy::actorOwnsTenant()),
+     * not merely to hold a permission.
+     *
+     * Permission-only in shape (no record argument): the target user is
+     * resolved and tenant-checked in the controller (`abort_unless` on
+     * provider_id), and the per-target invariants — can't act on yourself,
+     * can't act on the owner — are enforced in the use cases as domain
+     * guards, so they hold regardless of the caller.
+     */
+    public function manageMembers(User $user): bool
+    {
+        return $this->check($user, Permission::UserUpdate)
+            && $this->actorOwnsTenant($user);
+    }
 }

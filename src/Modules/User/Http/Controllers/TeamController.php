@@ -9,12 +9,16 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\ChangeTeamMemberRole;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\DeactivateTeamMember;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\InviteTeamMember;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\ListTeamMembers;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\ResendTeamInvitation;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\CannotModifyTeamMemberException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\TeamInvitationNotAcceptableException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use PactTrackSDK\SharedResources\Modules\User\Http\Requests\TeamInviteFormRequest;
+use PactTrackSDK\SharedResources\Modules\User\Http\Requests\TeamMemberRoleUpdateRequest;
 use PactTrackSDK\SharedResources\Modules\User\Http\Resources\TeamInvitationResource;
 use PactTrackSDK\SharedResources\Modules\User\Http\Resources\TeamMemberResource;
 use PactTrackSDK\SharedResources\Modules\User\Models\TeamInvitation;
@@ -156,13 +160,85 @@ class TeamController extends Controller
         //
     }
 
-    public function update(Request $request, string $id)
-    {
-        //
+    /**
+     * PATCH /api/v1/team/members/{member} — change a teammate's role.
+     *
+     * Owner-only, and deliberately stricter than invite/resend: the
+     * `manageMembers` gate requires the caller to *be* the provider owner
+     * (`providers.owner_user_id`), not merely to hold `user.update` (Admin
+     * holds that). `{member}` is implicit-bound by id; the explicit
+     * provider check 404s another tenant's user rather than trusting the id,
+     * and never confirms it exists. The two per-target invariants —
+     * can't target yourself, can't target the owner — are enforced inside
+     * ChangeTeamMemberRole (TeamMembershipRules) and surfaced here as a 422
+     * `{message, reason}`, not a bare 500.
+     */
+    public function update(
+        TeamMemberRoleUpdateRequest $request,
+        User $member,
+        ChangeTeamMemberRole $useCase,
+    ): JsonResponse {
+        Gate::authorize('manageMembers', User::class);
+
+        abort_unless(
+            (int) $member->provider_id === (int) $request->user()->provider_id,
+            404,
+        );
+
+        try {
+            $member = $useCase->handle(
+                $member,
+                Role::from($request->validated('role')),
+                $request->user(),
+            );
+        } catch (CannotModifyTeamMemberException $e) {
+            return $this->rejectModification($e);
+        }
+
+        return response()->json([
+            'data' => new TeamMemberResource($member->refresh()),
+        ]);
     }
 
-    public function destroy(string $id)
+    /**
+     * DELETE /api/v1/team/members/{member} — remove a teammate from the roster.
+     *
+     * Same owner-only gate and tenant check as update(). "Remove" is a soft
+     * deactivation, never a hard delete (see UserRepository::deactivate() /
+     * DeactivateTeamMember). Their assigned matters fall back to the owner.
+     * 204 on success; 422 `{message, reason}` for a blocked target.
+     */
+    public function destroy(
+        Request $request,
+        User $member,
+        DeactivateTeamMember $useCase,
+    ): JsonResponse {
+        Gate::authorize('manageMembers', User::class);
+
+        abort_unless(
+            (int) $member->provider_id === (int) $request->user()->provider_id,
+            404,
+        );
+
+        try {
+            $useCase->handle($member, $request->user());
+        } catch (CannotModifyTeamMemberException $e) {
+            return $this->rejectModification($e);
+        }
+
+        return response()->json(null, 204);
+    }
+
+    /**
+     * A blocked role change / removal — a structural invariant, not a
+     * permission or validation failure. 422 with a `reason` the frontend
+     * renders as its own message (mirrors TeamController::resend()).
+     */
+    private function rejectModification(CannotModifyTeamMemberException $e): JsonResponse
     {
-        //
+        return response()->json([
+            'message' => $e->getMessage(),
+            'reason' => $e->reason,
+        ], 422);
     }
 }

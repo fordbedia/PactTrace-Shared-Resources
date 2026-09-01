@@ -39,4 +39,24 @@ interface UserRepository
     public function assignProvider(User $user, int $providerId): User;
 
     public function assignRole(User $user, Role $role): User;
+
+    /**
+     * Replace whatever role(s) a user holds with exactly `$role` — the
+     * "change this teammate's role" path, as opposed to `assignRole()` which
+     * is additive and used at first onboarding. Wraps spatie's `syncRoles()`
+     * so that API still never leaks past this adapter.
+     */
+    public function syncRole(User $user, Role $role): User;
+
+    /**
+     * Soft-remove a teammate: `status = 'deactivated'`, `deactivated_at = now`.
+     *
+     * Never a hard delete — `documents.uploaded_by`, `messages.sender_id` and
+     * `message_threads.staff_user_id` are all `cascadeOnDelete`, so deleting
+     * the row would destroy legal records and the audit trail (and
+     * `workspaces.owner_id` is `restrictOnDelete`, which would throw). The
+     * `users.status` enum already carries a `deactivated` value for exactly
+     * this.
+     */
+    public function deactivate(User $user): User;
 }

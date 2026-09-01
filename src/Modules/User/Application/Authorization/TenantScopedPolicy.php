@@ -120,6 +120,29 @@ abstract class TenantScopedPolicy
     }
 
     /**
+     * Is this actor the account owner of their own tenant?
+     *
+     * The one "is owner" fact in the codebase is `providers.owner_user_id`
+     * (Provider::owner() / User::ownedProvider(), and `owns_provider` on
+     * UserResource) — never the spatie Role and never a bespoke flag. This is
+     * that same fact, for policy methods that must be stricter than a
+     * permission the Owner shares with Admin (roster removal / role changes).
+     *
+     * Fails closed when the actor has no provider. One indexed lookup on the
+     * providers PK; safe to call without eager-loading `provider`.
+     */
+    protected function actorOwnsTenant(User $user): bool
+    {
+        if ($user->provider_id === null) {
+            return false;
+        }
+
+        return (int) Provider::query()
+            ->whereKey($user->provider_id)
+            ->value('owner_user_id') === (int) $user->getKey();
+    }
+
+    /**
      * Tenant isolation: the record must belong to the actor's provider.
      *
      * Fails closed when either side is null, so a user not yet attached to a

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use PactTrackSDK\SharedResources\Modules\User\Console\Commands\NotifyTrialEnding;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\DepartingStaffReassignment;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\TeamInvitationRepository;
@@ -15,6 +16,7 @@ use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\UserR
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\AccessTokenIssuer;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Auth\SanctumTokenIssuer;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentDepartingStaffReassignment;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentProviderRepository;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentSubscriptionRepository;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentTeamInvitationRepository;
@@ -59,6 +61,7 @@ class UserProvider extends ServiceProvider
      */
     protected array $ports = [
         UserRepository::class => EloquentUserRepository::class,
+        DepartingStaffReassignment::class => EloquentDepartingStaffReassignment::class,
         TeamInvitationRepository::class => EloquentTeamInvitationRepository::class,
         ProviderRepository::class => EloquentProviderRepository::class,
         SubdomainAvailability::class => EloquentProviderRepository::class,

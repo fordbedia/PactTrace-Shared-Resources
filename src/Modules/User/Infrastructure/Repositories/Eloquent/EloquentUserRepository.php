@@ -51,6 +51,23 @@ class EloquentUserRepository extends BaseRepository implements UserRepository
 		return $user;
 	}
 
+	public function syncRole(User $user, Role $role): User
+	{
+		$user->syncRoles([$role->value]);
+
+		return $user;
+	}
+
+	public function deactivate(User $user): User
+	{
+		$user->forceFill([
+			'status' => 'deactivated',
+			'deactivated_at' => now(),
+		])->save();
+
+		return $user;
+	}
+
 	/**
 	 * The provider-side users (owner + admin + staff) backing /dashboard/team.
 	 *
