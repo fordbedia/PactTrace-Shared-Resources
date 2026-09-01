@@ -17,7 +17,7 @@ use PactTrackSDK\SharedResources\Modules\User\Database\Factories\UserFactory;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'title', 'password', 'provider_id'])]
+#[Fillable(['name', 'email', 'title', 'phone', 'password', 'provider_id'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {

@@ -38,6 +38,20 @@ interface UserRepository
      */
     public function assignProvider(User $user, int $providerId): User;
 
+    /**
+     * Write a set of attributes onto an existing user and persist.
+     *
+     * The `/profile` screen's use of it: the identity-card fields
+     * (`name`/`email`/`phone`, plus `email_verified_at` reset on an email
+     * change) and the password card (`password`, which the model's
+     * `hashed` cast hashes — pass plain text). Distinct from BaseRepository's
+     * `update(array, ?int)` (keyed by id, incompatible signature) and from
+     * `assignProvider()` (one column, load-bearing enough to name).
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function saveAttributes(User $user, array $attributes): User;
+
     public function assignRole(User $user, Role $role): User;
 
     /**

@@ -643,7 +643,7 @@ CREATE TABLE `migrations` (
   `migration` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `batch` int NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -702,7 +702,8 @@ INSERT INTO `migrations` VALUES
 (46,'2026_08_30_023942_new_status_column_on_user_table',1),
 (47,'2026_08_30_120000_add_assigned_staff_id_to_matters_table',1),
 (48,'2026_08_30_130000_create_team_invitations_table',1),
-(49,'2026_08_31_195913_add_admin_to_team_invitations_role_enum',1);
+(49,'2026_08_31_195913_add_admin_to_team_invitations_role_enum',1),
+(50,'2026_08_31_210000_add_phone_to_users_table',1);
 /*!40000 ALTER TABLE `migrations` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -888,48 +889,48 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `permissions` WRITE;
 /*!40000 ALTER TABLE `permissions` DISABLE KEYS */;
 INSERT INTO `permissions` VALUES
-(1,'provider.view','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(2,'provider.update','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(3,'provider.manage-branding','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(4,'provider.manage-billing','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(5,'user.view','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(6,'user.invite','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(7,'user.update','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(8,'user.delete','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(9,'client.view','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(10,'client.create','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(11,'client.update','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(12,'client.delete','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(13,'client.invite','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(14,'workspace.view','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(15,'workspace.create','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(16,'workspace.update','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(17,'workspace.delete','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(18,'matter.view','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(19,'matter.create','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(20,'matter.update','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(21,'matter.delete','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(22,'milestone.view','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(23,'milestone.create','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(24,'milestone.update','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(25,'milestone.delete','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(26,'document.view','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(27,'document.upload','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(28,'document.download','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(29,'document.update','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(30,'document.delete','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(31,'folder.view','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(32,'folder.create','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(33,'folder.update','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(34,'folder.delete','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(35,'envelope.view','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(36,'envelope.create','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(37,'envelope.send','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(38,'envelope.sign','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(39,'envelope.void','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(40,'message.view','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(41,'message.send','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(42,'audit-log.view','web','2026-08-31 20:00:27','2026-08-31 20:00:27');
+(1,'provider.view','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(2,'provider.update','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(3,'provider.manage-branding','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(4,'provider.manage-billing','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(5,'user.view','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(6,'user.invite','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(7,'user.update','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(8,'user.delete','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(9,'client.view','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(10,'client.create','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(11,'client.update','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(12,'client.delete','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(13,'client.invite','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(14,'workspace.view','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(15,'workspace.create','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(16,'workspace.update','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(17,'workspace.delete','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(18,'matter.view','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(19,'matter.create','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(20,'matter.update','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(21,'matter.delete','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(22,'milestone.view','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(23,'milestone.create','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(24,'milestone.update','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(25,'milestone.delete','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(26,'document.view','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(27,'document.upload','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(28,'document.download','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(29,'document.update','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(30,'document.delete','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(31,'folder.view','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(32,'folder.create','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(33,'folder.update','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(34,'folder.delete','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(35,'envelope.view','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(36,'envelope.create','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(37,'envelope.send','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(38,'envelope.sign','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(39,'envelope.void','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(40,'message.view','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(41,'message.send','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(42,'audit-log.view','web','2026-09-01 02:09:56','2026-09-01 02:09:56');
 /*!40000 ALTER TABLE `permissions` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -1181,10 +1182,10 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `roles` WRITE;
 /*!40000 ALTER TABLE `roles` DISABLE KEYS */;
 INSERT INTO `roles` VALUES
-(1,'owner','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(2,'admin','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(3,'staff','web','2026-08-31 20:00:27','2026-08-31 20:00:27'),
-(4,'client','web','2026-08-31 20:00:27','2026-08-31 20:00:27');
+(1,'owner','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(2,'admin','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(3,'staff','web','2026-09-01 02:09:56','2026-09-01 02:09:56'),
+(4,'client','web','2026-09-01 02:09:56','2026-09-01 02:09:56');
 /*!40000 ALTER TABLE `roles` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -1433,6 +1434,7 @@ CREATE TABLE `users` (
   `status` enum('active','inactive','pending','deactivated') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
   `deactivated_at` timestamp NULL DEFAULT NULL,
   `title` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `provider_id` bigint unsigned DEFAULT NULL,
   `email_verified_at` timestamp NULL DEFAULT NULL,
   `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1514,4 +1516,4 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
 
--- Dump completed on 2026-08-31 20:00:28
+-- Dump completed on 2026-09-01  2:09:57

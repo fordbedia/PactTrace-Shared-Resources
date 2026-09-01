@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\ProfileController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\RegistrationController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\SessionController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\TeamController;
@@ -38,6 +39,19 @@ Route::prefix('v1')->group(function () {
 
 	Route::middleware('auth:sanctum')->group(function () {
 		Route::apiResource('user', UserController::class);
+
+		// ------------------------------------------------------------------
+		// The signed-in user's own account screen (`/profile`). No policy —
+		// every action is scoped to the caller themselves. See ProfileController.
+		// ------------------------------------------------------------------
+		Route::patch('profile', [ProfileController::class, 'update'])
+			->name('profile.update');
+		Route::put('profile/password', [ProfileController::class, 'updatePassword'])
+			->name('profile.password');
+		Route::get('profile/deletion-eligibility', [ProfileController::class, 'deletionEligibility'])
+			->name('profile.deletion-eligibility');
+		Route::delete('profile', [ProfileController::class, 'destroy'])
+			->name('profile.destroy');
 
 		// ------------------------------------------------------------------
 		// Team administration (staff-facing). A previous version registered

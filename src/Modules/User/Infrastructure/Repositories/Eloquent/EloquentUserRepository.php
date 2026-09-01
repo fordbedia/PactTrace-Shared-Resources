@@ -39,6 +39,16 @@ class EloquentUserRepository extends BaseRepository implements UserRepository
 		return $user;
 	}
 
+	public function saveAttributes(User $user, array $attributes): User
+	{
+		// forceFill: `email_verified_at` isn't in the model's #[Fillable] set,
+		// and this is a trusted internal write (the controller/use case has
+		// already validated every key).
+		$user->forceFill($attributes)->save();
+
+		return $user->refresh();
+	}
+
 	/**
 	 * The one place spatie's role API is allowed to be called from. Everything
 	 * upstream passes the Role enum; see the module rules doc — there is no
