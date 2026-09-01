@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PactTrackSDK\SharedResources\Modules\Workspace\Infrastructure\Repositories\Eloquent;
 
+use Illuminate\Support\Collection;
 use PactTrackSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceRepository;
 use PactTrackSDK\SharedResources\Modules\Workspace\Infrastructure\Repositories\BaseRepository;
 use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
@@ -18,5 +19,13 @@ class EloquentWorkspaceRepository extends BaseRepository implements WorkspaceRep
     public function create(array $data): Workspace
     {
         return $this->model->create($data);
+    }
+
+    public function forProvider(int $providerId): Collection
+    {
+        return Workspace::query()
+            ->where('provider_id', $providerId)
+            ->orderBy('name')
+            ->get();
     }
 }

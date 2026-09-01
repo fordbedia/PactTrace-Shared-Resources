@@ -8,11 +8,13 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use PactTrackSDK\SharedResources\Modules\Workspace\Application\Labels\WorkspaceLabelResolver;
+use PactTrackSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceDeactivationSignalReader;
 use PactTrackSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceRepository;
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\WorkspacePresets;
 use PactTrackSDK\SharedResources\Modules\Workspace\Infrastructure\Context\RequestWorkspaceContext;
 use PactTrackSDK\SharedResources\Modules\Workspace\Infrastructure\Presets\ConfigWorkspacePresets;
+use PactTrackSDK\SharedResources\Modules\Workspace\Infrastructure\Repositories\Eloquent\EloquentWorkspaceDeactivationSignals;
 use PactTrackSDK\SharedResources\Modules\Workspace\Infrastructure\Repositories\Eloquent\EloquentWorkspaceRepository;
 use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
 use PactTrackSDK\SharedResources\Modules\Workspace\Policies\WorkspacePolicy;
@@ -56,6 +58,13 @@ class WorkspaceProvider extends ServiceProvider
         });
 
         $this->app->singleton(WorkspaceRepository::class, EloquentWorkspaceRepository::class);
+
+        // Reads the live-activity counts the "Deactivate Workspace" pre-flight
+        // needs. A plain bind (not singleton) — it holds no state.
+        $this->app->bind(
+            WorkspaceDeactivationSignalReader::class,
+            EloquentWorkspaceDeactivationSignals::class,
+        );
     }
 
     public function boot(): void
