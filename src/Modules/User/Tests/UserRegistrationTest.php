@@ -122,6 +122,10 @@ class UserRegistrationTest extends BaseTest
             ->sole();
         $this->assertSame((int) $workspace->getKey(), (int) $owner->fresh()->default_workspace_id);
 
+        // The tenant's first workspace is the primary one — it can never be
+        // deactivated. RegisterProvider is the only place this flag is set.
+        $this->assertTrue($workspace->is_primary);
+
         // The Subscription row is the authoritative billing record; provider.plan
         // above is only its denormalized cache — assert both agree.
         $subscription = Subscription::where('provider_id', $provider->getKey())->sole();

@@ -46,6 +46,8 @@ Route::prefix('v1')->group(function () {
 		// ------------------------------------------------------------------
 		Route::patch('profile', [ProfileController::class, 'update'])
 			->name('profile.update');
+		Route::post('profile/avatar', [ProfileController::class, 'updateAvatar'])
+			->name('profile.avatar');
 		Route::put('profile/password', [ProfileController::class, 'updatePassword'])
 			->name('profile.password');
 		Route::get('profile/deletion-eligibility', [ProfileController::class, 'deletionEligibility'])

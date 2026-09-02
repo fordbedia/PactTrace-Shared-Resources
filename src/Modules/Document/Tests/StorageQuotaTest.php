@@ -7,32 +7,32 @@ namespace PactTrackSDK\SharedResources\Modules\Document\Tests;
 use InvalidArgumentException;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\StorageQuotas;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\ValueObjects\StorageUsage;
-use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Quota\ConfigStorageQuotas;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Quota\PlanStorageQuotas;
 use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Services\ByteFormatter;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * The three small pieces the STORAGE indicator is assembled from: the plan
- * allowance (ConfigStorageQuotas), the arithmetic (StorageUsage) and the
- * wording (ByteFormatter).
+ * allowance (PlanStorageQuotas, reading the Plan enum), the arithmetic
+ * (StorageUsage) and the wording (ByteFormatter).
  *
- * The config adapter gets the most attention because config is hand-editable
- * and every failure mode there is silent: a typo'd key must not hand a
- * starter tenant a firm-sized allowance, and a broken value must not reach
- * the value object and divide by zero.
+ * The adapter still gets the most attention on its fail-soft contract: an
+ * unknown plan string must resolve to the smallest tier, never a bigger
+ * allowance, and never an exception that reaches the value object.
  */
 class StorageQuotaTest extends BaseTest
 {
     private const GB = 1024 * 1024 * 1024;
 
-    private ConfigStorageQuotas $quotas;
+    private PlanStorageQuotas $quotas;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->quotas = new ConfigStorageQuotas(config());
+        $this->quotas = new PlanStorageQuotas();
     }
 
     public function test_it_implements_the_port(): void
@@ -40,86 +40,37 @@ class StorageQuotaTest extends BaseTest
         $this->assertInstanceOf(StorageQuotas::class, $this->quotas);
     }
 
-    public function test_the_module_config_ships_an_allowance_for_every_plan(): void
+    public function test_it_returns_the_enum_allowance_for_each_plan_string(): void
     {
-        // The plan values are `providers.plan` (see .claude/rules/user.md) —
-        // a plan with no entry would silently fall back to the smallest tier.
-        foreach (['starter', 'professional', 'firm'] as $plan) {
-            $this->assertGreaterThan(
-                0,
-                config("document.storage_quota_bytes.{$plan}"),
-                "No storage quota configured for the [{$plan}] plan."
+        $this->assertSame(5 * self::GB, $this->quotas->bytesForPlan('starter'));
+        $this->assertSame(50 * self::GB, $this->quotas->bytesForPlan('professional'));
+        $this->assertSame(200 * self::GB, $this->quotas->bytesForPlan('firm'));
+    }
+
+    public function test_an_unknown_null_or_blank_plan_gets_the_smallest_tier(): void
+    {
+        $starter = Plan::Starter->storageLimitBytes();
+
+        $this->assertSame($starter, $this->quotas->bytesForPlan(null));
+        $this->assertSame($starter, $this->quotas->bytesForPlan(''));
+        $this->assertSame($starter, $this->quotas->bytesForPlan('enterprise-plus'));
+        $this->assertSame($starter, $this->quotas->bytesForPlan('  '));
+        $this->assertSame($starter, $this->quotas->bytesForPlan('STARTER')); // case-sensitive enum
+    }
+
+    public function test_the_fallback_is_never_larger_than_the_smallest_paid_tier(): void
+    {
+        // Failing "open" would show a tenant we cannot identify a bigger
+        // allowance than anyone actually buys.
+        $fallback = $this->quotas->bytesForPlan('not-a-plan');
+
+        foreach (Plan::cases() as $plan) {
+            $this->assertLessThanOrEqual(
+                $plan->storageLimitBytes(),
+                $fallback,
+                "The fallback allowance exceeds the [{$plan->value}] plan.",
             );
         }
-    }
-
-    public function test_it_reads_the_allowance_for_a_plan(): void
-    {
-        config(['document.storage_quota_bytes' => [
-            'starter' => 5 * self::GB,
-            'firm' => 50 * self::GB,
-            'default' => 1 * self::GB,
-        ]]);
-
-        $this->assertSame(5 * self::GB, $this->quotas->bytesForPlan('starter'));
-        $this->assertSame(50 * self::GB, $this->quotas->bytesForPlan('firm'));
-    }
-
-    public function test_an_unknown_or_missing_plan_gets_the_default(): void
-    {
-        config(['document.storage_quota_bytes' => ['starter' => 5 * self::GB, 'default' => 1 * self::GB]]);
-
-        $this->assertSame(1 * self::GB, $this->quotas->bytesForPlan(null));
-        $this->assertSame(1 * self::GB, $this->quotas->bytesForPlan(''));
-        $this->assertSame(1 * self::GB, $this->quotas->bytesForPlan('enterprise-plus'));
-    }
-
-    public function test_the_default_is_never_larger_than_the_smallest_paid_tier(): void
-    {
-        // Failing "open" here would show a tenant we cannot identify a bigger
-        // allowance than anyone actually buys.
-        $configured = config('document.storage_quota_bytes');
-
-        $this->assertLessThanOrEqual(
-            $configured['starter'],
-            $configured['default'],
-            'The fallback allowance must not exceed the cheapest plan.'
-        );
-    }
-
-    #[DataProvider('brokenConfigProvider')]
-    public function test_a_broken_entry_falls_back_to_the_default(mixed $value): void
-    {
-        config(['document.storage_quota_bytes' => ['starter' => $value, 'default' => 2 * self::GB]]);
-
-        $this->assertSame(2 * self::GB, $this->quotas->bytesForPlan('starter'));
-    }
-
-    public static function brokenConfigProvider(): array
-    {
-        return [
-            'a string that is not a number' => ['ten gigabytes'],
-            'an array' => [['bytes' => 100]],
-            'null' => [null],
-            'zero' => [0],
-            'negative' => [-1],
-            'a float' => [1.5],
-        ];
-    }
-
-    public function test_a_numeric_string_is_accepted(): void
-    {
-        // Config can legitimately arrive from an env var, which is a string.
-        config(['document.storage_quota_bytes' => ['starter' => '2048', 'default' => 1024]]);
-
-        $this->assertSame(2048, $this->quotas->bytesForPlan('starter'));
-    }
-
-    public function test_an_emptied_config_falls_back_to_the_hardcoded_floor(): void
-    {
-        config(['document.storage_quota_bytes' => []]);
-
-        $this->assertSame(10 * self::GB, $this->quotas->bytesForPlan('starter'));
     }
 
     public function test_usage_computes_a_percentage(): void

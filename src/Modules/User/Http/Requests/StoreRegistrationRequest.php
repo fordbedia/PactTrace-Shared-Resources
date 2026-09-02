@@ -9,6 +9,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
 
 /**
@@ -69,7 +70,7 @@ class StoreRegistrationRequest extends FormRequest
                 Rule::unique('providers', 'subdomain'),
             ],
 
-            'plan' => ['sometimes', Rule::in(['starter', 'professional', 'firm'])],
+            'plan' => ['sometimes', Rule::in(Plan::values())],
         ];
     }
 

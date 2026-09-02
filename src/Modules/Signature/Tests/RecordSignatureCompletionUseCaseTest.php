@@ -68,7 +68,9 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
             // .claude/rules/matter.md, "Fix Portal Links to Use
             // matters.public_id".
             fn ($mail) => $mail->hasTo($this->tenant['client']->email)
-                && str_ends_with($mail->portalUrl, "/portal/matter/{$this->tenant['matter']->public_id}"),
+                && str_ends_with($mail->portalUrl, "/portal/matter/{$this->tenant['matter']->public_id}")
+                && $mail->workspaceName === $this->tenant['workspace']->name
+                && str_contains($mail->render(), $this->tenant['workspace']->name),
         );
     }
 
@@ -179,7 +181,9 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
             GuestSigningInvitationEmail::class,
             fn ($mail) => $mail->hasTo('co-signer@example.com')
                 && str_contains($mail->signingUrl, "envelope={$envelope->public_id}")
-                && str_contains($mail->signingUrl, 'signingLinkToken='),
+                && str_contains($mail->signingUrl, 'signingLinkToken=')
+                && $mail->workspaceName === $this->tenant['workspace']->name
+                && str_contains($mail->render(), $this->tenant['workspace']->name),
         );
         Mail::assertNotQueued(
             GuestSigningInvitationEmail::class,
@@ -548,7 +552,9 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
             SignatureCompletedEmail::class,
             fn (SignatureCompletedEmail $mail): bool =>
                 $mail->hasTo($this->tenant['owner']->email)
-                && $mail->documentName === $this->tenant['document']->name,
+                && $mail->documentName === $this->tenant['document']->name
+                && $mail->workspaceName === $this->tenant['workspace']->name
+                && str_contains($mail->render(), $this->tenant['workspace']->name),
         );
     }
 

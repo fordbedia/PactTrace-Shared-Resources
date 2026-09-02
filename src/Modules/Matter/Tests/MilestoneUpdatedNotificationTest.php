@@ -64,7 +64,9 @@ class MilestoneUpdatedNotificationTest extends BaseTest
             MilestoneUpdatedEmail::class,
             fn (MilestoneUpdatedEmail $mail): bool =>
                 $mail->hasTo($this->tenant['owner']->email)
-                && $mail->matterName === $this->tenant['matter']->name,
+                && $mail->matterName === $this->tenant['matter']->name
+                && $mail->workspaceName === $this->tenant['workspace']->name
+                && str_contains($mail->render(), $this->tenant['workspace']->name),
         );
     }
 

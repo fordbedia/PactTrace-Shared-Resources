@@ -35,6 +35,10 @@ class WorkspaceResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'workspace_type' => $type,
+            // The `/workspaces` screen disables the Deactivate row action and
+            // shows the right reason without a second request. Written once by
+            // RegisterProvider; no surface can change it.
+            'is_primary' => (bool) $this->is_primary,
             'client_label' => $this->client_label,
             'engagement_label' => $this->engagement_label,
             'created_at' => $this->created_at?->toIso8601String(),

@@ -180,9 +180,11 @@ class WorkspaceController extends Controller
     {
         $this->authorizeWorkspace($request, $workspace);
 
-        $blockers = WorkspaceDeactivationPolicy::blockers(
-            $this->eligibility->handle($workspace)
-        );
+        // The primary workspace is never eligible, regardless of activity —
+        // don't even run the signal reader for it.
+        $blockers = $workspace->is_primary
+            ? [WorkspaceDeactivationBlocker::IsPrimaryWorkspace]
+            : WorkspaceDeactivationPolicy::blockers($this->eligibility->handle($workspace));
 
         return response()->json([
             'eligible' => $blockers === [],

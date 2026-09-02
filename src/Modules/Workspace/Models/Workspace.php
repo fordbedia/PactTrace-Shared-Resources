@@ -40,12 +40,17 @@ class Workspace extends Model
         'owner_id',
         'name',
         'workspace_type',
+        'is_primary',
         'client_label',
         'engagement_label',
     ];
 
     protected $casts = [
         'workspace_type' => WorkspaceType::class,
+        // Written exactly once, by RegisterProvider, for a tenant's first
+        // workspace — see the add_is_primary migration. No other surface sets
+        // it; a primary workspace can never be deactivated.
+        'is_primary' => 'boolean',
     ];
 
     protected static function newFactory(): WorkspaceFactory

@@ -26,6 +26,10 @@ class DocumentReadyForSignatureEmail extends Mailable
         public string $clientName,
         public string $documentName,
         public string $portalUrl,
+        // The workspace (practice line) this signing request belongs to — a
+        // client of a provider running more than one practice benefits from
+        // knowing which one. Blank when unresolvable; the line is then omitted.
+        public string $workspaceName = '',
     ) {
     }
 
@@ -47,6 +51,7 @@ class DocumentReadyForSignatureEmail extends Mailable
                 'clientName' => $this->clientName,
                 'documentName' => $this->documentName,
                 'portalUrl' => $this->portalUrl,
+                'workspaceName' => $this->workspaceName,
             ],
         );
     }

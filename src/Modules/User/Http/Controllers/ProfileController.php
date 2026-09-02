@@ -13,6 +13,7 @@ use PactTrackSDK\SharedResources\Modules\User\Application\Services\UserHintCooki
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Profile\ChangeOwnPassword;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Profile\DeleteOwnAccount;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Profile\GetAccountDeletionEligibility;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Profile\UpdateAvatar;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Profile\UpdateProfile;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\AccountDeletionBlockedException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\AccountDeletionConfirmationException;
@@ -20,6 +21,7 @@ use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\InvalidCurrentPa
 use PactTrackSDK\SharedResources\Modules\User\Domain\Services\AccountDeletionPolicy;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\AccountDeletionBlocker;
 use PactTrackSDK\SharedResources\Modules\User\Http\Requests\DeleteAccountRequest;
+use PactTrackSDK\SharedResources\Modules\User\Http\Requests\UpdateAvatarRequest;
 use PactTrackSDK\SharedResources\Modules\User\Http\Requests\UpdatePasswordRequest;
 use PactTrackSDK\SharedResources\Modules\User\Http\Requests\UpdateProfileRequest;
 use PactTrackSDK\SharedResources\Modules\User\Http\Resources\UserResource;
@@ -34,6 +36,7 @@ class ProfileController extends Controller
 {
     public function __construct(
         private readonly UpdateProfile $updateProfile,
+        private readonly UpdateAvatar $updateAvatar,
         private readonly ChangeOwnPassword $changeOwnPassword,
         private readonly GetAccountDeletionEligibility $deletionEligibility,
         private readonly DeleteOwnAccount $deleteOwnAccount,
@@ -57,6 +60,24 @@ class ProfileController extends Controller
 
         // Re-attach the plaintext hint cookie — name/email may have changed.
         $this->hintCookie->attach($user);
+
+        return response()->json([
+            'data' => new UserResource($user->loadAuthPayload()),
+        ]);
+    }
+
+    /**
+     * POST /api/v1/profile/avatar — identity card camera button.
+     *
+     * Multipart, one `avatar` file. Returns the fresh UserResource so the SPA
+     * can swap the photo everywhere it renders (`avatar_url`).
+     */
+    public function updateAvatar(UpdateAvatarRequest $request): JsonResponse
+    {
+        $user = $this->updateAvatar->handle(
+            $request->user(),
+            $request->file('avatar'),
+        );
 
         return response()->json([
             'data' => new UserResource($user->loadAuthPayload()),

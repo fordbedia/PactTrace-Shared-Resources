@@ -32,6 +32,9 @@ class SignatureCompletedEmail extends Mailable
         public string $matterName,
         public string $documentName,
         public string $ctaUrl,
+        // Blank when unresolvable (legacy envelope with no workspace_id) — the
+        // row is then omitted, same as `matterName`.
+        public string $workspaceName = '',
     ) {
     }
 
@@ -51,6 +54,10 @@ class SignatureCompletedEmail extends Mailable
 
         if ($this->matterName !== '') {
             $rows[] = ['label' => 'Matter', 'value' => $this->matterName];
+        }
+
+        if ($this->workspaceName !== '') {
+            $rows[] = ['label' => 'Workspace', 'value' => $this->workspaceName];
         }
 
         return new Content(

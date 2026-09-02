@@ -35,7 +35,7 @@
                                 </h1>
 
                                 <p style="font-size:14px; color:#334155; line-height:1.7; margin:0 0 24px; max-width:460px;">
-                                    Hi {{ $signerName }}, <strong style="color:#0F172A;">{{ $providerName ?? 'the sender' }}</strong> has sent <strong style="color:#0F172A;">{{ $documentName }}</strong> for your signature, as part of an agreement with {{ $clientName }}. No account or sign-up is needed &mdash; just review and sign below.
+                                    Hi {{ $signerName }}, <strong style="color:#0F172A;">{{ $providerName ?? 'the sender' }}</strong> has sent <strong style="color:#0F172A;">{{ $documentName }}</strong> for your signature, as part of an agreement with {{ $clientName }}@if(!empty($workspaceName)) regarding <strong style="color:#0F172A;">{{ $workspaceName }}</strong>@endif. No account or sign-up is needed &mdash; just review and sign below.
                                 </p>
 
                                 <div style="text-align:center; margin:28px 0 16px;">

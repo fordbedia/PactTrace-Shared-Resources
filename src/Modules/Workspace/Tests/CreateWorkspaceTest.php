@@ -54,6 +54,25 @@ class CreateWorkspaceTest extends BaseTest
         ]);
     }
 
+    public function test_an_additional_workspace_is_never_primary(): void
+    {
+        // Only RegisterProvider sets is_primary, and only for a tenant's first
+        // workspace. Everything created afterwards is secondary by definition.
+        $workspace = $this->useCase()->handle(
+            providerId: $this->tenant['provider']->id,
+            ownerId: $this->tenant['owner']->id,
+            name: 'Second Arm',
+            workspaceType: 'consulting',
+        );
+
+        // Not set in the create payload -> the DB default (false) applies.
+        $this->assertFalse((bool) $workspace->fresh()->is_primary);
+        $this->assertDatabaseHas('workspaces', [
+            'id' => $workspace->id,
+            'is_primary' => false,
+        ]);
+    }
+
     public function test_an_explicit_label_overrides_the_preset(): void
     {
         $workspace = $this->useCase()->handle(

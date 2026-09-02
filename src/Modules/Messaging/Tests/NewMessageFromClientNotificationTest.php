@@ -62,6 +62,8 @@ class NewMessageFromClientNotificationTest extends BaseTest
             fn (NewMessageFromClientEmail $mail): bool =>
                 $mail->hasTo($this->tenant['staff']->email)
                 && $mail->clientName === $this->tenant['client']->name
+                && $mail->workspaceName === $this->tenant['workspace']->name
+                && str_contains($mail->render(), $this->tenant['workspace']->name)
                 && str_contains($mail->messagePreview, 'before Friday'),
         );
     }

@@ -116,6 +116,7 @@ class SendStaffUnreadMessageReminder implements ShouldQueue
                 staffName: (string) ($thread->staffMember?->name ?? 'there'),
                 clientName: (string) ($thread->client?->name ?? 'Your client'),
                 matterName: (string) ($thread->matter?->name ?? ''),
+                workspaceName: (string) ($thread->workspace?->name ?? ''),
                 threadSubject: (string) $thread->subject,
                 messagePreview: Str::limit((string) $message->body, self::PREVIEW_LENGTH),
                 ctaUrl: rtrim((string) config('app.frontend_url'), '/') . '/dashboard/messages',

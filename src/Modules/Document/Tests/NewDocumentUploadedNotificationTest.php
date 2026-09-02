@@ -101,4 +101,33 @@ class NewDocumentUploadedNotificationTest extends BaseTest
             fn (NewDocumentUploadedEmail $mail): bool => $mail->hasTo($this->tenant['owner']->email),
         );
     }
+
+    public function test_the_email_carries_and_renders_the_workspace_name(): void
+    {
+        $workspaceName = $this->tenant['workspace']->name;
+
+        $this->upload((int) $this->tenant['clientUser']->id, (int) $this->tenant['matter']->id);
+
+        Mail::assertQueued(
+            NewDocumentUploadedEmail::class,
+            function (NewDocumentUploadedEmail $mail) use ($workspaceName): bool {
+                return $mail->workspaceName === $workspaceName
+                    && str_contains($mail->render(), $workspaceName);
+            },
+        );
+    }
+
+    public function test_a_blank_workspace_name_renders_no_workspace_row(): void
+    {
+        $html = (new NewDocumentUploadedEmail(
+            recipientName: 'Sam',
+            uploaderName: 'A Client',
+            matterName: 'Some Matter',
+            documentName: 'brief.pdf',
+            ctaUrl: 'https://app.test/x',
+            workspaceName: '',
+        ))->render();
+
+        $this->assertStringNotContainsString('Workspace', $html);
+    }
 }

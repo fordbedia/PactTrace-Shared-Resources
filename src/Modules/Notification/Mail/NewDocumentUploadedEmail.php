@@ -31,6 +31,10 @@ class NewDocumentUploadedEmail extends Mailable
         public string $matterName,
         public string $documentName,
         public string $ctaUrl,
+        // The workspace this document belongs to. Blank when the caller can't
+        // resolve one (a legacy row with no workspace_id) — the row is then
+        // omitted, same as `matterName`.
+        public string $workspaceName = '',
     ) {
     }
 
@@ -50,6 +54,10 @@ class NewDocumentUploadedEmail extends Mailable
 
         if ($this->matterName !== '') {
             array_splice($rows, 1, 0, [['label' => 'Matter', 'value' => $this->matterName]]);
+        }
+
+        if ($this->workspaceName !== '') {
+            $rows[] = ['label' => 'Workspace', 'value' => $this->workspaceName];
         }
 
         $intro = $this->matterName !== ''

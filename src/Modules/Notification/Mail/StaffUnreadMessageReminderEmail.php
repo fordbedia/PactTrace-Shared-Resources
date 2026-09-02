@@ -32,6 +32,8 @@ class StaffUnreadMessageReminderEmail extends Mailable
         public string $threadSubject,
         public string $messagePreview,
         public string $ctaUrl,
+        // Blank when unresolvable — the row is then omitted, same as `matterName`.
+        public string $workspaceName = '',
     ) {
     }
 
@@ -50,6 +52,7 @@ class StaffUnreadMessageReminderEmail extends Mailable
                 'staffName' => $this->staffName,
                 'clientName' => $this->clientName,
                 'matterName' => $this->matterName,
+                'workspaceName' => $this->workspaceName,
                 'subject' => $this->threadSubject,
                 'messagePreview' => $this->messagePreview,
                 'ctaUrl' => $this->ctaUrl,

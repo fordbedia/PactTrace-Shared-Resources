@@ -115,6 +115,7 @@ class AppendMessageToThread
                 staffName: (string) ($staff->name ?? 'there'),
                 clientName: (string) ($thread->client?->name ?? 'Your client'),
                 matterName: (string) ($thread->matter?->name ?? ''),
+                workspaceName: (string) ($thread->workspace?->name ?? ''),
                 threadSubject: (string) $thread->subject,
                 messagePreview: Str::limit((string) $message->body, 140),
                 ctaUrl: rtrim((string) config('app.frontend_url'), '/') . '/dashboard/messages',

@@ -22,7 +22,8 @@ use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
  * Run against the real Eloquent repository rather than a fake: the number
  * being *live* is the whole point of the feature, and a stubbed repository
  * would assert nothing about whether the aggregate actually reflects what was
- * uploaded. The quota side is stubbed instead, since that's config.
+ * uploaded. The quota side is stubbed instead — resolving a plan to a byte
+ * allowance is PlanStorageQuotas' job, covered by StorageQuotaTest.
  */
 class DocumentStorageUsageServiceTest extends BaseTest
 {
@@ -176,8 +177,8 @@ class DocumentStorageUsageServiceTest extends BaseTest
 }
 
 /**
- * A StorageQuotas stub with the allowances written in the test rather than in
- * config — ConfigStorageQuotasTest is what covers reading the real file.
+ * A StorageQuotas stub with the allowances written in the test rather than
+ * derived from the Plan enum — StorageQuotaTest covers PlanStorageQuotas.
  */
 class FixedStorageQuotas implements StorageQuotas
 {

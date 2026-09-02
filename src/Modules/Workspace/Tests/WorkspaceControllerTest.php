@@ -67,6 +67,15 @@ class WorkspaceControllerTest extends BaseTest
             ->create(['name' => 'Empty ' . uniqid()]);
     }
 
+    /** A primary workspace — the one RegisterProvider stamps at sign-up. */
+    private function primaryWorkspace(): Workspace
+    {
+        return Workspace::factory()
+            ->forProvider($this->tenant['provider'])
+            ->primary()
+            ->create(['name' => 'Primary ' . uniqid()]);
+    }
+
     private function matterIn(Workspace $workspace, string $status, ?int $clientId = null): Matter
     {
         return Matter::factory()->create([
@@ -196,6 +205,52 @@ class WorkspaceControllerTest extends BaseTest
             ->assertJsonFragment(['code' => 'pending_envelopes']);
     }
 
+    public function test_the_primary_workspace_is_never_eligible_for_deactivation(): void
+    {
+        // No matters, no documents, no envelopes — the only reason is that it
+        // is the primary workspace, and that alone is enough.
+        $workspace = $this->primaryWorkspace();
+
+        Sanctum::actingAs($this->owner());
+
+        $this->getJson("/api/v1/workspaces/{$workspace->id}/deactivation-eligibility")
+            ->assertOk()
+            ->assertJsonPath('eligible', false)
+            ->assertJsonFragment(['code' => 'is_primary_workspace']);
+    }
+
+    public function test_the_primary_workspace_reports_only_the_primary_blocker_even_with_activity(): void
+    {
+        $workspace = $this->primaryWorkspace();
+        $this->matterIn($workspace, 'active');
+
+        Sanctum::actingAs($this->owner());
+
+        $this->getJson("/api/v1/workspaces/{$workspace->id}/deactivation-eligibility")
+            ->assertOk()
+            ->assertJsonPath('eligible', false)
+            // The primary short-circuit means the signal reader never runs, so
+            // open_matters is not even reported.
+            ->assertJsonPath('blockers', [[
+                'code' => 'is_primary_workspace',
+                'label' => 'This is your primary workspace',
+                'detail' => "Primary workspaces can't be deactivated. If you want to reorganize your practice, create additional workspaces instead.",
+            ]]);
+    }
+
+    public function test_the_index_exposes_is_primary(): void
+    {
+        Sanctum::actingAs($this->owner());
+
+        // ProviderTenantScenario's workspace is not primary; add one that is.
+        $primary = $this->primaryWorkspace();
+
+        $this->getJson('/api/v1/workspaces')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $primary->id, 'is_primary' => true])
+            ->assertJsonFragment(['id' => $this->tenant['workspace']->id, 'is_primary' => false]);
+    }
+
     public function test_an_unaccepted_client_invitation_tied_to_the_workspace_blocks_deactivation(): void
     {
         $workspace = $this->emptyWorkspace();
@@ -280,6 +335,30 @@ class WorkspaceControllerTest extends BaseTest
         ])->assertStatus(422)
             ->assertJsonPath('reason', 'blocked')
             ->assertJsonFragment(['code' => 'open_matters']);
+
+        $this->assertDatabaseHas('workspaces', ['id' => $workspace->id, 'deleted_at' => null]);
+    }
+
+    public function test_it_refuses_to_deactivate_the_primary_workspace_regardless_of_activity(): void
+    {
+        $workspace = $this->primaryWorkspace();
+        // An open matter would normally be its own blocker — irrelevant here,
+        // the primary check short-circuits before signals are read.
+        $this->matterIn($workspace, 'active');
+        $this->owner()->forceFill(['name' => 'Olivia Owner', 'password' => 'right-password'])->save();
+
+        Sanctum::actingAs($this->owner());
+
+        $this->deleteJson("/api/v1/workspaces/{$workspace->id}", [
+            'name' => 'Olivia Owner',
+            'password' => 'right-password',
+        ])->assertStatus(422)
+            ->assertJsonPath('reason', 'blocked')
+            ->assertJsonPath('blockers', [[
+                'code' => 'is_primary_workspace',
+                'label' => 'This is your primary workspace',
+                'detail' => "Primary workspaces can't be deactivated. If you want to reorganize your practice, create additional workspaces instead.",
+            ]]);
 
         $this->assertDatabaseHas('workspaces', ['id' => $workspace->id, 'deleted_at' => null]);
     }

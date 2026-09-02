@@ -288,6 +288,33 @@ class EloquentDocumentRepositoryTest extends BaseTest
         );
     }
 
+    public function test_total_size_spans_every_workspace_of_the_provider(): void
+    {
+        // Storage usage is checked against the plan allowance, which is
+        // per-provider — so switching workspace must not change the total.
+        Document::query()->acrossWorkspaces()->delete();
+
+        $secondWorkspace = \PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace::factory()
+            ->forProvider($this->tenant['provider'])
+            ->create(['name' => 'docrepo-a second']);
+
+        $this->documentFor($this->tenant, ['size' => 1_000]);
+        $this->documentFor($this->tenant, [
+            'size' => 4_000,
+            'workspace_id' => $secondWorkspace->id,
+        ]);
+
+        // Stand inside the first workspace: a workspace-scoped query would
+        // now only see the 1,000-byte document.
+        app(\PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace::class)
+            ->setId($this->tenant['workspace']->id);
+
+        $this->assertSame(
+            5_000,
+            $this->repository->totalSizeForProvider($this->tenant['provider']->id),
+        );
+    }
+
     private function documentFor(TestScenarioCollection $tenant, array $attributes = []): Document
     {
         return Document::factory()->create(array_merge([

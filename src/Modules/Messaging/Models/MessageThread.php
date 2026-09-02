@@ -14,6 +14,7 @@ use PactTrackSDK\SharedResources\Modules\Messaging\Database\Factories\MessageThr
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\Workspace\Models\Concerns\BelongsToWorkspace;
 
 /**
  * A conversation about one matter between exactly ONE staff member and the
@@ -45,6 +46,7 @@ use PactTrackSDK\SharedResources\Modules\User\Models\User;
  */
 class MessageThread extends Model
 {
+    use BelongsToWorkspace;
     use HasFactory;
     use SoftDeletes;
 
@@ -57,6 +59,27 @@ class MessageThread extends Model
         'last_message_at',
         'staff_reminder_sent_at',
     ];
+
+    /**
+     * A thread always belongs to exactly one matter (matter_id is required —
+     * see the class docblock), and inherits that matter's workspace. The
+     * matter may be scoped to a different workspace than the current context,
+     * so read it without the workspace scope — same as Document does from its
+     * own matter.
+     */
+    public function workspaceIdFromParent(): ?int
+    {
+        if ($this->matter_id === null) {
+            return null;
+        }
+
+        $workspaceId = Matter::query()
+            ->acrossWorkspaces()
+            ->whereKey($this->matter_id)
+            ->value('workspace_id');
+
+        return $workspaceId === null ? null : (int) $workspaceId;
+    }
 
     protected $casts = [
         'last_message_at' => 'datetime',

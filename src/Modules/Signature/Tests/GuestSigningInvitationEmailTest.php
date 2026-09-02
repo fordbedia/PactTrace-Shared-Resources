@@ -55,6 +55,49 @@ class GuestSigningInvitationEmailTest extends BaseTest
         $this->assertStringContainsString('review &amp; sign', $html);
     }
 
+    public function test_both_client_facing_emails_name_the_workspace_when_given(): void
+    {
+        $guest = (new GuestSigningInvitationEmail(
+            providerData: $this->providerData(),
+            signerName: 'Jordan Guest',
+            documentName: 'NDA.pdf',
+            clientName: 'Alex Client',
+            signingUrl: 'https://app.test/portal/sign?signingLinkToken=abc&envelope=01J000000000000000000000',
+            workspaceName: 'Redline Litigation',
+        ))->render();
+        $this->assertStringContainsString('Redline Litigation', $guest);
+
+        $holder = (new DocumentReadyForSignatureEmail(
+            providerData: $this->providerData(),
+            clientName: 'Alex Client',
+            documentName: 'NDA.pdf',
+            portalUrl: 'https://app.test/portal/sign?envelope=01J000000000000000000000',
+            workspaceName: 'Redline Litigation',
+        ))->render();
+        $this->assertStringContainsString('Redline Litigation', $holder);
+        $this->assertStringContainsString('relates to your work with', $holder);
+    }
+
+    public function test_a_blank_workspace_name_adds_no_clause_to_either_email(): void
+    {
+        $guest = (new GuestSigningInvitationEmail(
+            providerData: $this->providerData(),
+            signerName: 'Jordan Guest',
+            documentName: 'NDA.pdf',
+            clientName: 'Alex Client',
+            signingUrl: 'https://app.test/portal/sign?signingLinkToken=abc&envelope=01J000000000000000000000',
+        ))->render();
+        $this->assertStringNotContainsString('regarding <strong', $guest);
+
+        $holder = (new DocumentReadyForSignatureEmail(
+            providerData: $this->providerData(),
+            clientName: 'Alex Client',
+            documentName: 'NDA.pdf',
+            portalUrl: 'https://app.test/portal/sign?envelope=01J000000000000000000000',
+        ))->render();
+        $this->assertStringNotContainsString('relates to your work with', $holder);
+    }
+
     private function providerData(): ProviderData
     {
         return new ProviderData(

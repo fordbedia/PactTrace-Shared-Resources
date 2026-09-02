@@ -63,10 +63,27 @@ class SendStaffUnreadMessageReminderTest extends BaseTest
             StaffUnreadMessageReminderEmail::class,
             fn (StaffUnreadMessageReminderEmail $mail): bool =>
                 $mail->hasTo($this->tenant['staff']->email)
-                && $mail->clientName === $this->tenant['client']->name,
+                && $mail->clientName === $this->tenant['client']->name
+                && $mail->workspaceName === $this->tenant['workspace']->name
+                && str_contains($mail->render(), $this->tenant['workspace']->name),
         );
 
         $this->assertNotNull($this->thread->refresh()->staff_reminder_sent_at);
+    }
+
+    public function test_a_blank_workspace_name_renders_no_workspace_row(): void
+    {
+        $html = (new StaffUnreadMessageReminderEmail(
+            staffName: 'Sam Staff',
+            clientName: 'Dana Client',
+            matterName: 'Acme v. Roe',
+            threadSubject: 'Retainer questions',
+            messagePreview: 'Quick question…',
+            ctaUrl: 'https://portal.test/dashboard/messages',
+            workspaceName: '',
+        ))->render();
+
+        $this->assertStringNotContainsString('Workspace', $html);
     }
 
     public function test_it_does_not_email_when_the_staffer_already_read_the_message(): void

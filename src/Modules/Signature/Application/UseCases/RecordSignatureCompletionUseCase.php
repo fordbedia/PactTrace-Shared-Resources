@@ -378,6 +378,7 @@ class RecordSignatureCompletionUseCase
                 clientName: $client->name,
                 documentName: $document?->name ?? 'A document',
                 portalUrl: $this->buildPortalUrl($document),
+                workspaceName: (string) ($envelope->workspace?->name ?? ''),
             ));
         } catch (Throwable $e) {
             report($e);
@@ -450,6 +451,7 @@ class RecordSignatureCompletionUseCase
                     documentName: $document?->name ?? 'A document',
                     clientName: $client?->name ?? 'the client',
                     signingUrl: $signingUrl,
+                    workspaceName: (string) ($envelope->workspace?->name ?? ''),
                 ));
             }
         } catch (Throwable $e) {
@@ -497,6 +499,7 @@ class RecordSignatureCompletionUseCase
                 recipientName: (string) ($recipient->name ?? 'there'),
                 clientName: (string) ($client?->name ?? 'the client'),
                 matterName: (string) ($matter?->name ?? ''),
+                workspaceName: (string) ($envelope->workspace?->name ?? ''),
                 documentName: (string) ($document?->name ?? 'A document'),
                 ctaUrl: $matter?->public_id !== null
                     ? $base . '/dashboard/signatures/matter/' . $matter->public_id . '?envelope=' . $envelope->public_id

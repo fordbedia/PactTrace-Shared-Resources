@@ -7,6 +7,7 @@ namespace PactTrackSDK\SharedResources\Modules\User\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use PactTrackSDK\SharedResources\Modules\Client\Http\Resources\ClientResource;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\AvatarStorage;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 
 /**
@@ -43,6 +44,15 @@ class UserResource extends JsonResource
             // Free-text contact number, edited on `/profile`. Display/contact
             // only — nothing functional depends on it.
             'phone' => $this->phone,
+            // The public URL of the uploaded profile photo, or null when the
+            // user has none (the SPA renders initials then). The raw
+            // `avatar_path` is never on the wire — resolving a storage key to a
+            // URL is an Infrastructure concern. `url()` is pure string-building
+            // for the local/public disk, so this stays query-free like the rest
+            // of the resource.
+            'avatar_url' => $this->avatar_path !== null
+                ? app(AvatarStorage::class)->url($this->avatar_path)
+                : null,
             'email_verified_at' => $this->email_verified_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

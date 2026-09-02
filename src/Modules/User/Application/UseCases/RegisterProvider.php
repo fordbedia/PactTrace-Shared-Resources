@@ -135,6 +135,12 @@ class RegisterProvider
                 'owner_id' => $owner->getKey(),
                 'name' => $businessName,
                 'workspace_type' => WorkspaceType::General->value,
+                // The tenant's first and, for now, only workspace — the one
+                // every other module assumes exists. Marked primary so it can
+                // never be deactivated. This is the ONLY place the flag is
+                // ever set; CreateWorkspace (an additional workspace) never
+                // does. See the add_is_primary_to_workspaces migration.
+                'is_primary' => true,
             ]);
 
             // Land the owner in this workspace on their first (and every

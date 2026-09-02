@@ -326,8 +326,11 @@ class DocumentControllerTest extends BaseTest
     public function test_it_reports_storage_usage(): void
     {
         Document::query()->delete();
-        config(['document.storage_quota_bytes' => ['professional' => 1000, 'default' => 1000]]);
+        // Allowances now come from the Plan enum, not config — Professional is
+        // 50 GB. See User\Domain\ValueObjects\Plan::storageLimitBytes().
         $this->tenant['provider']->forceFill(['plan' => 'professional'])->save();
+
+        $limit = \PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan::Professional->storageLimitBytes();
 
         Document::factory()->create([
             'provider_id' => $this->tenant['provider']->id,
@@ -341,12 +344,12 @@ class DocumentControllerTest extends BaseTest
             ->assertOk()
             ->assertJson([
                 'used_bytes' => 620,
-                'limit_bytes' => 1000,
-                'remaining_bytes' => 380,
-                'percentage' => 62.0,
+                'limit_bytes' => $limit,
+                'remaining_bytes' => $limit - 620,
+                'percentage' => 0.0,
                 'over_limit' => false,
                 'used_label' => '620 B',
-                'limit_label' => '1000 B',
+                'limit_label' => '50 GB',
             ]);
     }
 

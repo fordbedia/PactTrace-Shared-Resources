@@ -102,6 +102,7 @@ class UploadDocumentAction
                 recipientName: (string) ($recipient->name ?? 'there'),
                 uploaderName: (string) ($uploader->name ?? 'Your client'),
                 matterName: (string) ($matter?->name ?? ''),
+                workspaceName: (string) ($document->workspace?->name ?? ''),
                 documentName: (string) $document->name,
                 ctaUrl: $matter?->public_id !== null
                     ? $base . '/dashboard/matters/' . $matter->public_id

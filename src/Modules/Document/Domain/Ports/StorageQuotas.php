@@ -6,9 +6,10 @@ namespace PactTrackSDK\SharedResources\Modules\Document\Domain\Ports;
 
 /**
  * Outbound port for "how many bytes does this plan allow". Implemented by
- * Infrastructure/Quota/ConfigStorageQuotas today; the port exists so a future
- * per-tenant override (a column, a Stripe metered entitlement) can replace the
- * config lookup without touching the service that consumes it.
+ * Infrastructure/Quota/PlanStorageQuotas today (reads the Plan enum); the port
+ * exists so a future per-tenant override (a column, a Stripe metered
+ * entitlement) can replace that lookup without touching the service that
+ * consumes it.
  */
 interface StorageQuotas
 {

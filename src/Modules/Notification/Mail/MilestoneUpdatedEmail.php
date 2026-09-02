@@ -33,6 +33,8 @@ class MilestoneUpdatedEmail extends Mailable
         public string $headline,
         public string $detail,
         public string $ctaUrl,
+        // Blank when unresolvable — the row is then omitted.
+        public string $workspaceName = '',
     ) {
     }
 
@@ -45,6 +47,14 @@ class MilestoneUpdatedEmail extends Mailable
 
     public function content(): Content
     {
+        $rows = [['label' => 'Matter', 'value' => $this->matterName]];
+
+        if ($this->workspaceName !== '') {
+            $rows[] = ['label' => 'Workspace', 'value' => $this->workspaceName];
+        }
+
+        $rows[] = ['label' => 'Update', 'value' => $this->detail];
+
         return new Content(
             view: 'notification::emails.system-notification',
             with: [
@@ -52,10 +62,7 @@ class MilestoneUpdatedEmail extends Mailable
                 'icon' => '📍',
                 'heading' => $this->headline,
                 'intro' => "Hi {$this->recipientName}, {$this->detail}",
-                'rows' => [
-                    ['label' => 'Matter', 'value' => $this->matterName],
-                    ['label' => 'Update', 'value' => $this->detail],
-                ],
+                'rows' => $rows,
                 'ctaLabel' => 'Open matter',
                 'ctaUrl' => $this->ctaUrl,
                 'footnote' => 'You&rsquo;re receiving this because you&rsquo;re the contact on this matter and have &ldquo;Milestone updated&rdquo; notifications on. Change this in Notification Preferences.',

@@ -84,9 +84,17 @@ class EloquentDocumentRepository extends BaseRepository implements DocumentRepos
 
 	public function totalSizeForProvider(int $providerId, ?int $clientId = null): int
 	{
+		// acrossWorkspaces(): storage usage is checked against the plan's
+		// allowance, and the plan/subscription is per-PROVIDER, not
+		// per-workspace — so this rollup must span every workspace the
+		// provider runs. Without it, BelongsToWorkspace's global scope
+		// silently also filters to the active workspace and the total
+		// changes every time the user switches workspace.
+		//
 		// sum() returns null on an empty set and a numeric string on some
 		// drivers — cast rather than trusting the return type.
 		return (int) $this->model->newQuery()
+			->acrossWorkspaces()
 			->where('provider_id', $providerId)
 			->when($clientId !== null, fn ($query) => $query->where('client_id', $clientId))
 			->sum('size');

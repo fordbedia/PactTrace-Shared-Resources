@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace PactTrackSDK\SharedResources\Modules\User\Tests;
 
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Laravel\Sanctum\SanctumServiceProvider;
 use PactTrackSDK\SharedResources\Modules\Client\Models\ClientInvitation;
@@ -89,7 +91,9 @@ class ProfileControllerTest extends BaseTest
             'phone' => '(415) 555-0182',
         ])->assertOk()
             ->assertJsonPath('data.name', 'Sarah Mitchell')
-            ->assertJsonPath('data.phone', '(415) 555-0182');
+            ->assertJsonPath('data.phone', '(415) 555-0182')
+            // No photo uploaded -> null, not a broken URL.
+            ->assertJsonPath('data.avatar_url', null);
 
         $user->refresh();
         $this->assertSame('Sarah Mitchell', $user->name);
@@ -132,6 +136,87 @@ class ProfileControllerTest extends BaseTest
             'email' => $taken,
             'phone' => null,
         ])->assertStatus(422)->assertJsonValidationErrors('email');
+    }
+
+    // ── POST /profile/avatar ────────────────────────────────────────────
+
+    public function test_it_stores_an_uploaded_avatar_and_returns_its_url(): void
+    {
+        Storage::fake('public');
+        $user = $this->owner();
+
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/v1/profile/avatar', [
+            'avatar' => UploadedFile::fake()->image('me.png', 200, 200),
+        ])->assertOk()
+            ->assertJsonPath('data.id', $user->id);
+
+        $path = $user->refresh()->avatar_path;
+        $this->assertNotNull($path);
+        $this->assertStringStartsWith("avatars/{$user->id}/", $path);
+        Storage::disk('public')->assertExists($path);
+
+        // UserResource resolves the stored key to a public URL; the raw path
+        // is never on the wire.
+        $url = $response->json('data.avatar_url');
+        $this->assertIsString($url);
+        $this->assertStringContainsString($path, $url);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $user->id,
+            'action' => 'profile.avatar_updated',
+        ]);
+    }
+
+    public function test_re_uploading_an_avatar_deletes_the_previous_file(): void
+    {
+        Storage::fake('public');
+        $user = $this->owner();
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/profile/avatar', [
+            'avatar' => UploadedFile::fake()->image('first.png'),
+        ])->assertOk();
+        $first = $user->refresh()->avatar_path;
+
+        $this->postJson('/api/v1/profile/avatar', [
+            'avatar' => UploadedFile::fake()->image('second.png'),
+        ])->assertOk();
+        $second = $user->refresh()->avatar_path;
+
+        $this->assertNotSame($first, $second);
+        Storage::disk('public')->assertMissing($first);
+        Storage::disk('public')->assertExists($second);
+    }
+
+    public function test_it_rejects_a_non_image_upload(): void
+    {
+        Storage::fake('public');
+
+        Sanctum::actingAs($this->owner());
+
+        $this->postJson('/api/v1/profile/avatar', [
+            'avatar' => UploadedFile::fake()->create('resume.pdf', 10, 'application/pdf'),
+        ])->assertStatus(422)->assertJsonValidationErrors('avatar');
+    }
+
+    public function test_it_rejects_an_avatar_over_the_size_limit(): void
+    {
+        Storage::fake('public');
+
+        Sanctum::actingAs($this->owner());
+
+        // 5 MB ceiling — a 6 MB image is rejected.
+        $this->postJson('/api/v1/profile/avatar', [
+            'avatar' => UploadedFile::fake()->image('huge.jpg')->size(6144),
+        ])->assertStatus(422)->assertJsonValidationErrors('avatar');
+    }
+
+    public function test_avatar_upload_requires_authentication(): void
+    {
+        $this->postJson('/api/v1/profile/avatar', [])->assertStatus(401);
     }
 
     // ── PUT /profile/password ────────────────────────────────────────────

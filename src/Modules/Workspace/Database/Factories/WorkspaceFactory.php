@@ -38,6 +38,16 @@ class WorkspaceFactory extends Factory
     }
 
     /**
+     * The provider's protected primary workspace — the one RegisterProvider
+     * stamps at sign-up. Tests use this to exercise the "can't deactivate the
+     * primary" guard; production only ever sets it in RegisterProvider.
+     */
+    public function primary(): self
+    {
+        return $this->state(fn (): array => ['is_primary' => true]);
+    }
+
+    /**
      * A workspace of a given type, taking that type's preset labels.
      */
     public function ofType(WorkspaceType $type): self

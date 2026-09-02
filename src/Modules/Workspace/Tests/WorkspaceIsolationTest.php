@@ -6,6 +6,8 @@ namespace PactTrackSDK\SharedResources\Modules\Workspace\Tests;
 
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
+use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
 use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
@@ -33,6 +35,8 @@ class WorkspaceIsolationTest extends BaseTest
 
     private Workspace $consulting;
 
+    private Document $consultingDocument;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -53,7 +57,7 @@ class WorkspaceIsolationTest extends BaseTest
             'client_id' => $this->tenant['client']->id,
         ]);
 
-        $document = Document::factory()->create([
+        $this->consultingDocument = Document::factory()->create([
             'provider_id' => $this->tenant['provider']->id,
             'workspace_id' => $this->consulting->id,
             'client_id' => $this->tenant['client']->id,
@@ -65,8 +69,27 @@ class WorkspaceIsolationTest extends BaseTest
             'provider_id' => $this->tenant['provider']->id,
             'workspace_id' => $this->consulting->id,
             'client_id' => $this->tenant['client']->id,
-            'document_id' => $document->id,
+            'document_id' => $this->consultingDocument->id,
         ]);
+
+        // MessageThread and AuditLog carry workspace_id too (added later, same
+        // shape). One row of each in every workspace so the data-provider
+        // tests below can treat them like the original three.
+        MessageThread::factory()
+            ->forMatter($this->tenant['matter'], $this->tenant['staff'])
+            ->create(['workspace_id' => $this->legal->id]);
+
+        MessageThread::factory()
+            ->forMatter($matter, $this->tenant['staff'])
+            ->create(['workspace_id' => $this->consulting->id]);
+
+        AuditLog::factory()
+            ->forProvider($this->tenant['provider'])
+            ->create(['workspace_id' => $this->legal->id]);
+
+        AuditLog::factory()
+            ->forProvider($this->tenant['provider'])
+            ->create(['workspace_id' => $this->consulting->id]);
     }
 
     private function enterWorkspace(Workspace $workspace): void
@@ -83,6 +106,8 @@ class WorkspaceIsolationTest extends BaseTest
             'matter' => [Matter::class],
             'document' => [Document::class],
             'envelope' => [Envelope::class],
+            'messageThread' => [MessageThread::class],
+            'auditLog' => [AuditLog::class],
         ];
     }
 
@@ -176,6 +201,46 @@ class WorkspaceIsolationTest extends BaseTest
             $model::query()->acrossWorkspaces()->count(),
             $model::query()->count(),
         );
+    }
+
+    public function test_an_audit_log_inherits_its_workspace_from_a_workspace_scoped_auditable(): void
+    {
+        // Stand in the legal workspace, but write an audit entry ABOUT a
+        // document that lives in the consulting workspace. The entry must take
+        // the document's workspace, not the ambient one — otherwise a
+        // "document archived" line would file itself under the wrong portal.
+        $this->enterWorkspace($this->legal);
+
+        $log = AuditLog::factory()
+            ->forProvider($this->tenant['provider'])
+            ->create([
+                'action' => 'document.archived',
+                'auditable_type' => Document::class,
+                'auditable_id' => $this->consultingDocument->id,
+            ]);
+
+        $this->assertSame($this->consulting->id, (int) $log->workspace_id);
+
+        $persisted = AuditLog::query()->acrossWorkspaces()->findOrFail($log->id);
+        $this->assertSame($this->consulting->id, (int) $persisted->workspace_id);
+    }
+
+    public function test_an_audit_log_with_no_workspace_scoped_auditable_falls_back_to_current_context(): void
+    {
+        // A team / billing / account event has no workspace-scoped auditable
+        // (or none at all). It is stamped with whichever workspace the actor
+        // was in — the same rule Matter uses when it has no parent.
+        $this->enterWorkspace($this->legal);
+
+        $log = AuditLog::factory()
+            ->forProvider($this->tenant['provider'])
+            ->create([
+                'action' => 'auth.signed_in',
+                'auditable_type' => null,
+                'auditable_id' => null,
+            ]);
+
+        $this->assertSame($this->legal->id, (int) $log->workspace_id);
     }
 
     public function test_withoutContext_restores_the_previous_workspace_afterwards(): void

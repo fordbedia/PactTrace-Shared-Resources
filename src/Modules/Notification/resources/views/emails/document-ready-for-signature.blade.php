@@ -35,7 +35,7 @@
                                 </h1>
 
                                 <p style="font-size:14px; color:#334155; line-height:1.7; margin:0 0 24px; max-width:460px;">
-                                    Hi {{ $clientName }}, <strong style="color:#0F172A;">{{ $providerName ?? 'your provider' }}</strong> has sent <strong style="color:#0F172A;">{{ $documentName }}</strong> to your secure PactTrack portal for signature.
+                                    Hi {{ $clientName }}, <strong style="color:#0F172A;">{{ $providerName ?? 'your provider' }}</strong> has sent <strong style="color:#0F172A;">{{ $documentName }}</strong> to your secure PactTrack portal for signature.@if(!empty($workspaceName)) This relates to your work with <strong style="color:#0F172A;">{{ $workspaceName }}</strong>.@endif
                                 </p>
 
                                 <div style="text-align:center; margin:28px 0 16px;">

@@ -9,7 +9,7 @@ use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\Fo
 use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Service\StorageUsageCalculator;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\StorageQuotas;
-use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Quota\ConfigStorageQuotas;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Quota\PlanStorageQuotas;
 use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentDocumentRepository;
 use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentFolderRepository;
 use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\S3\S3DocumentStorage;
@@ -47,9 +47,9 @@ class DocumentProvider extends ServiceProvider
 		$this->app->singleton(DocumentRepository::class, EloquentDocumentRepository::class);
 
 		// STORAGE indicator on /dashboard/documents. The quota adapter reads
-		// config/document.php; the calculator sums through the repository port
-		// above, so it never sees a query builder.
-		$this->app->singleton(StorageQuotas::class, fn ($app) => new ConfigStorageQuotas($app['config']));
+		// the Plan enum; the calculator sums through the repository port above,
+		// so it never sees a query builder.
+		$this->app->singleton(StorageQuotas::class, PlanStorageQuotas::class);
 		$this->app->singleton(StorageUsageCalculator::class, DocumentStorageUsageService::class);
     }
 

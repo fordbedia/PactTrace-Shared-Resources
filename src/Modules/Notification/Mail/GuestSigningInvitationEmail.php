@@ -33,6 +33,10 @@ class GuestSigningInvitationEmail extends Mailable
         public string $documentName,
         public string $clientName,
         public string $signingUrl,
+        // Practice line this signing request belongs to — the guest's copy
+        // already names the client/agreement context, so this fits there.
+        // Blank when unresolvable; the clause is then omitted.
+        public string $workspaceName = '',
     ) {
     }
 
@@ -55,6 +59,7 @@ class GuestSigningInvitationEmail extends Mailable
                 'documentName' => $this->documentName,
                 'clientName' => $this->clientName,
                 'signingUrl' => $this->signingUrl,
+                'workspaceName' => $this->workspaceName,
             ],
         );
     }

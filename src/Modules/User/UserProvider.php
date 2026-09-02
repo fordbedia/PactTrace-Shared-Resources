@@ -15,8 +15,10 @@ use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\Subsc
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\TeamInvitationRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\AccessTokenIssuer;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\AvatarStorage;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Auth\SanctumTokenIssuer;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Service\PublicDiskAvatarStorage;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentAccountDeletionSignals;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentDepartingStaffReassignment;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentProviderRepository;
@@ -81,6 +83,13 @@ class UserProvider extends ServiceProvider
         foreach ($this->ports as $port => $adapter) {
             $this->app->bind($port, $adapter);
         }
+
+        // Not in $ports: the adapter needs the disk name, chosen once by
+        // config/env (same pattern as Document's `document_disk`), not a
+        // per-user value. Defaults to the app's existing public disk.
+        $this->app->bind(AvatarStorage::class, fn ($app) => new PublicDiskAvatarStorage(
+            disk: $app['config']->get('filesystems.avatar_disk', 'public'),
+        ));
     }
 
     public function boot(): void

@@ -13,6 +13,7 @@ use PactTrackSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Exceptions\WorkspaceDeactivationBlockedException;
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Exceptions\WorkspaceDeactivationConfirmationException;
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Services\WorkspaceDeactivationPolicy;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceDeactivationBlocker;
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
 use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
 
@@ -52,6 +53,14 @@ final class DeactivateWorkspace
      */
     public function handle(User $actor, Workspace $workspace, string $confirmationName, string $password): void
     {
+        // The primary workspace can never be deactivated, whatever its
+        // activity — short-circuit before the signal reader is even touched.
+        if ($workspace->is_primary) {
+            throw new WorkspaceDeactivationBlockedException(
+                [WorkspaceDeactivationBlocker::IsPrimaryWorkspace]
+            );
+        }
+
         $blockers = WorkspaceDeactivationPolicy::blockers(
             $this->reader->read((int) $workspace->getKey())
         );

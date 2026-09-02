@@ -21,6 +21,15 @@ namespace PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects;
  */
 enum WorkspaceDeactivationBlocker: string
 {
+    /**
+     * The provider's primary workspace — the one RegisterProvider stamps at
+     * sign-up. Unlike every other case here, this is not a live-activity
+     * signal: it is an intrinsic property of the workspace, checked before the
+     * activity signals are even read, and can never be "resolved" the way the
+     * others can. See DeactivateWorkspace / WorkspaceController.
+     */
+    case IsPrimaryWorkspace = 'is_primary_workspace';
+
     case OpenMatters = 'open_matters';
     case PendingDocuments = 'pending_documents';
     case PendingEnvelopes = 'pending_envelopes';
@@ -30,6 +39,7 @@ enum WorkspaceDeactivationBlocker: string
     public function label(): string
     {
         return match ($this) {
+            self::IsPrimaryWorkspace => 'This is your primary workspace',
             self::OpenMatters => 'Matters still open',
             self::PendingDocuments => 'Documents awaiting signature',
             self::PendingEnvelopes => 'Signature requests in progress',
@@ -41,6 +51,7 @@ enum WorkspaceDeactivationBlocker: string
     public function resolution(): string
     {
         return match ($this) {
+            self::IsPrimaryWorkspace => "Primary workspaces can't be deactivated. If you want to reorganize your practice, create additional workspaces instead.",
             self::OpenMatters => 'Complete or cancel every matter in this workspace first.',
             self::PendingDocuments => 'Complete or void every document that is out for signature.',
             self::PendingEnvelopes => 'Finish or void every signature request that has not reached a final state.',

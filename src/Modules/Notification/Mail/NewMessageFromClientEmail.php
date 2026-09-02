@@ -34,6 +34,8 @@ class NewMessageFromClientEmail extends Mailable
         public string $threadSubject,
         public string $messagePreview,
         public string $ctaUrl,
+        // Blank when unresolvable — the row is then omitted, same as `matterName`.
+        public string $workspaceName = '',
     ) {
     }
 
@@ -52,6 +54,10 @@ class NewMessageFromClientEmail extends Mailable
 
         if ($this->matterName !== '') {
             $rows[] = ['label' => 'Matter', 'value' => $this->matterName];
+        }
+
+        if ($this->workspaceName !== '') {
+            $rows[] = ['label' => 'Workspace', 'value' => $this->workspaceName];
         }
 
         $rows[] = ['label' => 'Subject', 'value' => $this->threadSubject];

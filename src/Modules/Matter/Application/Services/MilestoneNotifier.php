@@ -66,6 +66,7 @@ final class MilestoneNotifier
             Mail::to($recipient->email)->queue(new MilestoneUpdatedEmail(
                 recipientName: (string) ($recipient->name ?? 'there'),
                 matterName: (string) $matter->name,
+                workspaceName: (string) ($matter->workspace?->name ?? ''),
                 headline: $headline,
                 detail: $detail,
                 ctaUrl: rtrim((string) config('app.frontend_url'), '/') . '/dashboard/matters/' . $matter->public_id,
