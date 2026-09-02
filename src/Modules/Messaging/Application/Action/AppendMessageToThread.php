@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace PactTrackSDK\SharedResources\Modules\Messaging\Application\Action;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use PactTrackSDK\SharedResources\Modules\Messaging\Application\Port\Repository\MessageRepository;
 use PactTrackSDK\SharedResources\Modules\Messaging\Events\InboxUpdated;
 use PactTrackSDK\SharedResources\Modules\Messaging\Events\NewMessage;
@@ -12,6 +14,9 @@ use PactTrackSDK\SharedResources\Modules\Messaging\Infrastructure\Upload\Message
 use PactTrackSDK\SharedResources\Modules\Messaging\Jobs\SendStaffUnreadMessageReminder;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\Message;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
+use PactTrackSDK\SharedResources\Modules\Notification\Mail\NewMessageFromClientEmail;
+use PactTrackSDK\SharedResources\Modules\Notification\Support\Notification;
+use Throwable;
 
 /**
  * The single "put one message onto a thread" step, shared by
@@ -72,13 +77,50 @@ class AppendMessageToThread
 
         // A thread is exactly one staff member + one client (no group threads),
         // so a sender who isn't the thread's staff member IS the client. Only
-        // that direction gets the "your client's message is still unread"
-        // nudge — a staff -> client message never does.
+        // that direction gets the immediate "new message from your client"
+        // email AND the delayed "still unread after 5 minutes" nudge — a
+        // staff -> client message triggers neither. The two are independent
+        // preferences on the /notification screen.
         if ($senderId !== (int) $thread->staff_user_id) {
+            $this->emailStaffOfClientMessage($thread, $message);
+
             SendStaffUnreadMessageReminder::dispatch((int) $thread->id, (int) $message->id)
                 ->delay(now()->addMinutes(5));
         }
 
         return $message->load(['sender', 'attachments']);
+    }
+
+    /**
+     * The immediate "your client sent a message" email to the thread's one
+     * staff member, gated on their `new_message_from_client` preference — see
+     * .claude/rules/notification.md, "Notification::isset() gating at dispatch
+     * sites". Best-effort: a mail failure must never fail the message write
+     * that already succeeded.
+     */
+    private function emailStaffOfClientMessage(MessageThread $thread, Message $message): void
+    {
+        try {
+            $staff = $thread->staffMember;
+
+            if ($staff === null || ($staff->email ?? '') === '') {
+                return;
+            }
+
+            if (! Notification::isset('new_message_from_client', $staff)) {
+                return;
+            }
+
+            Mail::to($staff->email)->queue(new NewMessageFromClientEmail(
+                staffName: (string) ($staff->name ?? 'there'),
+                clientName: (string) ($thread->client?->name ?? 'Your client'),
+                matterName: (string) ($thread->matter?->name ?? ''),
+                threadSubject: (string) $thread->subject,
+                messagePreview: Str::limit((string) $message->body, 140),
+                ctaUrl: rtrim((string) config('app.frontend_url'), '/') . '/dashboard/messages',
+            ));
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 }

@@ -9,10 +9,12 @@ use Illuminate\Support\Facades\Mail;
 use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\Services\MatterNotificationRecipientResolver;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\Services\MilestoneProgressionService;
 use PactTrackSDK\SharedResources\Modules\Matter\Domain\ValueObjects\DefaultMilestone;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\DocumentReadyForSignatureEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\GuestSigningInvitationEmail;
+use PactTrackSDK\SharedResources\Modules\Notification\Mail\SignatureCompletedEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTrackSDK\SharedResources\Modules\Notification\Support\Notification;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\DTO\ProviderData;
@@ -85,6 +87,7 @@ class RecordSignatureCompletionUseCase
         private readonly DocumentRepository $documents,
         private readonly GuestSigningTokenService $guestSigningTokenService,
         private readonly MilestoneProgressionService $milestoneProgression,
+        private readonly MatterNotificationRecipientResolver $matterRecipients,
     ) {
     }
 
@@ -179,6 +182,10 @@ class RecordSignatureCompletionUseCase
                 $this->notifyClient($envelope);
             }
             $this->notifyCoSigners($envelope);
+        }
+
+        if ($previousStatus !== EnvelopeStatus::Completed && $envelope->status === EnvelopeStatus::Completed) {
+            $this->notifyProviderSideOfCompletion($envelope);
         }
 
         AuditLog::create([
@@ -445,6 +452,56 @@ class RecordSignatureCompletionUseCase
                     signingUrl: $signingUrl,
                 ));
             }
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * The provider-side "your client finished signing" notice, sent when an
+     * envelope reaches `completed`. Recipient is the matter's assigned staff
+     * member (or the provider owner when none is assigned), gated on their
+     * `signature_completed` preference — see .claude/rules/notification.md,
+     * "Notification::isset() gating at dispatch sites". Distinct from
+     * notifyClient() above (client-facing, on `draft -> sent`, under
+     * `document_ready_for_signature`). Best-effort, same contract as
+     * notifyClient(): a mail failure never breaks webhook processing.
+     */
+    private function notifyProviderSideOfCompletion(Envelope $envelope): void
+    {
+        try {
+            $document = $envelope->document()->first();
+            $matter = $document?->matter()->first();
+            $client = $envelope->client()->first();
+
+            $recipient = $matter !== null
+                ? $this->matterRecipients->forMatter($matter)
+                : $this->matterRecipients->forProvider($envelope->provider_id);
+
+            if ($recipient === null || ($recipient->email ?? '') === '') {
+                return;
+            }
+
+            if (! Notification::isset('signature_completed', $recipient)) {
+                Log::info('SignatureCompletedEmail suppressed by recipient notification preference.', [
+                    'envelope_id' => $envelope->id,
+                    'recipient_id' => $recipient->id,
+                ]);
+
+                return;
+            }
+
+            $base = rtrim((string) config('app.frontend_url'), '/');
+
+            Mail::to($recipient->email)->queue(new SignatureCompletedEmail(
+                recipientName: (string) ($recipient->name ?? 'there'),
+                clientName: (string) ($client?->name ?? 'the client'),
+                matterName: (string) ($matter?->name ?? ''),
+                documentName: (string) ($document?->name ?? 'A document'),
+                ctaUrl: $matter?->public_id !== null
+                    ? $base . '/dashboard/signatures/matter/' . $matter->public_id . '?envelope=' . $envelope->public_id
+                    : $base . '/dashboard/documents',
+            ));
         } catch (Throwable $e) {
             report($e);
         }

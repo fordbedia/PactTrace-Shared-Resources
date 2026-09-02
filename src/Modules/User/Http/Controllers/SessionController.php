@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use PactTrackSDK\SharedResources\Modules\User\Application\Services\UserAuthentication;
 use PactTrackSDK\SharedResources\Modules\User\Application\Services\UserHintCookie;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Auth\NotifySuccessfulSignIn;
 use PactTrackSDK\SharedResources\Modules\User\Http\Resources\UserResource;
 
 /**
@@ -24,6 +25,7 @@ class SessionController extends Controller
     public function __construct(
         private readonly UserAuthentication $authentication,
         private readonly UserHintCookie $hintCookie,
+        private readonly NotifySuccessfulSignIn $notifySignIn,
     ) {
     }
 
@@ -56,6 +58,14 @@ class SessionController extends Controller
         }
 
         $this->hintCookie->attach($request->user());
+
+        // Audit + personal "new sign-in" security alert — in the Application
+        // layer, not here. See .claude/rules/notification.md.
+        $this->notifySignIn->handle(
+            $request->user(),
+            $request->ip(),
+            $request->userAgent() ?: null,
+        );
 
         return response()->json([
             // Same payload GET /api/user returns, so the SPA can seed its auth

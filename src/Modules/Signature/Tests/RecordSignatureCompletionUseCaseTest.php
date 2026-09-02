@@ -13,6 +13,7 @@ use PactTrackSDK\SharedResources\Modules\Matter\Domain\ValueObjects\DefaultMiles
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Milestone;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\DocumentReadyForSignatureEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\GuestSigningInvitationEmail;
+use PactTrackSDK\SharedResources\Modules\Notification\Mail\SignatureCompletedEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Support\Notification;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\RecordSignatureCompletionUseCase;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Enums\EnvelopeStatus;
@@ -526,6 +527,89 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
         $this->assertSame(EnvelopeStatus::Completed, $envelope->fresh()->status);
         $this->assertNotNull($envelope->fresh()->completed_at);
         $this->assertSame(DocumentStatus::Completed, $envelope->document->fresh()->status);
+    }
+
+    /**
+     * Dispatch-site gating (see .claude/rules/notification.md): when an
+     * envelope reaches `completed`, the matter's provider-side contact (the
+     * assigned staff member, or the owner as fallback) gets a
+     * SignatureCompletedEmail — distinct from the client-facing
+     * `document_ready_for_signature` email on `draft -> sent`.
+     */
+    public function test_completed_event_emails_the_provider_side_contact(): void
+    {
+        Mail::fake();
+
+        $envelope = $this->envelope(EnvelopeStatus::Viewed, DocumentStatus::Sent);
+
+        $this->useCase->handle($this->event('completed', $envelope));
+
+        Mail::assertQueued(
+            SignatureCompletedEmail::class,
+            fn (SignatureCompletedEmail $mail): bool =>
+                $mail->hasTo($this->tenant['owner']->email)
+                && $mail->documentName === $this->tenant['document']->name,
+        );
+    }
+
+    public function test_completed_event_emails_the_assigned_staff_member_when_one_is_set(): void
+    {
+        Mail::fake();
+
+        $this->tenant['matter']->forceFill(['assigned_staff_id' => $this->tenant['staff']->id])->save();
+
+        $envelope = $this->envelope(EnvelopeStatus::Viewed, DocumentStatus::Sent);
+
+        $this->useCase->handle($this->event('completed', $envelope));
+
+        Mail::assertQueued(
+            SignatureCompletedEmail::class,
+            fn (SignatureCompletedEmail $mail): bool => $mail->hasTo($this->tenant['staff']->email),
+        );
+        Mail::assertNotQueued(
+            SignatureCompletedEmail::class,
+            fn (SignatureCompletedEmail $mail): bool => $mail->hasTo($this->tenant['owner']->email),
+        );
+    }
+
+    /**
+     * The gate keys off the recipient's own preference: a contact who turned
+     * "signature completed" off gets no email, but the envelope/document
+     * status transition and the audit-log entry all still happen.
+     */
+    public function test_completed_event_does_not_email_a_contact_who_disabled_signature_completed(): void
+    {
+        Mail::fake();
+
+        Notification::disable('signature_completed', $this->tenant['owner']);
+
+        $envelope = $this->envelope(EnvelopeStatus::Viewed, DocumentStatus::Sent);
+
+        $this->useCase->handle($this->event('completed', $envelope));
+
+        Mail::assertNotQueued(SignatureCompletedEmail::class);
+        $this->assertSame(EnvelopeStatus::Completed, $envelope->fresh()->status);
+        $this->assertSame(DocumentStatus::Completed, $envelope->document->fresh()->status);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'envelope.completed',
+            'auditable_id' => $envelope->id,
+        ]);
+    }
+
+    public function test_completed_event_still_emails_when_only_an_unrelated_user_disabled_signature_completed(): void
+    {
+        Mail::fake();
+
+        Notification::disable('signature_completed', $this->tenant['staff']);
+
+        $envelope = $this->envelope(EnvelopeStatus::Viewed, DocumentStatus::Sent);
+
+        $this->useCase->handle($this->event('completed', $envelope));
+
+        Mail::assertQueued(
+            SignatureCompletedEmail::class,
+            fn (SignatureCompletedEmail $mail): bool => $mail->hasTo($this->tenant['owner']->email),
+        );
     }
 
     public function test_voided_event_syncs_document_to_voided(): void
