@@ -18,7 +18,7 @@ use PactTrackSDK\SharedResources\Modules\User\Database\Factories\UserFactory;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'title', 'phone', 'password', 'provider_id'])]
+#[Fillable(['name', 'email', 'title', 'phone', 'password', 'provider_id', 'default_workspace_id'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -92,6 +92,21 @@ class User extends Authenticatable
     public function ownedProvider(): HasOne
     {
         return $this->hasOne(Provider::class, 'owner_user_id');
+    }
+
+    /**
+     * The workspace this user is dropped back into on their next sign-in — set
+     * at registration and rewritten every time they switch (see
+     * Workspace\Application\UseCases\SwitchActiveWorkspace). Nullable, and may
+     * point at a since-deactivated workspace; callers must confirm the target
+     * is live and same-tenant, never trust the column alone.
+     */
+    public function defaultWorkspace(): BelongsTo
+    {
+        return $this->belongsTo(
+            \PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace::class,
+            'default_workspace_id'
+        );
     }
 
     public function client(): HasOne

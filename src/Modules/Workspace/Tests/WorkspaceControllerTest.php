@@ -309,4 +309,154 @@ class WorkspaceControllerTest extends BaseTest
             'password' => 'y',
         ])->assertStatus(404);
     }
+
+    // ── store ───────────────────────────────────────────────────────────
+
+    public function test_it_creates_an_additional_workspace_for_the_provider(): void
+    {
+        Sanctum::actingAs($this->owner());
+
+        $this->postJson('/api/v1/workspaces', [
+            'name' => 'Second Practice',
+            'workspace_type' => 'legal',
+        ])->assertStatus(201)
+            ->assertJsonPath('data.name', 'Second Practice')
+            ->assertJsonPath('data.workspace_type', 'legal')
+            // Blank labels filled from the type preset by the model hook.
+            ->assertJsonPath('data.client_label', 'Your Attorney');
+
+        $this->assertDatabaseHas('workspaces', [
+            'provider_id' => $this->tenant['provider']->id,
+            'owner_id' => $this->owner()->id,
+            'name' => 'Second Practice',
+            'workspace_type' => 'legal',
+        ]);
+    }
+
+    public function test_store_rejects_an_invalid_workspace_type(): void
+    {
+        Sanctum::actingAs($this->owner());
+
+        $this->postJson('/api/v1/workspaces', [
+            'name' => 'Bad Type',
+            'workspace_type' => 'accountancy',
+        ])->assertStatus(422)->assertJsonValidationErrors('workspace_type');
+    }
+
+    public function test_store_rejects_a_missing_name(): void
+    {
+        Sanctum::actingAs($this->owner());
+
+        $this->postJson('/api/v1/workspaces', ['workspace_type' => 'general'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('name');
+    }
+
+    public function test_an_admin_may_create_a_workspace_but_a_staff_user_may_not(): void
+    {
+        $admin = User::factory()->create(['provider_id' => $this->tenant['provider']->id]);
+        $admin->assignRole('admin');
+
+        Sanctum::actingAs($admin);
+        $this->postJson('/api/v1/workspaces', ['name' => 'Admin Made', 'workspace_type' => 'general'])
+            ->assertStatus(201);
+
+        Sanctum::actingAs($this->tenant['staff']);
+        $this->postJson('/api/v1/workspaces', ['name' => 'Staff Made', 'workspace_type' => 'general'])
+            ->assertStatus(403);
+    }
+
+    // ── update ──────────────────────────────────────────────────────────
+
+    public function test_it_updates_name_type_and_labels(): void
+    {
+        $workspace = $this->emptyWorkspace();
+
+        Sanctum::actingAs($this->owner());
+
+        $this->putJson("/api/v1/workspaces/{$workspace->id}", [
+            'name' => 'Renamed',
+            'workspace_type' => 'accounting',
+            'client_label' => 'Taxpayer',
+        ])->assertOk()
+            ->assertJsonPath('data.name', 'Renamed')
+            ->assertJsonPath('data.workspace_type', 'accounting')
+            ->assertJsonPath('data.client_label', 'Taxpayer')
+            // Blank engagement label refilled from the accounting preset.
+            ->assertJsonPath('data.engagement_label', 'Engagement');
+
+        $this->assertDatabaseHas('workspaces', [
+            'id' => $workspace->id,
+            'name' => 'Renamed',
+            'workspace_type' => 'accounting',
+        ]);
+    }
+
+    public function test_update_by_a_staff_user_is_allowed(): void
+    {
+        $workspace = $this->emptyWorkspace();
+
+        Sanctum::actingAs($this->tenant['staff']);
+
+        $this->putJson("/api/v1/workspaces/{$workspace->id}", [
+            'name' => 'Staff Renamed',
+            'workspace_type' => 'general',
+        ])->assertOk();
+    }
+
+    public function test_update_of_a_cross_tenant_workspace_is_a_404(): void
+    {
+        $other = ProviderTenantScenario::make('ws-other-update');
+
+        Sanctum::actingAs($this->owner());
+
+        $this->putJson("/api/v1/workspaces/{$other['workspace']->id}", [
+            'name' => 'Hijacked',
+            'workspace_type' => 'general',
+        ])->assertStatus(404);
+    }
+
+    // ── activate ────────────────────────────────────────────────────────
+
+    public function test_activate_sets_the_session_and_the_users_default_workspace(): void
+    {
+        $workspace = $this->emptyWorkspace();
+
+        Sanctum::actingAs($this->owner());
+
+        $this->postJson("/api/v1/workspaces/{$workspace->id}/activate")
+            ->assertOk()
+            ->assertJsonPath('data.id', $workspace->id);
+
+        $this->assertSame($workspace->id, session('workspace_id'));
+        $this->assertSame($workspace->id, (int) $this->owner()->fresh()->default_workspace_id);
+    }
+
+    public function test_a_staff_user_may_activate_a_workspace(): void
+    {
+        $workspace = $this->emptyWorkspace();
+
+        Sanctum::actingAs($this->tenant['staff']);
+
+        $this->postJson("/api/v1/workspaces/{$workspace->id}/activate")->assertOk();
+        $this->assertSame($workspace->id, (int) $this->tenant['staff']->fresh()->default_workspace_id);
+    }
+
+    public function test_a_client_user_cannot_activate_a_workspace(): void
+    {
+        $workspace = $this->emptyWorkspace();
+
+        Sanctum::actingAs($this->tenant['clientUser']);
+
+        $this->postJson("/api/v1/workspaces/{$workspace->id}/activate")->assertStatus(403);
+    }
+
+    public function test_activate_of_a_cross_tenant_workspace_is_a_404(): void
+    {
+        $other = ProviderTenantScenario::make('ws-other-activate');
+
+        Sanctum::actingAs($this->owner());
+
+        $this->postJson("/api/v1/workspaces/{$other['workspace']->id}/activate")->assertStatus(404);
+    }
 }

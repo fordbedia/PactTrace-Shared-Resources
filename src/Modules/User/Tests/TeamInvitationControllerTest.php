@@ -295,9 +295,12 @@ class TeamInvitationControllerTest extends BaseTest
         $this->assertContains('user.invite', $permissions);
         $this->assertContains('user.update', $permissions);
         $this->assertContains('user.delete', $permissions);
-        // Not a back-door to the whole tenant.
+        // Workspace create/delete since 2026-09-01 (per Ed).
+        $this->assertContains('workspace.create', $permissions);
+        $this->assertContains('workspace.delete', $permissions);
+        // Still not a back-door to the whole tenant.
         $this->assertNotContains('provider.manage-billing', $permissions);
-        $this->assertNotContains('workspace.create', $permissions);
+        $this->assertNotContains('provider.update', $permissions);
 
         $user = User::where('email', 'admin@example.test')->firstOrFail();
         $this->assertTrue($user->hasRole('admin'));

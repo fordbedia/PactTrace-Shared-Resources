@@ -18,6 +18,15 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
     Route::get('workspaces', [WorkspaceController::class, 'index'])
         ->name('workspaces.index');
 
+    Route::post('workspaces', [WorkspaceController::class, 'store'])
+        ->name('workspaces.store');
+
+    Route::put('workspaces/{workspace}', [WorkspaceController::class, 'update'])
+        ->name('workspaces.update');
+
+    Route::post('workspaces/{workspace}/activate', [WorkspaceController::class, 'activate'])
+        ->name('workspaces.activate');
+
     Route::get('workspaces/{workspace}/deactivation-eligibility', [WorkspaceController::class, 'deactivationEligibility'])
         ->name('workspaces.deactivation-eligibility');
 

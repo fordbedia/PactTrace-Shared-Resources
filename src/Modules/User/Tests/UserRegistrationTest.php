@@ -115,6 +115,13 @@ class UserRegistrationTest extends BaseTest
         $this->assertSame((int) $owner->getKey(), (int) $provider->owner_user_id);
         $this->assertSame((int) $provider->getKey(), (int) $owner->fresh()->provider_id);
 
+        // The owner is dropped into the workspace created alongside the tenant
+        // on their next sign-in — see UserAuthentication::syncWorkspaceSession().
+        $workspace = \PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace::query()
+            ->where('provider_id', $provider->getKey())
+            ->sole();
+        $this->assertSame((int) $workspace->getKey(), (int) $owner->fresh()->default_workspace_id);
+
         // The Subscription row is the authoritative billing record; provider.plan
         // above is only its denormalized cache — assert both agree.
         $subscription = Subscription::where('provider_id', $provider->getKey())->sole();

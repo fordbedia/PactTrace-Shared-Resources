@@ -130,12 +130,18 @@ class RegisterProvider
             // defaults to General since sign-up doesn't collect a
             // workspace_type yet; label columns are left blank so Workspace's
             // own creating() hook fills them from that type's preset.
-            $this->workspaces->create([
+            $workspace = $this->workspaces->create([
                 'provider_id' => $provider->getKey(),
                 'owner_id' => $owner->getKey(),
                 'name' => $businessName,
                 'workspace_type' => WorkspaceType::General->value,
             ]);
+
+            // Land the owner in this workspace on their first (and every
+            // subsequent, until they switch) sign-in — UserAuthentication reads
+            // this to prime the session's `workspace_id`. Kept as a column, not
+            // only a session value, so it survives a fresh cookie.
+            $owner->forceFill(['default_workspace_id' => $workspace->getKey()])->save();
 
             return $provider->setRelation('owner', $owner);
         });

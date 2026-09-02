@@ -260,10 +260,12 @@ class TeamInvitationTest extends BaseTest
         $this->assertTrue($user->hasPermissionTo('user.invite'));
         $this->assertTrue($user->hasPermissionTo('user.update'));
         $this->assertTrue($user->hasPermissionTo('user.delete'));
+        // …plus workspace create/delete (2026-09-01, per Ed)…
+        $this->assertTrue($user->hasPermissionTo('workspace.create'));
+        $this->assertTrue($user->hasPermissionTo('workspace.delete'));
         // …but none of the owner-only tenant controls.
         $this->assertFalse($user->hasPermissionTo('provider.manage-billing'));
         $this->assertFalse($user->hasPermissionTo('provider.update'));
-        $this->assertFalse($user->hasPermissionTo('workspace.create'));
     }
 
     public function test_accepting_a_staff_invite_grants_no_roster_management(): void

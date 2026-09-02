@@ -28,9 +28,12 @@ enum Role: string
 
     /**
      * A staff member who also administers the roster — Staff's permissions plus
-     * user.invite/update/delete. This is what the "Invite a team member" modal
-     * calls "Admin"; it is NOT the tenant account owner (no billing, branding
-     * or workspace-structure control).
+     * user.invite/update/delete, and (per Ed, 2026-09-01) workspace
+     * create/delete so an Admin can stand up or retire a workspace alongside
+     * the Owner. This is what the "Invite a team member" modal calls "Admin";
+     * it is still NOT the tenant account owner (no billing, branding, or
+     * provider.update). Owner-only team actions (role change / removal) also
+     * remain owner-only — those gate on actorOwnsTenant(), not a permission.
      */
     case Admin = 'admin';
 
@@ -64,14 +67,18 @@ enum Role: string
             // The account owner can do everything within their own tenant.
             self::Owner => Permission::cases(),
 
-            // Everything Staff can do, plus managing the roster — but still no
-            // branding, billing or workspace-structure control. Spread from
-            // Staff so the two never drift.
+            // Everything Staff can do, plus managing the roster and standing
+            // up / retiring workspaces — but still no branding, billing or
+            // provider.update. Spread from Staff so the two never drift.
+            // (WorkspaceCreate/Delete added 2026-09-01 per Ed; Staff still gets
+            // only view + update from its own list below.)
             self::Admin => [
                 ...self::Staff->permissions(),
                 Permission::UserInvite,
                 Permission::UserUpdate,
                 Permission::UserDelete,
+                Permission::WorkspaceCreate,
+                Permission::WorkspaceDelete,
             ],
 
             // Staff run the day-to-day engagement but do not administer the
@@ -81,8 +88,9 @@ enum Role: string
                 Permission::UserView,
 
                 // Staff work inside a workspace and may rename it, but
-                // creating or removing one is an owner's decision — it changes
-                // how the practice is organised, not how it is run day to day.
+                // creating or removing one is an owner's or admin's decision —
+                // it changes how the practice is organised, not how it is run
+                // day to day.
                 Permission::WorkspaceView,
                 Permission::WorkspaceUpdate,
 

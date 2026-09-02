@@ -81,15 +81,19 @@ class RolePermissionTest extends BaseTest
             );
         }
 
-        // Plus exactly the three roster-management permissions.
+        // Plus roster management…
         $this->assertTrue($admin->hasPermissionTo(Permission::UserInvite->value));
         $this->assertTrue($admin->hasPermissionTo(Permission::UserUpdate->value));
         $this->assertTrue($admin->hasPermissionTo(Permission::UserDelete->value));
 
+        // …and, since 2026-09-01 (per Ed), standing up / retiring workspaces.
+        $this->assertTrue($admin->hasPermissionTo(Permission::WorkspaceCreate->value));
+        $this->assertTrue($admin->hasPermissionTo(Permission::WorkspaceDelete->value));
+
         // But not the tenant-running controls.
         $this->assertFalse($admin->hasPermissionTo(Permission::ProviderUpdate->value));
         $this->assertFalse($admin->hasPermissionTo(Permission::ProviderManageBilling->value));
-        $this->assertFalse($admin->hasPermissionTo(Permission::WorkspaceCreate->value));
+        $this->assertFalse($admin->hasPermissionTo(Permission::ProviderManageBranding->value));
     }
 
     public function test_client_can_participate_but_not_manage(): void

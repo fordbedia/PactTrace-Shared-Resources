@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Support\Str;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceRepository;
 
 /**
  * Sign in and sign out — the sibling of UserRegistration in this folder.
@@ -35,6 +36,7 @@ class UserAuthentication
     public function __construct(
         private readonly AuthFactory $auth,
         private readonly Session $session,
+        private readonly WorkspaceRepository $workspaces,
     ) {
     }
 
@@ -51,6 +53,8 @@ class UserAuthentication
     public function login(User $user, bool $remember = false): void
     {
         $this->guard()->login($user, $remember);
+
+        $this->syncWorkspaceSession($user);
     }
 
     /**
@@ -67,10 +71,20 @@ class UserAuthentication
         // a third caller appears.
         $email = Str::lower(trim($email));
 
-        return $this->guard()->attempt(
+        $signedIn = $this->guard()->attempt(
             ['email' => $email, 'password' => $password],
             $remember,
         );
+
+        if ($signedIn) {
+            $user = $this->guard()->user();
+
+            if ($user instanceof User) {
+                $this->syncWorkspaceSession($user);
+            }
+        }
+
+        return $signedIn;
     }
 
     /**
@@ -86,6 +100,35 @@ class UserAuthentication
 
         $this->session->invalidate();
         $this->session->regenerateToken();
+    }
+
+    /**
+     * Prime the session's `workspace_id` from the user's stored default, so a
+     * multi-workspace provider is dropped back into whatever they were last
+     * using instead of nothing (RequestWorkspaceContext's "sole workspace"
+     * fallback only ever resolves for a provider with exactly one).
+     *
+     * Only a live, same-tenant workspace is accepted — a null, stale,
+     * cross-tenant or since-deactivated `default_workspace_id` clears the key
+     * instead, leaving RequestWorkspaceContext to resolve as it did before this
+     * feature. Same rule as RequestWorkspaceContext::belongsToActor(), reached
+     * through the WorkspaceRepository port so this class stays free of Eloquent.
+     */
+    private function syncWorkspaceSession(User $user): void
+    {
+        $defaultId = $user->default_workspace_id;
+        $providerId = $user->provider_id;
+
+        if ($defaultId !== null
+            && $providerId !== null
+            && $this->workspaces->belongsToProvider((int) $defaultId, (int) $providerId)
+        ) {
+            $this->session->put('workspace_id', (int) $defaultId);
+
+            return;
+        }
+
+        $this->session->forget('workspace_id');
     }
 
     /**

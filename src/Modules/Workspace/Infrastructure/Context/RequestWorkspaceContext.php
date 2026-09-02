@@ -27,16 +27,23 @@ use Throwable;
  *   2. A route parameter named `workspace` (an id, or a bound Workspace).
  *   3. `workspace_id` in the session, which is how the choice survives across
  *      requests once a user has picked one.
- *   4. The authenticated user's provider, *if that provider has exactly one
+ *   4. The authenticated user's stored `default_workspace_id` — "whatever I was
+ *      last using", set at registration and rewritten on every switch. This is
+ *      a safety net for a request that arrives with no session `workspace_id`
+ *      set (a fresh cookie before the login wiring has run, an API client that
+ *      doesn't carry the session): the login path already primes the session
+ *      from this same column, so in the common case step 3 answers first.
+ *   5. The authenticated user's provider, *if that provider has exactly one
  *      workspace*. One workspace is the overwhelmingly common case for a solo
  *      professional, and making them pick it on every request would be
  *      pointless ceremony. With two or more it is genuinely ambiguous, so this
  *      resolves to null rather than guessing — guessing here would silently
  *      show a provider the wrong workspace's documents.
  *
- * Steps 2-4 are all confirmed against the actor's own provider before being
- * accepted (see belongsToActor), so a hand-edited route parameter or a stale
- * session value cannot point the context at another tenant's workspace.
+ * Steps 2-5 are all confirmed against the actor's own provider before being
+ * accepted (see belongsToActor), so a hand-edited route parameter, a stale
+ * session value, or a default pointing at a since-deactivated / cross-tenant
+ * workspace cannot point the context at the wrong workspace.
  */
 final class RequestWorkspaceContext implements CurrentWorkspace
 {
@@ -131,6 +138,7 @@ final class RequestWorkspaceContext implements CurrentWorkspace
 
         return $this->fromRoute($user)
             ?? $this->fromSession($user)
+            ?? $this->fromUserDefault($user)
             ?? $this->soleWorkspaceOf($user);
     }
 
@@ -185,6 +193,21 @@ final class RequestWorkspaceContext implements CurrentWorkspace
         }
 
         return $this->belongsToActor(is_numeric($workspaceId) ? (int) $workspaceId : null, $user);
+    }
+
+    /**
+     * The user's stored `default_workspace_id`, validated the same way a
+     * session value is — a stale, cross-tenant or since-deactivated pointer is
+     * rejected and resolution falls through to soleWorkspaceOf().
+     */
+    private function fromUserDefault(User $user): ?int
+    {
+        $workspaceId = $user->default_workspace_id;
+
+        return $this->belongsToActor(
+            is_numeric($workspaceId) ? (int) $workspaceId : null,
+            $user,
+        );
     }
 
     /**

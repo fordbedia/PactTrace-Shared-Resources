@@ -21,11 +21,29 @@ class EloquentWorkspaceRepository extends BaseRepository implements WorkspaceRep
         return $this->model->create($data);
     }
 
+    public function saveAttributes(Workspace $workspace, array $data): Workspace
+    {
+        $workspace->fill($data)->save();
+
+        return $workspace->refresh();
+    }
+
     public function forProvider(int $providerId): Collection
     {
         return Workspace::query()
             ->where('provider_id', $providerId)
             ->orderBy('name')
             ->get();
+    }
+
+    public function belongsToProvider(int $workspaceId, int $providerId): bool
+    {
+        // Workspace `use SoftDeletes`, so a deactivated workspace is excluded
+        // by the model's default scope here — a stale pointer at one reads as
+        // "does not belong", which is exactly the intended fallback behaviour.
+        return Workspace::query()
+            ->whereKey($workspaceId)
+            ->where('provider_id', $providerId)
+            ->exists();
     }
 }

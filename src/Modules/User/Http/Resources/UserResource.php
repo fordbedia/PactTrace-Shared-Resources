@@ -49,6 +49,13 @@ class UserResource extends JsonResource
 
             // ── tenancy + authorisation ─────────────────────────────────
             'provider_id' => $this->provider_id,
+            // The workspace the SPA treats as "active" — kept in lockstep with
+            // the server session's `workspace_id` (set at login, rewritten on
+            // every switch). Just the id; the switcher reads the rest from
+            // `GET /api/v1/workspaces`. May be null, or point at a workspace
+            // that has since been deactivated — the switcher just won't mark a
+            // row active in that case.
+            'default_workspace_id' => $this->default_workspace_id,
             // Kept as the single scalar the SPA branches on. `roles` below is
             // the raw spatie assignment; `role` is the domain answer (most
             // privileged wins), so the two can differ if a user somehow holds
