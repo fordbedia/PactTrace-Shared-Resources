@@ -9,12 +9,12 @@ use PactTrackSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\
 use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
 
 /**
- * Backs `GET /api/v1/workspaces` — the list the Account Settings "Deactivate
- * Workspace" modal shows, one row per active workspace with its own Deactivate
- * button.
+ * Backs `GET /api/v1/workspaces` — the sidebar switcher, the Account Settings
+ * "Deactivate Workspace" modal, and the `/workspaces` management screen.
  *
  * Thin over the repository: the provider scoping and name ordering live in the
- * adapter, and deactivated workspaces are already excluded by SoftDeletes.
+ * adapter. `$includeDeactivated` (only the management screen passes it) is the
+ * one knob — active-only otherwise, so every existing caller is unchanged.
  */
 final class ListProviderWorkspaces
 {
@@ -25,8 +25,10 @@ final class ListProviderWorkspaces
     /**
      * @return Collection<int, Workspace>
      */
-    public function handle(int $providerId): Collection
+    public function handle(int $providerId, bool $includeDeactivated = false): Collection
     {
-        return $this->workspaces->forProvider($providerId);
+        return $includeDeactivated
+            ? $this->workspaces->forProviderIncludingDeactivated($providerId)
+            : $this->workspaces->forProvider($providerId);
     }
 }

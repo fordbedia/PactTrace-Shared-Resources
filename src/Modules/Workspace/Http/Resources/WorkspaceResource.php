@@ -14,8 +14,12 @@ use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
  *
  * An allow-list, same reasoning as ProviderResource: `owner_id` and anything
  * internal added to `workspaces` later should not start appearing in an
- * authenticated response by accident. The modal only needs enough to label a
- * row and its Deactivate button.
+ * authenticated response by accident.
+ *
+ * `deleted_at` is exposed (null for active, an ISO-8601 timestamp for a
+ * deactivated workspace) — the `/workspaces` management screen needs it to
+ * render the Active / Deactivated status pill and to decide which row actions
+ * apply. Every other consumer just ignores it.
  *
  * @mixin Workspace
  */
@@ -34,6 +38,7 @@ class WorkspaceResource extends JsonResource
             'client_label' => $this->client_label,
             'engagement_label' => $this->engagement_label,
             'created_at' => $this->created_at?->toIso8601String(),
+            'deleted_at' => $this->deleted_at?->toIso8601String(),
         ];
     }
 }

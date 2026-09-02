@@ -36,6 +36,28 @@ class EloquentWorkspaceRepository extends BaseRepository implements WorkspaceRep
             ->get();
     }
 
+    public function forProviderIncludingDeactivated(int $providerId): Collection
+    {
+        return Workspace::withTrashed()
+            ->where('provider_id', $providerId)
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function findWithTrashed(int $workspaceId): ?Workspace
+    {
+        return Workspace::withTrashed()->find($workspaceId);
+    }
+
+    public function restore(Workspace $workspace): Workspace
+    {
+        if ($workspace->trashed()) {
+            $workspace->restore();
+        }
+
+        return $workspace->refresh();
+    }
+
     public function belongsToProvider(int $workspaceId, int $providerId): bool
     {
         // Workspace `use SoftDeletes`, so a deactivated workspace is excluded

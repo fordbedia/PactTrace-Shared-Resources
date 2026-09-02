@@ -49,6 +49,35 @@ interface WorkspaceRepository
     public function forProvider(int $providerId): Collection;
 
     /**
+     * Every workspace belonging to the provider — active AND deactivated
+     * (soft-deleted) — name-ordered.
+     *
+     * Only the `/workspaces` management screen asks for this (via
+     * `?include_deactivated=1`). Deliberately a separate method, not a flag on
+     * `forProvider()`: the sidebar switcher and every other existing caller
+     * want active-only and must not have to opt back out.
+     *
+     * @return Collection<int, Workspace>
+     */
+    public function forProviderIncludingDeactivated(int $providerId): Collection;
+
+    /**
+     * Resolve a workspace by id INCLUDING soft-deleted rows, or null.
+     *
+     * The restore endpoint acts on exactly the rows normal route-model binding
+     * (and `forProvider()`) hide, so it needs this. The caller does the
+     * cross-tenant `provider_id` check itself — this method does not scope by
+     * provider, matching how `Workspace::find()` behaves elsewhere.
+     */
+    public function findWithTrashed(int $workspaceId): ?Workspace;
+
+    /**
+     * Un-deactivate a soft-deleted workspace (`restore()`), returning the fresh
+     * instance. A no-op-safe call on a row that is not trashed.
+     */
+    public function restore(Workspace $workspace): Workspace;
+
+    /**
      * Is `$workspaceId` a live (not soft-deleted) workspace owned by
      * `$providerId`?
      *

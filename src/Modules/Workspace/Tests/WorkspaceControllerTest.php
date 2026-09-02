@@ -12,6 +12,7 @@ use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
 use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
 use PactTrackSDK\SharedResources\TestCase\Extras\LoadsModuleApiRoutes;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
@@ -458,5 +459,148 @@ class WorkspaceControllerTest extends BaseTest
         Sanctum::actingAs($this->owner());
 
         $this->postJson("/api/v1/workspaces/{$other['workspace']->id}/activate")->assertStatus(404);
+    }
+
+    // ── index: include_deactivated ──────────────────────────────────────
+
+    public function test_index_excludes_deactivated_workspaces_by_default(): void
+    {
+        $deactivated = $this->emptyWorkspace();
+        $deactivated->delete();
+
+        Sanctum::actingAs($this->owner());
+
+        $this->getJson('/api/v1/workspaces')
+            ->assertOk()
+            ->assertJsonMissing(['id' => $deactivated->id]);
+    }
+
+    public function test_index_includes_deactivated_workspaces_when_asked(): void
+    {
+        $deactivated = $this->emptyWorkspace();
+        $deactivated->delete();
+
+        Sanctum::actingAs($this->owner());
+
+        $this->getJson('/api/v1/workspaces?include_deactivated=1')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $deactivated->id])
+            ->assertJsonFragment(['id' => $this->tenant['workspace']->id]);
+    }
+
+    public function test_index_never_leaks_another_providers_deactivated_workspace(): void
+    {
+        $other = ProviderTenantScenario::make('ws-other-incl');
+        $otherDeactivated = Workspace::factory()->forProvider($other['provider'])->create();
+        $otherDeactivated->delete();
+
+        Sanctum::actingAs($this->owner());
+
+        $this->getJson('/api/v1/workspaces?include_deactivated=1')
+            ->assertOk()
+            ->assertJsonMissing(['id' => $otherDeactivated->id]);
+    }
+
+    // ── update: type is immutable once specialised ─────────────────────
+
+    public function test_update_ignores_a_type_change_on_a_specialised_workspace(): void
+    {
+        $workspace = Workspace::factory()->forProvider($this->tenant['provider'])
+            ->ofType(WorkspaceType::Legal)
+            ->create(['name' => 'Frozen ' . uniqid()]);
+
+        Sanctum::actingAs($this->owner());
+
+        $this->putJson("/api/v1/workspaces/{$workspace->id}", [
+            'name' => $workspace->name,
+            'workspace_type' => 'accounting',
+        ])->assertOk()
+            ->assertJsonPath('data.workspace_type', 'legal');
+
+        $this->assertDatabaseHas('workspaces', [
+            'id' => $workspace->id,
+            'workspace_type' => 'legal',
+        ]);
+    }
+
+    // ── restore ─────────────────────────────────────────────────────────
+
+    private function deactivatedWorkspace(): Workspace
+    {
+        $workspace = $this->emptyWorkspace();
+        $workspace->delete();
+
+        return $workspace;
+    }
+
+    public function test_restore_requires_authentication(): void
+    {
+        $workspace = $this->deactivatedWorkspace();
+
+        $this->postJson("/api/v1/workspaces/{$workspace->id}/restore")->assertStatus(401);
+    }
+
+    public function test_restore_reactivates_the_workspace_and_audits_it(): void
+    {
+        $workspace = $this->deactivatedWorkspace();
+
+        Sanctum::actingAs($this->owner());
+
+        $this->postJson("/api/v1/workspaces/{$workspace->id}/restore")
+            ->assertOk()
+            ->assertJsonPath('data.id', $workspace->id)
+            ->assertJsonPath('data.deleted_at', null);
+
+        $this->assertDatabaseHas('workspaces', ['id' => $workspace->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $this->owner()->id,
+            'action' => 'workspace.reactivated',
+            'auditable_id' => $workspace->id,
+        ]);
+    }
+
+    public function test_restore_of_an_active_workspace_is_a_harmless_noop(): void
+    {
+        $workspace = $this->emptyWorkspace();
+
+        Sanctum::actingAs($this->owner());
+
+        $this->postJson("/api/v1/workspaces/{$workspace->id}/restore")
+            ->assertOk()
+            ->assertJsonPath('data.id', $workspace->id);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'action' => 'workspace.reactivated',
+            'auditable_id' => $workspace->id,
+        ]);
+    }
+
+    public function test_a_staff_user_cannot_restore_a_workspace(): void
+    {
+        $workspace = $this->deactivatedWorkspace();
+
+        Sanctum::actingAs($this->tenant['staff']);
+
+        $this->postJson("/api/v1/workspaces/{$workspace->id}/restore")->assertStatus(403);
+        $this->assertSoftDeleted('workspaces', ['id' => $workspace->id]);
+    }
+
+    public function test_restore_of_a_cross_tenant_workspace_is_a_404(): void
+    {
+        $other = ProviderTenantScenario::make('ws-other-restore');
+        $otherWorkspace = Workspace::factory()->forProvider($other['provider'])->create();
+        $otherWorkspace->delete();
+
+        Sanctum::actingAs($this->owner());
+
+        $this->postJson("/api/v1/workspaces/{$otherWorkspace->id}/restore")->assertStatus(404);
+        $this->assertSoftDeleted('workspaces', ['id' => $otherWorkspace->id]);
+    }
+
+    public function test_restore_of_an_unknown_workspace_is_a_404(): void
+    {
+        Sanctum::actingAs($this->owner());
+
+        $this->postJson('/api/v1/workspaces/999999/restore')->assertStatus(404);
     }
 }

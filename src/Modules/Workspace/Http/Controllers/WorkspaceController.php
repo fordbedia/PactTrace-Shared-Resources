@@ -13,7 +13,9 @@ use Illuminate\Validation\ValidationException;
 use PactTrackSDK\SharedResources\Modules\Workspace\Application\UseCases\CreateWorkspace;
 use PactTrackSDK\SharedResources\Modules\Workspace\Application\UseCases\DeactivateWorkspace;
 use PactTrackSDK\SharedResources\Modules\Workspace\Application\UseCases\GetWorkspaceDeactivationEligibility;
+use PactTrackSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceRepository;
 use PactTrackSDK\SharedResources\Modules\Workspace\Application\UseCases\ListProviderWorkspaces;
+use PactTrackSDK\SharedResources\Modules\Workspace\Application\UseCases\RestoreWorkspace;
 use PactTrackSDK\SharedResources\Modules\Workspace\Application\UseCases\SwitchActiveWorkspace;
 use PactTrackSDK\SharedResources\Modules\Workspace\Application\UseCases\UpdateWorkspace;
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Exceptions\WorkspaceDeactivationBlockedException;
@@ -22,6 +24,7 @@ use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Services\WorkspaceDeac
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceDeactivationBlocker;
 use PactTrackSDK\SharedResources\Modules\Workspace\Http\Requests\DeactivateWorkspaceRequest;
 use PactTrackSDK\SharedResources\Modules\Workspace\Http\Requests\StoreWorkspaceRequest;
+use PactTrackSDK\SharedResources\Modules\Workspace\Http\Requests\UpdateWorkspaceRequest;
 use PactTrackSDK\SharedResources\Modules\Workspace\Http\Resources\WorkspaceResource;
 use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
 
@@ -53,15 +56,25 @@ class WorkspaceController extends Controller
         private readonly CreateWorkspace $createWorkspace,
         private readonly UpdateWorkspace $updateWorkspace,
         private readonly SwitchActiveWorkspace $switchActiveWorkspace,
+        private readonly RestoreWorkspace $restoreWorkspace,
+        private readonly WorkspaceRepository $workspaces,
     ) {
     }
 
+    /**
+     * `?include_deactivated=1` (only the `/workspaces` management screen sends
+     * it) folds soft-deleted workspaces into the list; every other caller — the
+     * sidebar switcher, the Deactivate modal — gets active-only.
+     */
     public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('viewAny', Workspace::class);
 
         return WorkspaceResource::collection(
-            $this->listWorkspaces->handle((int) $request->user()->provider_id)
+            $this->listWorkspaces->handle(
+                (int) $request->user()->provider_id,
+                $request->boolean('include_deactivated'),
+            )
         );
     }
 
@@ -89,14 +102,18 @@ class WorkspaceController extends Controller
     }
 
     /**
-     * PUT /api/v1/workspaces/{workspace} — edit name / type / labels.
+     * PUT /api/v1/workspaces/{workspace} — edit name and labels.
      *
-     * The onboarding "finish setting up my sole workspace" branch of
-     * /dashboard/create-workspace calls this (that workspace already exists —
-     * a POST would mint a duplicate). Permission `workspace.update` (owner +
+     * Two callers: the `/workspaces` Edit modal (name + labels; the type tile
+     * is locked and not sent) and the sign-up onboarding screen (which also
+     * sends `workspace_type` to make its one-time practice-type choice — a POST
+     * would mint a duplicate on the workspace RegisterProvider already made).
+     * Workspace type is otherwise immutable — a differing `workspace_type` on
+     * the request for an already-configured workspace is ignored, not
+     * rejected; see UpdateWorkspace. Permission `workspace.update` (owner +
      * staff + admin). Cross-tenant id is a 404 before the policy.
      */
-    public function update(StoreWorkspaceRequest $request, Workspace $workspace): JsonResponse
+    public function update(UpdateWorkspaceRequest $request, Workspace $workspace): JsonResponse
     {
         $this->abortIfCrossTenant($request, $workspace);
         Gate::authorize('update', $workspace);
@@ -104,7 +121,7 @@ class WorkspaceController extends Controller
         $updated = $this->updateWorkspace->handle(
             $workspace,
             (string) $request->validated('name'),
-            (string) $request->validated('workspace_type'),
+            $request->validated('workspace_type'),
             $request->validated('client_label'),
             $request->validated('engagement_label'),
         );
@@ -128,6 +145,35 @@ class WorkspaceController extends Controller
         $this->switchActiveWorkspace->handle($request->user(), $workspace);
 
         return WorkspaceResource::make($workspace)->response();
+    }
+
+    /**
+     * POST /api/v1/workspaces/{workspace}/restore — reactivate a deactivated
+     * workspace (the "Reactivate" row action on `/workspaces`).
+     *
+     * Route-model binding excludes soft-deleted rows, so `{workspace}` is a raw
+     * id here and the deactivated row is resolved by hand (through the
+     * repository port — no Eloquent in the controller). A cross-tenant or
+     * unknown id is a 404 before the policy; `restore` gate = permission
+     * `workspace.delete` + tenant (same power as deactivating, other
+     * direction). Idempotent — restoring an already-active workspace just
+     * returns it.
+     */
+    public function restore(Request $request, string $workspace): JsonResponse
+    {
+        $resolved = $this->workspaces->findWithTrashed((int) $workspace);
+
+        abort_unless(
+            $resolved !== null
+                && (int) $resolved->provider_id === (int) $request->user()->provider_id,
+            404
+        );
+
+        Gate::authorize('restore', $resolved);
+
+        $restored = $this->restoreWorkspace->handle($request->user(), $resolved);
+
+        return WorkspaceResource::make($restored)->response();
     }
 
     public function deactivationEligibility(Request $request, Workspace $workspace): JsonResponse

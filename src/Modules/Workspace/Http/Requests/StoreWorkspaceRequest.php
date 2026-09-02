@@ -7,19 +7,17 @@ namespace PactTrackSDK\SharedResources\Modules\Workspace\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
-use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
 
 /**
- * Body for `POST /api/v1/workspaces` (create) and `PUT /api/v1/workspaces/{workspace}`
- * (the onboarding "finish setting up my sole workspace" edit) alike — the two
- * take the same fields. The permission/tenant gate runs in the controller
- * (`Gate::authorize('create' | 'update', ...)`), same split as
- * DeactivateWorkspaceRequest.
+ * Body for `POST /api/v1/workspaces` (create). Editing has its own
+ * `UpdateWorkspaceRequest` now — a create and an edit validate different
+ * things (notably `workspace_type` is required here, optional there). The
+ * permission/tenant gate runs in the controller
+ * (`Gate::authorize('create', ...)`), same split as DeactivateWorkspaceRequest.
  *
  * `provider_id` / `owner_id` are NOT accepted here — they come from the acting
  * user in the controller. Blank `client_label` / `engagement_label` are
- * allowed: on create Workspace's `creating()` hook fills them from the type's
- * preset, on update UpdateWorkspace does the equivalent.
+ * allowed: Workspace's `creating()` hook fills them from the type's preset.
  *
  * `name` is unique per provider (`workspaces` has `unique(provider_id, name)`).
  * The rule queries the raw table, so it also catches a clash with a
@@ -41,11 +39,6 @@ class StoreWorkspaceRequest extends FormRequest
 
         if ($providerId !== null) {
             $unique->where('provider_id', $providerId);
-        }
-
-        $routeWorkspace = $this->route('workspace');
-        if ($routeWorkspace instanceof Workspace) {
-            $unique->ignore($routeWorkspace->getKey());
         }
 
         return [

@@ -51,4 +51,19 @@ class WorkspacePolicy extends TenantScopedPolicy
     {
         return $this->check($user, Permission::WorkspaceDelete, $workspace);
     }
+
+    /**
+     * Reactivating a deactivated workspace is the same structural power as
+     * deactivating one, in the other direction — so it reuses
+     * `workspace.delete` rather than introducing a new permission case.
+     *
+     * `$workspace` here is a `withTrashed()` instance (route binding excludes
+     * soft-deleted rows, so the controller resolves it by hand); the tenant
+     * check the base policy runs still works — a trashed row keeps its
+     * `provider_id`.
+     */
+    public function restore(User $user, Workspace $workspace): bool
+    {
+        return $this->check($user, Permission::WorkspaceDelete, $workspace);
+    }
 }

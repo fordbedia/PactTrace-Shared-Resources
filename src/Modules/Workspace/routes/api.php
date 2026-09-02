@@ -27,6 +27,11 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
     Route::post('workspaces/{workspace}/activate', [WorkspaceController::class, 'activate'])
         ->name('workspaces.activate');
 
+    // Acts on soft-deleted rows, which route-model binding hides — the
+    // controller resolves `{workspace}` (a raw id here) with-trashed itself.
+    Route::post('workspaces/{workspace}/restore', [WorkspaceController::class, 'restore'])
+        ->name('workspaces.restore');
+
     Route::get('workspaces/{workspace}/deactivation-eligibility', [WorkspaceController::class, 'deactivationEligibility'])
         ->name('workspaces.deactivation-eligibility');
 
