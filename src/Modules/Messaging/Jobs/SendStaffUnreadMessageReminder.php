@@ -15,6 +15,7 @@ use Illuminate\Support\Str;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\Message;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\StaffUnreadMessageReminderEmail;
+use PactTrackSDK\SharedResources\Modules\Notification\Support\Notification;
 use Throwable;
 
 /**
@@ -92,7 +93,19 @@ class SendStaffUnreadMessageReminder implements ShouldQueue
             return;
         }
 
-        $recipient = $thread->staffMember?->email;
+        $staff = $thread->staffMember;
+
+        // The staffer turned this reminder off in their notification
+        // preferences (an explicit user, always — a thread's staff_user_id
+        // is required and always a real provider-side user). markReadFor()
+        // still clears staff_reminder_sent_at on read, so turning it back on
+        // later needs nothing special here. See .claude/rules/notification.md,
+        // "Notification::isset() gating at dispatch sites".
+        if ($staff === null || ! Notification::isset('unread_message_reminder', $staff)) {
+            return;
+        }
+
+        $recipient = $staff->email;
 
         if (empty($recipient)) {
             return;

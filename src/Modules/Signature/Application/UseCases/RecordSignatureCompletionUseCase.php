@@ -14,6 +14,7 @@ use PactTrackSDK\SharedResources\Modules\Matter\Domain\ValueObjects\DefaultMiles
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\DocumentReadyForSignatureEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\GuestSigningInvitationEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
+use PactTrackSDK\SharedResources\Modules\Notification\Support\Notification;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\DTO\ProviderData;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\Services\GuestSigningTokenService;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Enums\EnvelopeStatus;
@@ -343,6 +344,25 @@ class RecordSignatureCompletionUseCase
             $document = $envelope->document()->first();
 
             if ($client === null || $provider === null) {
+                return;
+            }
+
+            // Respect the recipient's "document ready for signature"
+            // preference — but only when they actually have a portal user to
+            // hold one. A client still in `invited` state (no user_id yet)
+            // has no preferences row; this is their first-contact email, not
+            // a nag they opted out of, so it still goes out. See
+            // .claude/rules/notification.md, "Notification::isset() gating at
+            // dispatch sites".
+            $recipientUser = $client->user()->first();
+
+            if ($recipientUser !== null
+                && ! Notification::isset('document_ready_for_signature', $recipientUser)) {
+                Log::info('DocumentReadyForSignatureEmail suppressed by recipient notification preference.', [
+                    'envelope_id' => $envelope->id,
+                    'client_id' => $client->id,
+                ]);
+
                 return;
             }
 

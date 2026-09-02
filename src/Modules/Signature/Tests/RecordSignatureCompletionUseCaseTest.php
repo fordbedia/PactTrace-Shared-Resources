@@ -13,6 +13,7 @@ use PactTrackSDK\SharedResources\Modules\Matter\Domain\ValueObjects\DefaultMiles
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Milestone;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\DocumentReadyForSignatureEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\GuestSigningInvitationEmail;
+use PactTrackSDK\SharedResources\Modules\Notification\Support\Notification;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\RecordSignatureCompletionUseCase;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Enums\EnvelopeStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\WebhookEvent;
@@ -67,6 +68,53 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
             // matters.public_id".
             fn ($mail) => $mail->hasTo($this->tenant['client']->email)
                 && str_ends_with($mail->portalUrl, "/portal/matter/{$this->tenant['matter']->public_id}"),
+        );
+    }
+
+    /**
+     * Dispatch-site gating (see .claude/rules/notification.md): a client who
+     * has turned "document ready for signature" off in their notification
+     * preferences gets no email on the envelope's `sent` transition — but
+     * the status transition, document sync and audit log all still happen.
+     */
+    public function test_sent_event_does_not_email_a_client_who_disabled_that_notification(): void
+    {
+        Mail::fake();
+
+        Notification::disable('document_ready_for_signature', $this->tenant['clientUser']);
+
+        $envelope = $this->envelope(EnvelopeStatus::Draft, DocumentStatus::Draft);
+
+        $this->useCase->handle($this->event('sent', $envelope));
+
+        Mail::assertNotQueued(DocumentReadyForSignatureEmail::class);
+        // The rest of the webhook's work is unaffected by the preference.
+        $this->assertSame(EnvelopeStatus::Sent, $envelope->fresh()->status);
+        $this->assertSame(DocumentStatus::Sent, $envelope->document->fresh()->status);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'envelope.sent',
+            'auditable_id' => $envelope->id,
+        ]);
+    }
+
+    /**
+     * The gate keys off the *recipient's* preference, never the acting/other
+     * user's: disabling it for an unrelated user leaves this client's email
+     * untouched.
+     */
+    public function test_sent_event_still_emails_when_only_an_unrelated_user_disabled_the_notification(): void
+    {
+        Mail::fake();
+
+        Notification::disable('document_ready_for_signature', $this->tenant['staff']);
+
+        $envelope = $this->envelope(EnvelopeStatus::Draft, DocumentStatus::Draft);
+
+        $this->useCase->handle($this->event('sent', $envelope));
+
+        Mail::assertQueued(
+            DocumentReadyForSignatureEmail::class,
+            fn ($mail) => $mail->hasTo($this->tenant['client']->email),
         );
     }
 

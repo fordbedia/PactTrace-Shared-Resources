@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -96,6 +97,18 @@ class User extends Authenticatable
     public function client(): HasOne
     {
         return $this->hasOne(Client::class);
+    }
+
+    /**
+     * The user's notification-preference override rows (Notification module).
+     * Absent rows fall back to `notification_types.default_*` — see
+     * `Notification::isset()` / the `/notification` screen.
+     *
+     * @return HasMany<\PactTrackSDK\SharedResources\Modules\Notification\Models\UserNotification>
+     */
+    public function notificationPreferences(): HasMany
+    {
+        return $this->hasMany(\PactTrackSDK\SharedResources\Modules\Notification\Models\UserNotification::class);
     }
 
     /**

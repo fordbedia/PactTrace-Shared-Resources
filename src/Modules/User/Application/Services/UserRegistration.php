@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace PactTrackSDK\SharedResources\Modules\User\Application\Services;
 
 use Illuminate\Support\Str;
+use PactTrackSDK\SharedResources\Modules\Notification\Support\DefaultNotificationSettings;
+use PactTrackSDK\SharedResources\Modules\Notification\Support\Notification;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
@@ -65,6 +67,11 @@ class UserRegistration
         ]);
 
         $this->users->assignRole($user, $role);
+
+		// Store default notification settings
+		foreach(DefaultNotificationSettings::forUser($user->id) as $setting) {
+			Notification::create($setting);
+		}
 
         return $user;
     }

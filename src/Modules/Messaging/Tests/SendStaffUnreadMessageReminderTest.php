@@ -9,6 +9,7 @@ use PactTrackSDK\SharedResources\Modules\Messaging\Jobs\SendStaffUnreadMessageRe
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\Message;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\StaffUnreadMessageReminderEmail;
+use PactTrackSDK\SharedResources\Modules\Notification\Support\Notification;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
 use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
@@ -120,6 +121,40 @@ class SendStaffUnreadMessageReminderTest extends BaseTest
 
         Mail::assertNothingQueued();
         $this->assertNull($this->thread->refresh()->staff_reminder_sent_at);
+    }
+
+    /**
+     * Dispatch-site gating (see .claude/rules/notification.md): a staffer who
+     * turned "unread message reminder" off gets no email, and — like the
+     * no-email and archived cases — `staff_reminder_sent_at` is left null so
+     * turning it back on lets a later message nudge again.
+     */
+    public function test_it_no_ops_when_the_staffer_disabled_the_unread_message_reminder(): void
+    {
+        Notification::disable('unread_message_reminder', $this->tenant['staff']);
+
+        $message = $this->clientMessage();
+
+        $this->runJob($message);
+
+        Mail::assertNothingQueued();
+        $this->assertNull($this->thread->refresh()->staff_reminder_sent_at);
+    }
+
+    /**
+     * The gate reads the *thread's own staffer's* preference: another
+     * provider-side user disabling it must not silence this staffer's
+     * reminder.
+     */
+    public function test_it_still_emails_when_only_an_unrelated_user_disabled_the_reminder(): void
+    {
+        Notification::disable('unread_message_reminder', $this->tenant['owner']);
+
+        $message = $this->clientMessage();
+
+        $this->runJob($message);
+
+        Mail::assertQueued(StaffUnreadMessageReminderEmail::class);
     }
 
     public function test_it_no_ops_when_the_thread_was_archived(): void
