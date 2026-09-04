@@ -53,6 +53,23 @@ class ProfileControllerTest extends BaseTest
         ];
     }
 
+    /**
+     * Override the LoadsModuleApiRoutes default to also run StartSession, so
+     * the password-change endpoint's session-hash refresh (which Sanctum's
+     * stateful stack would normally provide in the browser) is actually
+     * exercised — `$request->hasSession()` is false without it. Harmless for
+     * the JSON-only tests in this class.
+     */
+    protected function defineRoutes($router): void
+    {
+        $router->prefix('api')
+            ->middleware([
+                \Illuminate\Session\Middleware\StartSession::class,
+                \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            ])
+            ->group(__DIR__ . '/../routes/api.php');
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -104,6 +121,48 @@ class ProfileControllerTest extends BaseTest
             'user_id' => $user->id,
             'action' => 'profile.updated',
         ]);
+    }
+
+    public function test_it_updates_only_the_first_name_leaving_the_last_name_intact(): void
+    {
+        $user = $this->owner();
+        $user->forceFill(['name' => 'Jestoni John John B'])->save();
+
+        Sanctum::actingAs($user);
+
+        $this->patchJson('/api/v1/profile', [
+            'first_name' => 'Jess',
+            'last_name' => 'John John B',
+            'email' => $user->email,
+            'phone' => null,
+        ])->assertOk()->assertJsonPath('data.name', 'Jess John John B');
+
+        $this->assertSame('Jess John John B', $user->refresh()->name);
+    }
+
+    public function test_it_accepts_a_blank_last_name(): void
+    {
+        $user = $this->owner();
+
+        Sanctum::actingAs($user);
+
+        // A one-word legal name — the card seeds Last Name empty and must be
+        // able to save without inventing one.
+        $this->patchJson('/api/v1/profile', [
+            'first_name' => 'Cher',
+            'last_name' => '',
+            'email' => $user->email,
+            'phone' => null,
+        ])->assertOk()->assertJsonPath('data.name', 'Cher');
+
+        $this->assertSame('Cher', $user->refresh()->name);
+
+        // Omitting the key entirely is accepted too.
+        $this->patchJson('/api/v1/profile', [
+            'first_name' => 'Prince',
+            'email' => $user->email,
+            'phone' => null,
+        ])->assertOk()->assertJsonPath('data.name', 'Prince');
     }
 
     public function test_changing_the_email_clears_verification(): void
@@ -239,6 +298,32 @@ class ProfileControllerTest extends BaseTest
             'user_id' => $user->id,
             'action' => 'profile.password_changed',
         ]);
+    }
+
+    public function test_changing_the_password_refreshes_the_session_hash_so_the_user_stays_signed_in(): void
+    {
+        $user = $this->owner();
+        $user->forceFill(['password' => 'current-secret'])->save();
+
+        Sanctum::actingAs($user);
+        // Stand in for the session Sanctum's stateful stack would have started,
+        // pre-seeded with the pre-change hash the way AuthenticateSession does.
+        $this->withSession(['password_hash_web' => Hash::make('current-secret')]);
+
+        $this->putJson('/api/v1/profile/password', [
+            'current_password' => 'current-secret',
+            'password' => 'NewPassw0rd!',
+            'password_confirmation' => 'NewPassw0rd!',
+        ])->assertStatus(204);
+
+        // AuthenticateSession compares this on every request and 401s on a
+        // mismatch — the controller must have replaced it with a hash of the
+        // NEW password, or the next `GET /api/user` would bounce the user to
+        // sign-in.
+        $stored = session('password_hash_web');
+        $this->assertNotNull($stored);
+        $this->assertTrue(Hash::check('NewPassw0rd!', $stored));
+        $this->assertFalse(Hash::check('current-secret', $stored));
     }
 
     public function test_it_rejects_a_wrong_current_password(): void

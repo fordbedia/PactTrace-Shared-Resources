@@ -21,7 +21,11 @@ class UpdateProfileRequest extends FormRequest
     {
         return [
             'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
+            // Nullable: a one-word legal name ("Cher", "Prince") is legitimate,
+            // and the card seeds Last Name empty for such a user. UpdateProfile
+            // recombines `trim($first.' '.$last)`, so an empty last name just
+            // yields `users.name = <first>`.
+            'last_name' => ['nullable', 'string', 'max:100'],
             'email' => [
                 'required', 'string', 'email', 'max:255',
                 Rule::unique('users', 'email')->ignore($this->user()->id),

@@ -101,6 +101,20 @@ class ProfileController extends Controller
             ]);
         }
 
+        // Keep THIS session alive. Sanctum's AuthenticateSession middleware
+        // (on every stateful /api/* request) compares the session's stored
+        // password hash to the user's current one and force-logs-out on a
+        // mismatch — so without re-storing it here, the SPA's very next
+        // `GET /api/user` poll after a password change would 401 and bounce
+        // the user to sign-in. Mirrors the guard list the middleware itself
+        // iterates (`config('sanctum.guard')`).
+        if ($request->hasSession()) {
+            $freshHash = $request->user()->fresh()?->getAuthPassword();
+            foreach ((array) config('sanctum.guard', ['web']) as $guard) {
+                $request->session()->put("password_hash_{$guard}", $freshHash);
+            }
+        }
+
         return response()->json(null, 204);
     }
 
