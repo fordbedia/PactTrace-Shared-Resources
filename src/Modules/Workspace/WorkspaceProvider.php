@@ -9,12 +9,14 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use PactTrackSDK\SharedResources\Modules\Workspace\Application\Labels\WorkspaceLabelResolver;
 use PactTrackSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceDeactivationSignalReader;
+use PactTrackSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceInvitationCanceller;
 use PactTrackSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceRepository;
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\WorkspacePresets;
 use PactTrackSDK\SharedResources\Modules\Workspace\Infrastructure\Context\RequestWorkspaceContext;
 use PactTrackSDK\SharedResources\Modules\Workspace\Infrastructure\Presets\ConfigWorkspacePresets;
 use PactTrackSDK\SharedResources\Modules\Workspace\Infrastructure\Repositories\Eloquent\EloquentWorkspaceDeactivationSignals;
+use PactTrackSDK\SharedResources\Modules\Workspace\Infrastructure\Repositories\Eloquent\EloquentWorkspaceInvitationCanceller;
 use PactTrackSDK\SharedResources\Modules\Workspace\Infrastructure\Repositories\Eloquent\EloquentWorkspaceRepository;
 use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
 use PactTrackSDK\SharedResources\Modules\Workspace\Policies\WorkspacePolicy;
@@ -64,6 +66,12 @@ class WorkspaceProvider extends ServiceProvider
         $this->app->bind(
             WorkspaceDeactivationSignalReader::class,
             EloquentWorkspaceDeactivationSignals::class,
+        );
+
+        // Withdraws a deactivated workspace's still-open client invitations.
+        $this->app->bind(
+            WorkspaceInvitationCanceller::class,
+            EloquentWorkspaceInvitationCanceller::class,
         );
     }
 

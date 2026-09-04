@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\AccountDeletionSignalReader;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\DepartingStaffReassignment;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderInvitationCanceller;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\AccountDeletionBlockedException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\AccountDeletionConfirmationException;
@@ -29,9 +30,16 @@ use PactTrackSDK\SharedResources\Modules\User\Models\User;
  * Three gates, in order:
  *   1. No outstanding commitments (AccountDeletionPolicy) — re-checked here,
  *      not just in the modal pre-flight, so a blocker that appeared in the
- *      meantime still stops it.
+ *      meantime still stops it. Only an active subscription and documents out
+ *      for signature count; an unaccepted team/client invitation does not
+ *      block — it is withdrawn (below) instead.
  *   2. The typed name matches the account name (case-insensitive).
  *   3. The typed password verifies against the stored hash.
+ *
+ * Once the gates pass, the soft-deactivation, the matter reassignment and the
+ * withdrawal of every still-open team/client invitation across the provider's
+ * workspaces all happen in one transaction. No email is sent to any invitee;
+ * the tokens just stop resolving (same as lapsing).
  *
  * The teammate's assigned matters fall back to the owner
  * (DepartingStaffReassignment) — same as a staff removal. The controller ends
@@ -43,6 +51,7 @@ final class DeleteOwnAccount
         private readonly AccountDeletionSignalReader $reader,
         private readonly UserRepository $users,
         private readonly DepartingStaffReassignment $reassignment,
+        private readonly ProviderInvitationCanceller $invitationCanceller,
         private readonly Hasher $hasher,
     ) {
     }
@@ -55,7 +64,9 @@ final class DeleteOwnAccount
     {
         $providerId = (int) $actor->provider_id;
         if ($providerId > 0) {
-            $blockers = AccountDeletionPolicy::blockers($this->reader->read($providerId));
+            $blockers = AccountDeletionPolicy::blockers(
+                $this->reader->read($providerId, (int) $actor->id)
+            );
             if ($blockers !== []) {
                 throw new AccountDeletionBlockedException($blockers);
             }
@@ -69,8 +80,17 @@ final class DeleteOwnAccount
             throw new AccountDeletionConfirmationException('password');
         }
 
-        DB::transaction(function () use ($actor): void {
+        DB::transaction(function () use ($actor, $providerId): void {
             $reassignedMatters = $this->reassignment->clearMatterAssignments((int) $actor->id);
+
+            $cancelledTeamInvites = 0;
+            $cancelledClientInvites = 0;
+            if ($providerId > 0) {
+                $cancelledTeamInvites = $this->invitationCanceller
+                    ->expirePendingTeamInvitationsForProvider($providerId);
+                $cancelledClientInvites = $this->invitationCanceller
+                    ->expirePendingClientInvitationsForProvider($providerId);
+            }
 
             $this->users->deactivate($actor);
 
@@ -83,6 +103,8 @@ final class DeleteOwnAccount
                 'metadata' => [
                     'previous_role' => $actor->primaryRole()?->value,
                     'reassigned_matters' => $reassignedMatters,
+                    'cancelled_team_invitations' => $cancelledTeamInvites,
+                    'cancelled_client_invitations' => $cancelledClientInvites,
                 ],
             ]);
         });

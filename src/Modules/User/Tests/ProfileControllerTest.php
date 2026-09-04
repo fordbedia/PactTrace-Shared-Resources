@@ -279,7 +279,10 @@ class ProfileControllerTest extends BaseTest
         $this->getJson('/api/v1/profile/deletion-eligibility')
             ->assertOk()
             ->assertJsonPath('eligible', true)
-            ->assertJsonPath('blockers', []);
+            ->assertJsonPath('blockers', [])
+            // ProviderTenantScenario has one active staff member besides the
+            // owner — informational, never a blocker.
+            ->assertJsonPath('active_staff_count', 1);
     }
 
     public function test_an_active_subscription_blocks_deletion(): void
@@ -329,7 +332,7 @@ class ProfileControllerTest extends BaseTest
             ->assertJsonFragment(['code' => 'pending_documents']);
     }
 
-    public function test_a_pending_team_invitation_blocks_deletion(): void
+    public function test_a_pending_team_invitation_does_not_block_deletion(): void
     {
         TeamInvitation::factory()->forProvider($this->tenant['provider'])->create();
 
@@ -337,11 +340,11 @@ class ProfileControllerTest extends BaseTest
 
         $this->getJson('/api/v1/profile/deletion-eligibility')
             ->assertOk()
-            ->assertJsonPath('eligible', false)
-            ->assertJsonFragment(['code' => 'pending_team_invitations']);
+            ->assertJsonPath('eligible', true)
+            ->assertJsonPath('blockers', []);
     }
 
-    public function test_a_pending_client_invitation_blocks_deletion(): void
+    public function test_a_pending_client_invitation_does_not_block_deletion(): void
     {
         ClientInvitation::factory()->create([
             'provider_id' => $this->tenant['provider']->id,
@@ -353,8 +356,8 @@ class ProfileControllerTest extends BaseTest
 
         $this->getJson('/api/v1/profile/deletion-eligibility')
             ->assertOk()
-            ->assertJsonPath('eligible', false)
-            ->assertJsonFragment(['code' => 'pending_client_invitations']);
+            ->assertJsonPath('eligible', true)
+            ->assertJsonPath('blockers', []);
     }
 
     // ── DELETE /profile ─────────────────────────────────────────────────
@@ -378,6 +381,33 @@ class ProfileControllerTest extends BaseTest
             'user_id' => $user->id,
             'action' => 'account.self_deleted',
         ]);
+    }
+
+    public function test_it_expires_pending_team_and_client_invitations_on_deletion(): void
+    {
+        $user = $this->owner();
+        $user->forceFill(['name' => 'Sarah Mitchell', 'password' => 'right-password'])->save();
+
+        $teamInvite = TeamInvitation::factory()
+            ->forProvider($this->tenant['provider'])
+            ->create(['expires_at' => now()->addDays(7)]);
+        $clientInvite = ClientInvitation::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'client_id' => $this->tenant['otherClient']->id,
+            'invited_by' => $user->id,
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->deleteJson('/api/v1/profile', [
+            'name' => 'Sarah Mitchell',
+            'password' => 'right-password',
+        ])->assertStatus(204);
+
+        $this->assertTrue($teamInvite->fresh()->expires_at->lessThanOrEqualTo(now()));
+        $this->assertFalse($teamInvite->fresh()->isPending());
+        $this->assertTrue($clientInvite->fresh()->expires_at->lessThanOrEqualTo(now()));
     }
 
     public function test_it_rejects_a_name_that_does_not_match(): void

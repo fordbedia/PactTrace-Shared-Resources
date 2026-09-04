@@ -41,9 +41,8 @@ final class WorkspaceDeactivationPolicy
             $blockers[] = WorkspaceDeactivationBlocker::PendingEnvelopes;
         }
 
-        if ($signals->pendingClientInvitationCount > 0) {
-            $blockers[] = WorkspaceDeactivationBlocker::PendingClientInvitations;
-        }
+        // Unaccepted client/team invitations are not blockers — deactivation
+        // expires them as a side effect instead. See DeactivateWorkspace.
 
         return $blockers;
     }

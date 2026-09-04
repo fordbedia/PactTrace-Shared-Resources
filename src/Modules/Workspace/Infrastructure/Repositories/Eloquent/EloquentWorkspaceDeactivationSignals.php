@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace PactTrackSDK\SharedResources\Modules\Workspace\Infrastructure\Repositories\Eloquent;
 
-use PactTrackSDK\SharedResources\Modules\Client\Models\ClientInvitation;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
@@ -28,6 +27,10 @@ use PactTrackSDK\SharedResources\Modules\Workspace\Models\Scopes\WorkspaceScope;
  * The "matter completed" bar excludes `cancelled` as well as `completed`: a
  * cancelled matter is closed work, not activity the provider still has to wind
  * down before deactivating.
+ *
+ * Unaccepted client invitations are no longer read here — they stopped being a
+ * blocker; `WorkspaceInvitationCanceller` expires them as a side effect of the
+ * deactivation instead.
  */
 final class EloquentWorkspaceDeactivationSignals implements WorkspaceDeactivationSignalReader
 {
@@ -62,25 +65,10 @@ final class EloquentWorkspaceDeactivationSignals implements WorkspaceDeactivatio
             ])
             ->count();
 
-        $workspaceClientIds = Matter::query()
-            ->withoutGlobalScope(WorkspaceScope::class)
-            ->where('workspace_id', $workspaceId)
-            ->distinct()
-            ->pluck('client_id')
-            ->all();
-
-        $pendingClientInvitations = $workspaceClientIds === []
-            ? 0
-            : ClientInvitation::query()
-                ->whereIn('client_id', $workspaceClientIds)
-                ->whereNull('accepted_at')
-                ->count();
-
         return new WorkspaceDeactivationSignals(
             $openMatters,
             $pendingDocuments,
             $pendingEnvelopes,
-            $pendingClientInvitations,
         );
     }
 }

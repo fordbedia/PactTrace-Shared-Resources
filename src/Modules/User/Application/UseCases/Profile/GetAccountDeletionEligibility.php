@@ -23,8 +23,8 @@ final class GetAccountDeletionEligibility
     ) {
     }
 
-    public function handle(int $providerId): AccountDeletionSignals
+    public function handle(int $providerId, ?int $actingUserId = null): AccountDeletionSignals
     {
-        return $this->reader->read($providerId);
+        return $this->reader->read($providerId, $actingUserId);
     }
 }

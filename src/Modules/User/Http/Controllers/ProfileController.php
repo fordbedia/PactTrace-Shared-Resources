@@ -106,16 +106,25 @@ class ProfileController extends Controller
 
     /**
      * GET /api/v1/profile/deletion-eligibility — the delete modal's
-     * pre-flight. `{ eligible, blockers: [{ code, label, detail }] }`.
+     * pre-flight. `{ eligible, blockers: [{ code, label, detail }],
+     * active_staff_count }`.
+     *
+     * `active_staff_count` is informational, never a blocker — it lets the
+     * modal warn that deleting the account also removes portal access for
+     * other active team members rather than doing it silently.
      */
     public function deletionEligibility(Request $request): JsonResponse
     {
-        $signals = $this->deletionEligibility->handle((int) $request->user()->provider_id);
+        $signals = $this->deletionEligibility->handle(
+            (int) $request->user()->provider_id,
+            (int) $request->user()->id,
+        );
         $blockers = AccountDeletionPolicy::blockers($signals);
 
         return response()->json([
             'eligible' => $blockers === [],
             'blockers' => $this->serializeBlockers($blockers),
+            'active_staff_count' => $signals->activeStaffCount,
         ]);
     }
 

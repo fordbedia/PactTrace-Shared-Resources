@@ -33,7 +33,16 @@ enum WorkspaceDeactivationBlocker: string
     case OpenMatters = 'open_matters';
     case PendingDocuments = 'pending_documents';
     case PendingEnvelopes = 'pending_envelopes';
-    case PendingClientInvitations = 'pending_client_invitations';
+
+    /*
+     * Unaccepted client/team invitations are deliberately NOT blockers. A
+     * pending invitation nobody has accepted establishes no relationship and
+     * carries nothing worth protecting, so deactivating a workspace quietly
+     * expires any client invitation scoped to it (see
+     * `DeactivateWorkspace` / `WorkspaceInvitationCanceller`) rather than
+     * refusing until the provider revokes it by hand. Blockers here are
+     * reserved for work or a legal document already in flight.
+     */
 
     /** Short human label for the blocker list. */
     public function label(): string
@@ -43,7 +52,6 @@ enum WorkspaceDeactivationBlocker: string
             self::OpenMatters => 'Matters still open',
             self::PendingDocuments => 'Documents awaiting signature',
             self::PendingEnvelopes => 'Signature requests in progress',
-            self::PendingClientInvitations => 'Unaccepted client invitations',
         };
     }
 
@@ -55,7 +63,6 @@ enum WorkspaceDeactivationBlocker: string
             self::OpenMatters => 'Complete or cancel every matter in this workspace first.',
             self::PendingDocuments => 'Complete or void every document that is out for signature.',
             self::PendingEnvelopes => 'Finish or void every signature request that has not reached a final state.',
-            self::PendingClientInvitations => 'Revoke or wait for every pending client invitation tied to this workspace.',
         };
     }
 }

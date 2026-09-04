@@ -10,6 +10,7 @@ use Illuminate\Support\ServiceProvider;
 use PactTrackSDK\SharedResources\Modules\User\Console\Commands\NotifyTrialEnding;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\AccountDeletionSignalReader;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\DepartingStaffReassignment;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderInvitationCanceller;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\TeamInvitationRepository;
@@ -21,6 +22,7 @@ use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Auth\SanctumTokenIs
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Service\PublicDiskAvatarStorage;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentAccountDeletionSignals;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentDepartingStaffReassignment;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentProviderInvitationCanceller;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentProviderRepository;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentSubscriptionRepository;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentTeamInvitationRepository;
@@ -67,6 +69,7 @@ class UserProvider extends ServiceProvider
         UserRepository::class => EloquentUserRepository::class,
         DepartingStaffReassignment::class => EloquentDepartingStaffReassignment::class,
         AccountDeletionSignalReader::class => EloquentAccountDeletionSignals::class,
+        ProviderInvitationCanceller::class => EloquentProviderInvitationCanceller::class,
         TeamInvitationRepository::class => EloquentTeamInvitationRepository::class,
         ProviderRepository::class => EloquentProviderRepository::class,
         SubdomainAvailability::class => EloquentProviderRepository::class,

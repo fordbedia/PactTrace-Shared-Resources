@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use PactTrackSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceDeactivationSignalReader;
+use PactTrackSDK\SharedResources\Modules\Workspace\Application\Repository\Ports\WorkspaceInvitationCanceller;
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Exceptions\WorkspaceDeactivationBlockedException;
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Exceptions\WorkspaceDeactivationConfirmationException;
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Services\WorkspaceDeactivationPolicy;
@@ -32,9 +33,17 @@ use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
  * Three gates, in order — same shape as the User module's `DeleteOwnAccount`:
  *   1. No live activity (WorkspaceDeactivationPolicy) — re-checked here, not
  *      just in the modal pre-flight, so a blocker that appeared in between
- *      still stops it.
+ *      still stops it. Only open matters, documents out for signature and
+ *      non-terminal envelopes count; an unaccepted client invitation does not
+ *      block — it is withdrawn (below) instead.
  *   2. The typed name matches the acting user's name (case-insensitive).
  *   3. The typed password verifies against the acting user's stored hash.
+ *
+ * Once the three gates pass, the soft-delete and the withdrawal of any
+ * still-open client invitation scoped to the workspace happen in one
+ * transaction — a failure to expire an invitation can't leave a deactivated
+ * workspace with a live invite, or the reverse. No email is sent to the
+ * invitee; the token just stops resolving (same as it lapsing).
  *
  * The confirmation is the acting user's own name/password, not the
  * workspace's — matching "the system will ask his/her Name and password".
@@ -43,6 +52,7 @@ final class DeactivateWorkspace
 {
     public function __construct(
         private readonly WorkspaceDeactivationSignalReader $reader,
+        private readonly WorkspaceInvitationCanceller $invitationCanceller,
         private readonly Hasher $hasher,
     ) {
     }
@@ -82,6 +92,9 @@ final class DeactivateWorkspace
                 ? $workspace->workspace_type->value
                 : (string) $workspace->workspace_type;
 
+            $cancelledInvitations = $this->invitationCanceller
+                ->expirePendingClientInvitationsForWorkspace((int) $workspace->getKey());
+
             $workspace->delete();
 
             AuditLog::create([
@@ -93,6 +106,7 @@ final class DeactivateWorkspace
                 'metadata' => [
                     'name' => $workspace->name,
                     'workspace_type' => $type,
+                    'cancelled_client_invitations' => $cancelledInvitations,
                 ],
             ]);
         });

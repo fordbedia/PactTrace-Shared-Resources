@@ -19,10 +19,13 @@ final readonly class AccountDeletionSignals
         public ?string $subscriptionStatus,
         /** Documents still out for signature (sent / partially_signed). */
         public int $pendingDocumentCount,
-        /** team_invitations rows not yet accepted. */
-        public int $pendingTeamInvitationCount,
-        /** client_invitations rows not yet accepted. */
-        public int $pendingClientInvitationCount,
+        /**
+         * Accepted, still-active provider-side team members (owner/admin/staff)
+         * other than the acting user. NOT a blocker — surfaced so the confirm
+         * modal can warn that deleting the account also removes their access
+         * rather than doing it silently.
+         */
+        public int $activeStaffCount = 0,
     ) {
     }
 }

@@ -22,11 +22,6 @@ final readonly class WorkspaceDeactivationSignals
         public int $pendingDocumentCount,
         /** Envelopes in the workspace that have not reached a terminal status. */
         public int $pendingEnvelopeCount,
-        /**
-         * Unaccepted client_invitations for a client that has at least one
-         * matter in this workspace.
-         */
-        public int $pendingClientInvitationCount,
     ) {
     }
 }

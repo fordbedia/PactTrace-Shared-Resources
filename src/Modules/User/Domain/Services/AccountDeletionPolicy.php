@@ -46,13 +46,8 @@ final class AccountDeletionPolicy
             $blockers[] = AccountDeletionBlocker::PendingDocuments;
         }
 
-        if ($signals->pendingTeamInvitationCount > 0) {
-            $blockers[] = AccountDeletionBlocker::PendingTeamInvitations;
-        }
-
-        if ($signals->pendingClientInvitationCount > 0) {
-            $blockers[] = AccountDeletionBlocker::PendingClientInvitations;
-        }
+        // Unaccepted team/client invitations are not blockers — deletion
+        // expires them as a side effect instead. See DeleteOwnAccount.
 
         return $blockers;
     }

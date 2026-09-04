@@ -11,6 +11,7 @@ use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
+use PactTrackSDK\SharedResources\Modules\User\Models\TeamInvitation;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use PactTrackSDK\SharedResources\Modules\Workspace\Domain\ValueObjects\WorkspaceType;
 use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
@@ -27,9 +28,10 @@ use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
  *   DELETE /api/v1/workspaces/{workspace}                           confirmed submit
  *
  * The interesting logic is the blocker set (WorkspaceDeactivationPolicy) —
- * open matters, documents out for signature, non-terminal envelopes,
- * unaccepted client invitations tied to the workspace — plus the acting-user
- * name/password confirmation, and that deactivation is a soft delete.
+ * open matters, documents out for signature, non-terminal envelopes — plus
+ * the acting-user name/password confirmation, and that deactivation is a soft
+ * delete that quietly expires any still-open client invitation scoped to the
+ * workspace (an unaccepted invitation is not a blocker).
  */
 class WorkspaceControllerTest extends BaseTest
 {
@@ -251,7 +253,7 @@ class WorkspaceControllerTest extends BaseTest
             ->assertJsonFragment(['id' => $this->tenant['workspace']->id, 'is_primary' => false]);
     }
 
-    public function test_an_unaccepted_client_invitation_tied_to_the_workspace_blocks_deactivation(): void
+    public function test_an_unaccepted_client_invitation_tied_to_the_workspace_does_not_block_deactivation(): void
     {
         $workspace = $this->emptyWorkspace();
         // A completed matter links the client to the workspace without also
@@ -267,8 +269,76 @@ class WorkspaceControllerTest extends BaseTest
 
         $this->getJson("/api/v1/workspaces/{$workspace->id}/deactivation-eligibility")
             ->assertOk()
-            ->assertJsonPath('eligible', false)
-            ->assertJsonFragment(['code' => 'pending_client_invitations']);
+            ->assertJsonPath('eligible', true)
+            ->assertJsonPath('blockers', []);
+    }
+
+    public function test_an_unaccepted_staff_invitation_does_not_block_deactivation(): void
+    {
+        $workspace = $this->emptyWorkspace();
+        // Team invitations carry no workspace link, so deactivating one
+        // workspace neither blocks on nor withdraws them — this just guards
+        // against a regression that would re-add them as a blocker.
+        TeamInvitation::factory()->forProvider($this->tenant['provider'])->create();
+        $this->owner()->forceFill(['name' => 'Olivia Owner', 'password' => 'right-password'])->save();
+
+        Sanctum::actingAs($this->owner());
+
+        $this->getJson("/api/v1/workspaces/{$workspace->id}/deactivation-eligibility")
+            ->assertOk()
+            ->assertJsonPath('eligible', true);
+
+        $this->deleteJson("/api/v1/workspaces/{$workspace->id}", [
+            'name' => 'Olivia Owner',
+            'password' => 'right-password',
+        ])->assertStatus(204);
+
+        $this->assertSoftDeleted('workspaces', ['id' => $workspace->id]);
+    }
+
+    public function test_deactivation_expires_a_still_open_client_invitation_scoped_to_the_workspace(): void
+    {
+        $workspace = $this->emptyWorkspace();
+        $this->matterIn($workspace, 'completed');
+        $invitation = ClientInvitation::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'client_id' => $this->tenant['client']->id,
+            'invited_by' => $this->owner()->id,
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        // A second workspace's client invitation must be left untouched.
+        $otherWorkspace = $this->emptyWorkspace();
+        $this->matterIn($otherWorkspace, 'completed', $this->tenant['otherClient']->id);
+        $untouched = ClientInvitation::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'client_id' => $this->tenant['otherClient']->id,
+            'invited_by' => $this->owner()->id,
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        $this->owner()->forceFill(['name' => 'Olivia Owner', 'password' => 'right-password'])->save();
+
+        Sanctum::actingAs($this->owner());
+
+        $this->deleteJson("/api/v1/workspaces/{$workspace->id}", [
+            'name' => 'Olivia Owner',
+            'password' => 'right-password',
+        ])->assertStatus(204);
+
+        $this->assertTrue(
+            $invitation->fresh()->expires_at->lessThanOrEqualTo(now()),
+            'the workspace-scoped invitation should be expired'
+        );
+        $this->assertTrue(
+            $untouched->fresh()->expires_at->greaterThan(now()),
+            'another workspace\'s invitation should be left alone'
+        );
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'workspace.deactivated',
+            'auditable_id' => $workspace->id,
+        ]);
     }
 
     // ── destroy ─────────────────────────────────────────────────────────

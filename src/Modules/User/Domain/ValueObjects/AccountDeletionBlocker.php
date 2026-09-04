@@ -19,8 +19,15 @@ enum AccountDeletionBlocker: string
 {
     case ActiveSubscription = 'active_subscription';
     case PendingDocuments = 'pending_documents';
-    case PendingTeamInvitations = 'pending_team_invitations';
-    case PendingClientInvitations = 'pending_client_invitations';
+
+    /*
+     * Unaccepted team/client invitations are deliberately NOT blockers. A
+     * pending invitation nobody has accepted establishes no relationship and
+     * carries nothing worth protecting, so deleting the account quietly
+     * expires every pending invitation across all of the provider's
+     * workspaces (see `DeleteOwnAccount` / `ProviderInvitationCanceller`)
+     * rather than refusing until they are revoked by hand.
+     */
 
     /** Short human label for the blocker list. */
     public function label(): string
@@ -28,8 +35,6 @@ enum AccountDeletionBlocker: string
         return match ($this) {
             self::ActiveSubscription => 'Active subscription',
             self::PendingDocuments => 'Documents awaiting signature',
-            self::PendingTeamInvitations => 'Unaccepted team invitations',
-            self::PendingClientInvitations => 'Unaccepted client invitations',
         };
     }
 
@@ -39,8 +44,6 @@ enum AccountDeletionBlocker: string
         return match ($this) {
             self::ActiveSubscription => 'Cancel your current plan from Billing before deleting your account.',
             self::PendingDocuments => 'Complete or void every document that is out for signature.',
-            self::PendingTeamInvitations => 'Revoke or wait for every pending team invitation on the Team page.',
-            self::PendingClientInvitations => 'Revoke or wait for every pending client invitation on the Clients page.',
         };
     }
 }
