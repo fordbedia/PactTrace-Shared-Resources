@@ -79,4 +79,21 @@ class UserPolicy extends TenantScopedPolicy
         return $this->actorOwnsTenant($user)
             || $this->check($user, Permission::UserDelete);
     }
+
+    /**
+     * Delete (soft-deactivate) your own account.
+     *
+     * Permission-only in shape, like manageMembers()/changeMemberStatus() —
+     * there is no separate record, the actor and the target are always the same
+     * row. Deliberately NOT gated by a Permission: every role could plausibly
+     * hold "delete your own account" as a permission, but the actual blast
+     * radius (DeleteOwnAccount expires every pending team + client invitation
+     * across the whole provider, not just the acting user's own things) makes
+     * this an owner-only decision per Ed, 2026-09-06 — the same reasoning that
+     * makes manageMembers() owner-only despite Admin holding `user.update`.
+     */
+    public function deleteOwnAccount(User $user): bool
+    {
+        return $this->actorOwnsTenant($user);
+    }
 }

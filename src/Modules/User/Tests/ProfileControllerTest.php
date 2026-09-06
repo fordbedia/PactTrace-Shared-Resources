@@ -355,6 +355,36 @@ class ProfileControllerTest extends BaseTest
         ])->assertStatus(422)->assertJsonValidationErrors('password');
     }
 
+    // ── deleteOwnAccount gate (owner-only) ──────────────────────────────
+
+    public function test_an_admin_cannot_reach_the_account_deletion_endpoints(): void
+    {
+        // Deleting an account cancels every pending team + client invitation
+        // across the whole provider — owner-only via UserPolicy::deleteOwnAccount,
+        // even though an Admin holds `user.delete`.
+        $admin = User::factory()->create(['provider_id' => $this->tenant['provider']->id]);
+        $admin->assignRole('admin');
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/v1/profile/deletion-eligibility')->assertStatus(403);
+        $this->deleteJson('/api/v1/profile', [
+            'name' => 'x',
+            'password' => 'y',
+        ])->assertStatus(403);
+    }
+
+    public function test_a_staff_user_cannot_reach_the_account_deletion_endpoints(): void
+    {
+        Sanctum::actingAs($this->tenant['staff']);
+
+        $this->getJson('/api/v1/profile/deletion-eligibility')->assertStatus(403);
+        $this->deleteJson('/api/v1/profile', [
+            'name' => 'x',
+            'password' => 'y',
+        ])->assertStatus(403);
+    }
+
     // ── GET /profile/deletion-eligibility ───────────────────────────────
 
     public function test_a_clean_account_is_eligible_for_deletion(): void

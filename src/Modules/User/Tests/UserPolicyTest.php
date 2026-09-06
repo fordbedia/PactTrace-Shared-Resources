@@ -11,10 +11,10 @@ use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
 use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
 
 /**
- * Coverage for UserPolicy::manageMembers and ::changeMemberStatus — exercised
- * through the real Gate (`$user->can(...)`), the same way TenantIsolationTest
- * checks its policies, so an unregistered policy can't pass its own unit test
- * while authorising nothing in production.
+ * Coverage for UserPolicy::manageMembers, ::changeMemberStatus and
+ * ::deleteOwnAccount — exercised through the real Gate (`$user->can(...)`), the
+ * same way TenantIsolationTest checks its policies, so an unregistered policy
+ * can't pass its own unit test while authorising nothing in production.
  *
  * `manageMembers` (role change) is deliberately narrower than the
  * `user.invite` / `user.update` permission (which the Admin role also holds):
@@ -22,6 +22,9 @@ use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
  * `changeMemberStatus` (deactivate / restore) is the wider gate: any
  * `user.delete` holder passes it (Owner + Admin), with the per-target
  * Staff-only restriction enforced in TeamMembershipRules, not here.
+ * `deleteOwnAccount` (self-deactivation on /account-settings) is owner-only
+ * like `manageMembers` — deleting cancels every pending invitation across the
+ * whole provider.
  */
 class UserPolicyTest extends BaseTest
 {
@@ -83,5 +86,29 @@ class UserPolicyTest extends BaseTest
     {
         $this->assertFalse($this->tenant['staff']->can('changeMemberStatus', User::class));
         $this->assertFalse($this->tenant['clientUser']->can('changeMemberStatus', User::class));
+    }
+
+    // ── deleteOwnAccount (self-deactivation via /account-settings) ────────
+
+    public function test_the_owner_may_delete_their_own_account(): void
+    {
+        $this->assertTrue($this->tenant['owner']->can('deleteOwnAccount', User::class));
+    }
+
+    public function test_an_admin_may_not_delete_their_own_account(): void
+    {
+        // Deleting an account cancels every pending team + client invitation
+        // across the whole provider — owner-only, like manageMembers, even
+        // though an Admin holds `user.delete`.
+        $admin = User::factory()->create(['provider_id' => $this->tenant['provider']->id]);
+        $admin->assignRole(Role::Admin->value);
+
+        $this->assertFalse($admin->can('deleteOwnAccount', User::class));
+    }
+
+    public function test_a_staff_or_client_may_not_delete_their_own_account(): void
+    {
+        $this->assertFalse($this->tenant['staff']->can('deleteOwnAccount', User::class));
+        $this->assertFalse($this->tenant['clientUser']->can('deleteOwnAccount', User::class));
     }
 }

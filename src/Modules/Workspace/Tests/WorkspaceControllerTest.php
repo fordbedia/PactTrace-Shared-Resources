@@ -445,6 +445,20 @@ class WorkspaceControllerTest extends BaseTest
         ])->assertStatus(403);
     }
 
+    public function test_a_staff_user_cannot_run_the_deactivation_pre_flight(): void
+    {
+        // Belt-and-suspenders: the Account Settings "Deactivate Workspace" modal
+        // calls the eligibility endpoint before the DELETE, so both surfaces a
+        // Staff user could reach by hand must 403 (WorkspacePolicy::delete =
+        // `workspace.delete`, never held by Staff).
+        $workspace = $this->emptyWorkspace();
+
+        Sanctum::actingAs($this->tenant['staff']);
+
+        $this->getJson("/api/v1/workspaces/{$workspace->id}/deactivation-eligibility")
+            ->assertStatus(403);
+    }
+
     public function test_a_workspace_from_another_provider_is_a_404(): void
     {
         $other = ProviderTenantScenario::make('ws-other');

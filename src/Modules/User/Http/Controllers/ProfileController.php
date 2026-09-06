@@ -7,6 +7,7 @@ namespace PactTrackSDK\SharedResources\Modules\User\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use PactTrackSDK\SharedResources\Modules\User\Application\Services\UserAuthentication;
 use PactTrackSDK\SharedResources\Modules\User\Application\Services\UserHintCookie;
@@ -25,12 +26,19 @@ use PactTrackSDK\SharedResources\Modules\User\Http\Requests\UpdateAvatarRequest;
 use PactTrackSDK\SharedResources\Modules\User\Http\Requests\UpdatePasswordRequest;
 use PactTrackSDK\SharedResources\Modules\User\Http\Requests\UpdateProfileRequest;
 use PactTrackSDK\SharedResources\Modules\User\Http\Resources\UserResource;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 
 /**
  * The signed-in user's own account screen (`/profile` — Dashboard/Your
- * Profile.html). Behind real `auth:sanctum`; every action is scoped to
- * `$request->user()` itself, so there's no policy to run — a user can always
- * read and change their own profile.
+ * Profile.html, plus the account-deletion surface on `/account-settings`).
+ * Behind real `auth:sanctum`.
+ *
+ * `update()`, `updateAvatar()` and `updatePassword()` run no policy — they are
+ * scoped to `$request->user()` itself, and any role can always read and change
+ * their own profile. `deletionEligibility()` and `destroy()` are the exception:
+ * account deletion cancels every pending team + client invitation across the
+ * whole provider (see DeleteOwnAccount), so both are gated by
+ * `UserPolicy::deleteOwnAccount` — owner-only, via `actorOwnsTenant()`.
  */
 class ProfileController extends Controller
 {
@@ -129,6 +137,8 @@ class ProfileController extends Controller
      */
     public function deletionEligibility(Request $request): JsonResponse
     {
+        Gate::authorize('deleteOwnAccount', User::class);
+
         $signals = $this->deletionEligibility->handle(
             (int) $request->user()->provider_id,
             (int) $request->user()->id,
@@ -151,6 +161,8 @@ class ProfileController extends Controller
      */
     public function destroy(DeleteAccountRequest $request): JsonResponse
     {
+        Gate::authorize('deleteOwnAccount', User::class);
+
         try {
             $this->deleteOwnAccount->handle(
                 $request->user(),
