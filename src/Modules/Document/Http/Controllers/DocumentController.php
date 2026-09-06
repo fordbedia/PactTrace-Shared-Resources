@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PactTrackSDK\SharedResources\Modules\Document\Http\Controllers;
 
+use App\Http\Concerns\EnforcesPlanGate;
 use App\Http\Concerns\ResolvesActingUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,6 +27,7 @@ use PactTrackSDK\SharedResources\Modules\Document\Http\Requests\StoreDocumentReq
 use PactTrackSDK\SharedResources\Modules\Document\Http\Resources\DocumentResource;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\GatedAction;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -47,6 +49,7 @@ use Symfony\Component\HttpFoundation\Response;
 class DocumentController extends Controller
 {
     use ResolvesActingUser;
+    use EnforcesPlanGate;
 
     public function __construct(
         private readonly UploadDocumentAction $uploadDocument,
@@ -155,6 +158,10 @@ class DocumentController extends Controller
             : null;
 
         Gate::forUser($user)->authorize('create', [Document::class, $matter]);
+
+        if ($response = $this->denyIfPlanGateFails(GatedAction::UploadDocument, $user)) {
+            return $response;
+        }
 
         // A Matter belongsTo exactly one Client (MattersRequest requires
         // client_id at matter-creation time — see .claude/rules/matter.md), so

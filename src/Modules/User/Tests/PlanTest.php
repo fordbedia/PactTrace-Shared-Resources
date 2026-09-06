@@ -11,7 +11,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 /**
  * The Plan enum — the one source of truth for what plans exist and what each
  * allows. Storage allowances used to live in a separate config array; these
- * assertions are what stops the two drifting again.
+ * assertions are what stops the two drifting again. (The allowance figures
+ * themselves now live on PlanInfo — see PlanInfoTest.)
  */
 class PlanTest extends BaseTest
 {
@@ -28,8 +29,8 @@ class PlanTest extends BaseTest
 
         foreach (Plan::cases() as $plan) {
             $this->assertLessThanOrEqual(
-                $plan->storageLimitBytes(),
-                Plan::default()->storageLimitBytes(),
+                $plan->info()->storageLimitBytes,
+                Plan::default()->info()->storageLimitBytes,
             );
         }
     }
@@ -37,7 +38,7 @@ class PlanTest extends BaseTest
     #[DataProvider('storageLimits')]
     public function test_storage_limit_bytes(Plan $plan, int $expectedGb): void
     {
-        $this->assertSame($expectedGb * self::GB, $plan->storageLimitBytes());
+        $this->assertSame($expectedGb * self::GB, $plan->info()->storageLimitBytes);
     }
 
     public static function storageLimits(): array
@@ -54,6 +55,13 @@ class PlanTest extends BaseTest
         $this->assertSame('Starter', Plan::Starter->label());
         $this->assertSame('Professional', Plan::Professional->label());
         $this->assertSame('Firm', Plan::Firm->label());
+    }
+
+    public function test_info_returns_the_matching_plan_info(): void
+    {
+        foreach (Plan::cases() as $plan) {
+            $this->assertSame($plan, $plan->info()->plan);
+        }
     }
 
     public function test_try_from_a_bad_string_is_null(): void

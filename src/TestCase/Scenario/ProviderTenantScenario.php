@@ -12,6 +12,7 @@ use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
+use PactTrackSDK\SharedResources\Modules\User\Models\Subscription;
 use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
 
 /**
@@ -45,7 +46,26 @@ class ProviderTenantScenario extends BaseScenario
         // Owner before provider, so the factory does not mint a throwaway user
         // for `owner_user_id` that we would immediately replace.
         $owner = User::factory()->create(['email' => "{$this->prefix}-owner@pacttrack.test"]);
-        $provider = Provider::factory()->create(['owner_user_id' => $owner->id]);
+        // Pinned to 'firm' (not the factory's own random tier) — this fixture
+        // always carries an owner + a staff member (2 seats) plus whatever a
+        // test adds on top, and it backs PlanPolicy-gated HTTP tests now (see
+        // .claude/rules/plan.md) alongside everything else that reuses it.
+        // 'firm' is the one tier with enough headroom (5 seats, unlimited
+        // clients/envelopes) that an unrelated test exercising a gated
+        // endpoint doesn't spuriously 403 — a test that specifically wants to
+        // exercise a plan *limit* builds its own Subscription/Provider state
+        // instead of relying on this shared default.
+        $provider = Provider::factory()->create(['owner_user_id' => $owner->id, 'plan' => 'firm']);
+        // 'trialing' (the factory's own default), not 'active' — a
+        // *converted* subscription is itself a self-deletion blocker
+        // (AccountDeletionPolicy, see .claude/rules/account-settings.md), and
+        // this shared fixture must stay eligible-for-deletion by default for
+        // the tests that assert exactly that. PlanPolicy treats
+        // 'trialing'/'active' identically, so this still satisfies the gate.
+        Subscription::factory()->create([
+            'provider_id' => $provider->id,
+            'plan' => 'firm',
+        ]);
 
         $owner->forceFill(['provider_id' => $provider->id])->save();
         $owner->assignRole(Role::Owner->value);

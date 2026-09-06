@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace PactTrackSDK\SharedResources\Modules\Signature\Http\Controllers;
 
+use App\Http\Concerns\EnforcesPlanGate;
 use App\Http\Concerns\ResolvesActingUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\GatedAction;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\CheckEnvelopeProviderStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\GetDraftEnvelope;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\PrepareEnvelopeForSignature;
@@ -40,6 +42,7 @@ use Throwable;
 class EnvelopeController extends Controller
 {
     use ResolvesActingUser;
+    use EnforcesPlanGate;
 
     public function __construct(
         private readonly PrepareEnvelopeForSignature $prepareEnvelopeForSignature,
@@ -101,6 +104,10 @@ class EnvelopeController extends Controller
         }
 
         Gate::forUser($user)->authorize('create', [Envelope::class, $document]);
+
+        if ($response = $this->denyIfPlanGateFails(GatedAction::PrepareForSignature, $user)) {
+            return $response;
+        }
 
         try {
             $envelope = $this->prepareEnvelopeForSignature->handle($document, $request->coSigners());

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace PactTrackSDK\SharedResources\Modules\Signature\Http\Controllers;
 
+use App\Http\Concerns\EnforcesPlanGate;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterActivityFeedBuilder;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\GatedAction;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\GetMatterEnvelopeDetail;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\PrepareMatterEnvelopesForSignature;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\VoidEnvelopeHandler;
@@ -33,6 +35,8 @@ use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
  */
 class EnvelopeDetailController extends Controller
 {
+    use EnforcesPlanGate;
+
     public function __construct(
         private readonly GetMatterEnvelopeDetail $getMatterEnvelopeDetail,
         private readonly VoidEnvelopeHandler $voidEnvelope,
@@ -124,6 +128,10 @@ class EnvelopeDetailController extends Controller
     {
         Gate::authorize('view', $matter);
         Gate::authorize('create', [Envelope::class]);
+
+        if ($response = $this->denyIfPlanGateFails(GatedAction::PrepareForSignature, $request->user())) {
+            return $response;
+        }
 
         $result = $this->prepareMatterEnvelopes->handle($matter, $request->coSignersByDocumentId());
 

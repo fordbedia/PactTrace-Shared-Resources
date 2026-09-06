@@ -9,7 +9,7 @@
  *
  * `storage_quota_bytes` used to live here — a hand-maintained per-plan byte
  * array that had drifted from the plan list. Storage allowances are now derived
- * from `User\Domain\ValueObjects\Plan::storageLimitBytes()` (read by
+ * from `User\Domain\ValueObjects\Plan::info()->storageLimitBytes` (read by
  * `Infrastructure/Quota/PlanStorageQuotas`), so this file is intentionally
  * empty. Add real, environment-tunable settings here if the module ever needs
  * one.

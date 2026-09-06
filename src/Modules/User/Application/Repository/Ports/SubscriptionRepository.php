@@ -38,4 +38,22 @@ interface SubscriptionRepository
      * @param  list<int>  $ids
      */
     public function markExpired(array $ids): int;
+
+    public function findByProviderId(int $providerId): ?Subscription;
+
+    public function findByStripeSubscriptionId(string $stripeSubscriptionId): ?Subscription;
+
+    public function findByStripeCustomerId(string $stripeCustomerId): ?Subscription;
+
+    /**
+     * Tries `$stripeSubscriptionId` first, falling back to
+     * `$stripeCustomerId` — every webhook handler that isn't
+     * `checkout.session.completed` (which has no Stripe id to resolve by
+     * yet; it matches on the Checkout Session's `client_reference_id`
+     * instead) uses this rather than repeating the two-step lookup itself.
+     */
+    public function findByStripeIdentifiers(?string $stripeSubscriptionId, ?string $stripeCustomerId): ?Subscription;
+
+    /** Persist an already-resolved, mutated Subscription instance. */
+    public function save(Subscription $subscription): Subscription;
 }

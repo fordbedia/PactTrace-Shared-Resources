@@ -9,7 +9,6 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 use PactTrackSDK\SharedResources\Modules\Notification\Application\DTO\ClientInvitationData;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\DTO\ProviderData;
-use PactTrackSDK\SharedResources\Modules\User\Domain\Enum\SubscriptionPlan;
 
 class ClientInvitationEmail extends Mailable
 {
@@ -37,9 +36,7 @@ class ClientInvitationEmail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: SubscriptionPlan::Starter->getPlan()
-				? 'notification::emails.client-invitation'
-				: 'notification::client-facing-provider-invitation',
+            view: 'notification::emails.client-invitation',
             with: [
                 'providerName' => $this->providerData->business_name,
                 'primaryColor' => $this->providerData->primary_color,

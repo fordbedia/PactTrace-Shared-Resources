@@ -49,7 +49,7 @@ class StorageQuotaTest extends BaseTest
 
     public function test_an_unknown_null_or_blank_plan_gets_the_smallest_tier(): void
     {
-        $starter = Plan::Starter->storageLimitBytes();
+        $starter = Plan::Starter->info()->storageLimitBytes;
 
         $this->assertSame($starter, $this->quotas->bytesForPlan(null));
         $this->assertSame($starter, $this->quotas->bytesForPlan(''));
@@ -66,7 +66,7 @@ class StorageQuotaTest extends BaseTest
 
         foreach (Plan::cases() as $plan) {
             $this->assertLessThanOrEqual(
-                $plan->storageLimitBytes(),
+                $plan->info()->storageLimitBytes,
                 $fallback,
                 "The fallback allowance exceeds the [{$plan->value}] plan.",
             );

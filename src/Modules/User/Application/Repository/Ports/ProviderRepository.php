@@ -17,4 +17,14 @@ use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 interface ProviderRepository
 {
     public function create(array $data): Provider;
+
+    /** Persist an already-resolved, mutated Provider instance. */
+    public function save(Provider $provider): Provider;
+
+    /**
+     * Whether `$subdomain` is already registered by a provider OTHER than
+     * `$exceptProviderId` — the availability check for the branding screen,
+     * where the tenant's own current subdomain must not report as taken.
+     */
+    public function subdomainTakenByAnother(string $subdomain, int $exceptProviderId): bool;
 }

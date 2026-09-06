@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Storage;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Signer;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan;
+use PactTrackSDK\SharedResources\Modules\User\Models\Subscription;
 use PactTrackSDK\SharedResources\TestCase\Extras\LoadsModuleApiRoutes;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
@@ -92,6 +94,48 @@ class EnvelopeControllerTest extends BaseTest
             'document_id' => $document->id,
             'provider' => 'docusign',
         ]);
+    }
+
+    /**
+     * PlanPolicy gate — see .claude/rules/plan.md. ProviderTenantScenario's
+     * default tenant is on 'firm' with an active-enough subscription
+     * specifically so unrelated tests never trip this; these two flip that
+     * tenant's own state to exercise the gate directly instead of building a
+     * second fixture.
+     */
+    public function test_prepare_is_denied_when_the_subscription_is_not_active(): void
+    {
+        $document = $this->freshPdfDocument();
+        Subscription::query()->where('provider_id', $this->tenant['provider']->id)->update(['status' => 'expired']);
+
+        $response = $this->actingAs($this->tenant['owner'])
+            ->postJson("/api/signature/documents/{$document->id}/prepare");
+
+        $response->assertStatus(403)->assertJsonPath('reason', 'subscription_inactive');
+        $this->assertDatabaseMissing('envelopes', ['document_id' => $document->id]);
+    }
+
+    public function test_prepare_is_denied_once_the_starter_plans_monthly_envelope_limit_is_reached(): void
+    {
+        $this->tenant['provider']->update(['plan' => 'starter']);
+        $limit = Plan::Starter->info()->maxEnvelopesPerMonth;
+
+        for ($i = 0; $i < $limit; $i++) {
+            Envelope::factory()->create([
+                'provider_id' => $this->tenant['provider']->id,
+                'workspace_id' => $this->tenant['workspace']->id,
+                'client_id' => $this->tenant['client']->id,
+                'status' => 'sent',
+            ]);
+        }
+
+        $document = $this->freshPdfDocument();
+
+        $response = $this->actingAs($this->tenant['owner'])
+            ->postJson("/api/signature/documents/{$document->id}/prepare");
+
+        $response->assertStatus(403)->assertJsonPath('reason', 'plan_limit_exceeded');
+        $this->assertDatabaseMissing('envelopes', ['document_id' => $document->id]);
     }
 
     public function test_the_sender_view_return_url_points_at_the_shared_docusign_return_route(): void

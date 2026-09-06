@@ -30,7 +30,15 @@ class EloquentSubscriptionRepository extends BaseRepository implements Subscript
         return $this->model->query()
             ->where('status', 'trialing')
             ->where('trial_ends_at', '<=', $before)
-            ->select(['id', 'provider_id', 'plan', 'trial_ends_at'])
+            // stripe_subscription_id is selected (not just the four columns
+            // ProcessTrialExpirations used to need) so it can scope its
+            // "ending soon" warning bucket to card-less trials only — a
+            // trial that went through Stripe Checkout has its own
+            // `customer.subscription.trial_will_end` webhook for that (see
+            // Application\UseCases\Billing\HandleTrialWillEnd and
+            // .claude/rules/user.md). The hard-expiry bucket is unaffected —
+            // it still applies to every trialing row regardless.
+            ->select(['id', 'provider_id', 'plan', 'trial_ends_at', 'stripe_subscription_id'])
             ->get();
     }
 
@@ -44,5 +52,41 @@ class EloquentSubscriptionRepository extends BaseRepository implements Subscript
             ->whereIn('id', $ids)
             ->where('status', 'trialing') // don't clobber a status a webhook already moved on
             ->update(['status' => 'expired']);
+    }
+
+    public function findByProviderId(int $providerId): ?Subscription
+    {
+        return $this->model->query()->where('provider_id', $providerId)->first();
+    }
+
+    public function findByStripeSubscriptionId(string $stripeSubscriptionId): ?Subscription
+    {
+        return $this->model->query()->where('stripe_subscription_id', $stripeSubscriptionId)->first();
+    }
+
+    public function findByStripeCustomerId(string $stripeCustomerId): ?Subscription
+    {
+        return $this->model->query()->where('stripe_customer_id', $stripeCustomerId)->first();
+    }
+
+    public function findByStripeIdentifiers(?string $stripeSubscriptionId, ?string $stripeCustomerId): ?Subscription
+    {
+        if ($stripeSubscriptionId !== null && $stripeSubscriptionId !== '') {
+            $subscription = $this->findByStripeSubscriptionId($stripeSubscriptionId);
+            if ($subscription !== null) {
+                return $subscription;
+            }
+        }
+
+        return ($stripeCustomerId !== null && $stripeCustomerId !== '')
+            ? $this->findByStripeCustomerId($stripeCustomerId)
+            : null;
+    }
+
+    public function save(Subscription $subscription): Subscription
+    {
+        $subscription->save();
+
+        return $subscription;
     }
 }

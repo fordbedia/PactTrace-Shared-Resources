@@ -26,8 +26,14 @@ class Provider extends Model
         'subdomain',
         'custom_domain',
         'logo_path',
+        'disk',
         'primary_color',
         'secondary_color',
+        'timezone',
+        'locale',
+        'email_sender_name',
+        'email_reply_to',
+        'email_powered_by_footer',
         'plan',
         'trial_ends_at',
         'docusign_brand_id',
@@ -35,6 +41,7 @@ class Provider extends Model
 
     protected $casts = [
         'trial_ends_at' => 'datetime',
+        'email_powered_by_footer' => 'boolean',
     ];
 
     protected static function newFactory(): ProviderFactory

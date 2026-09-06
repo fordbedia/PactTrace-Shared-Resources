@@ -1,9 +1,14 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\BillingController;
+use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\BrandingController;
+use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\PlanController;
+use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\PlanUsageController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\ProfileController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\RegistrationController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\SessionController;
+use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\StripeWebhookController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\TeamController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\TeamInvitationController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\UserController;
@@ -40,6 +45,15 @@ Route::prefix('v1')->group(function () {
 	Route::middleware('auth:sanctum')->group(function () {
 		Route::apiResource('user', UserController::class);
 
+		// The plan catalogue (every tier's PlanInfo) — read-only reference
+		// data for /dashboard/billing's comparison grid. Not tenant-specific.
+		Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
+
+		// This tenant's own live usage against its plan's limits — the one
+		// payload the storage indicators and the frontend plan-guard hook
+		// both read. See .claude/rules/plan.md.
+		Route::get('plan-usage', [PlanUsageController::class, 'index'])->name('plan-usage');
+
 		// ------------------------------------------------------------------
 		// The signed-in user's own account screen (`/profile`). No policy —
 		// every action is scoped to the caller themselves. See ProfileController.
@@ -54,6 +68,32 @@ Route::prefix('v1')->group(function () {
 			->name('profile.deletion-eligibility');
 		Route::delete('profile', [ProfileController::class, 'destroy'])
 			->name('profile.destroy');
+
+		// ------------------------------------------------------------------
+		// /dashboard/branding — the tenant's own portal branding. Doubly
+		// gated in the controller: `provider.manage-branding` (who) + the
+		// plan's `allowsCustomBranding` / `allowsCustomDomain` (what). See
+		// BrandingController.
+		// ------------------------------------------------------------------
+		Route::prefix('branding')->name('branding.')->group(function () {
+			Route::patch('/', [BrandingController::class, 'update'])->name('update');
+			Route::post('logo', [BrandingController::class, 'updateLogo'])->name('logo.update');
+			Route::delete('logo', [BrandingController::class, 'destroyLogo'])->name('logo.destroy');
+			Route::get('subdomain-available', [BrandingController::class, 'subdomainAvailable'])
+				->name('subdomain-available');
+		});
+
+		// ------------------------------------------------------------------
+		// /dashboard/billing — Checkout, the Stripe Customer Portal, and the
+		// downgrade/upgrade usage pre-flight. Owner-only
+		// (`provider.manage-billing`, see BillingController). See
+		// .claude/rules/plan.md.
+		// ------------------------------------------------------------------
+		Route::prefix('billing')->name('billing.')->group(function () {
+			Route::post('checkout', [BillingController::class, 'checkout'])->name('checkout');
+			Route::get('portal-session', [BillingController::class, 'portalSession'])->name('portal-session');
+			Route::post('change-plan', [BillingController::class, 'changePlan'])->name('change-plan');
+		});
 
 		// ------------------------------------------------------------------
 		// Team administration (staff-facing). A previous version registered
@@ -91,4 +131,12 @@ Route::prefix('v1')->group(function () {
 			->middleware('throttle:6,1')
 			->name('invitations.accept');
 	});
+
+	// Stripe Connect webhook — OUTSIDE auth:sanctum, Stripe cannot send a
+	// session cookie. Signature verification (BillingProvider::
+	// constructWebhookEvent()) stands in for authentication, same shape as
+	// the Signature module's DocusignWebhookController. Path matches the
+	// `stripe listen --forward-to http://localhost/api/v1/stripe/webhook`
+	// comment in configs/.env.local.
+	Route::post('stripe/webhook', StripeWebhookController::class)->name('stripe.webhook');
 });

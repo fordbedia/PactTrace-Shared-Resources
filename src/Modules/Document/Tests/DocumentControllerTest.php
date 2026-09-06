@@ -10,6 +10,7 @@ use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Folder;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
+use PactTrackSDK\SharedResources\Modules\User\Models\Subscription;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use PactTrackSDK\SharedResources\TestCase\Extras\LoadsModuleApiRoutes;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
@@ -326,11 +327,11 @@ class DocumentControllerTest extends BaseTest
     public function test_it_reports_storage_usage(): void
     {
         Document::query()->delete();
-        // Allowances now come from the Plan enum, not config — Professional is
-        // 50 GB. See User\Domain\ValueObjects\Plan::storageLimitBytes().
+        // Allowances now come from PlanInfo, not config — Professional is
+        // 50 GB. See User\Domain\ValueObjects\PlanInfo.
         $this->tenant['provider']->forceFill(['plan' => 'professional'])->save();
 
-        $limit = \PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan::Professional->storageLimitBytes();
+        $limit = \PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan::Professional->info()->storageLimitBytes;
 
         Document::factory()->create([
             'provider_id' => $this->tenant['provider']->id,
@@ -439,6 +440,24 @@ class DocumentControllerTest extends BaseTest
         // provider-namespaced key DocumentUploadService builds.
         Storage::disk(self::DISK)->assertExists($document->s3_path);
         $this->assertStringStartsWith("documents/{$this->tenant['provider']->id}/", $document->s3_path);
+    }
+
+    /**
+     * PlanPolicy gate — see .claude/rules/plan.md. ProviderTenantScenario's
+     * default tenant is deliberately on a healthy plan/subscription so
+     * unrelated tests never trip this; this flips it back to exercise the
+     * gate directly.
+     */
+    public function test_uploading_is_denied_when_the_subscription_is_not_active(): void
+    {
+        Subscription::query()->where('provider_id', $this->tenant['provider']->id)->update(['status' => 'expired']);
+
+        $response = $this->actingAs($this->tenant['owner'])->postJson('/api/documents', [
+            'file' => UploadedFile::fake()->create('blocked.pdf', 10),
+        ]);
+
+        $response->assertStatus(403)->assertJsonPath('reason', 'subscription_inactive');
+        $this->assertDatabaseMissing('documents', ['name' => 'blocked.pdf']);
     }
 
     public function test_it_files_the_upload_into_the_focused_folder(): void

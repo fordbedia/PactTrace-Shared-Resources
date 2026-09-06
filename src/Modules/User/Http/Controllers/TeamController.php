@@ -2,6 +2,7 @@
 
 namespace PactTrackSDK\SharedResources\Modules\User\Http\Controllers;
 
+use App\Http\Concerns\EnforcesPlanGate;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\ListTeam
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\ResendTeamInvitation;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\CannotModifyTeamMemberException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\TeamInvitationNotAcceptableException;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\GatedAction;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use PactTrackSDK\SharedResources\Modules\User\Http\Requests\TeamInviteFormRequest;
 use PactTrackSDK\SharedResources\Modules\User\Http\Requests\TeamMemberRoleUpdateRequest;
@@ -31,6 +33,8 @@ use PactTrackSDK\SharedResources\Modules\User\Models\User;
  */
 class TeamController extends Controller
 {
+    use EnforcesPlanGate;
+
     public function __construct(
 		private readonly InviteTeamMember $inviteTeamMember,
 		private readonly ListTeamMembers $listMember,
@@ -108,6 +112,10 @@ class TeamController extends Controller
     public function store(TeamInviteFormRequest $request): JsonResponse
     {
         Gate::authorize('invite', User::class);
+
+        if ($response = $this->denyIfPlanGateFails(GatedAction::InviteStaff, $request->user())) {
+            return $response;
+        }
 
         $invitation = $this->inviteTeamMember->handle($request->validated(), $request->user());
 

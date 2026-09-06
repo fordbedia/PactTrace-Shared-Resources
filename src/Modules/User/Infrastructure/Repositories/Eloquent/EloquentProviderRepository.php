@@ -27,6 +27,21 @@ class EloquentProviderRepository extends BaseRepository implements ProviderRepos
 		return $this->model->create($data);
 	}
 
+	public function save(Provider $provider): Provider
+	{
+		$provider->save();
+
+		return $provider;
+	}
+
+	public function subdomainTakenByAnother(string $subdomain, int $exceptProviderId): bool
+	{
+		return $this->model->newQuery()
+			->where('subdomain', $subdomain)
+			->whereKeyNot($exceptProviderId)
+			->exists();
+	}
+
 	public function isTaken(Subdomain $subdomain): bool
 	{
 		return $this->isExists('subdomain', $subdomain->value);

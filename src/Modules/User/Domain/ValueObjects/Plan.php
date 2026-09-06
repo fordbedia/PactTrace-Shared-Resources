@@ -52,20 +52,16 @@ enum Plan: string
     }
 
     /**
-     * Document storage allowance for this plan, in bytes — backs the STORAGE
-     * indicator on /dashboard and /dashboard/documents (see
-     * .claude/rules/document.md).
+     * Everything this plan allows — seats, quotas, feature flags. The one way
+     * to ask "what does this tier get"; see {@see PlanInfo} and
+     * .claude/rules/plan.md.
      *
-     * A display figure only: nothing enforces it at upload time yet. When that
-     * changes, enforce against this same value so the indicator and the limit
-     * can't drift.
+     * Storage allowance (previously `Plan::storageLimitBytes()`, read directly
+     * by the Document module's STORAGE indicator) now lives on
+     * `PlanInfo->storageLimitBytes`.
      */
-    public function storageLimitBytes(): int
+    public function info(): PlanInfo
     {
-        return match ($this) {
-            self::Starter => 5 * 1024 * 1024 * 1024,     // 5 GB
-            self::Professional => 50 * 1024 * 1024 * 1024, // 50 GB
-            self::Firm => 200 * 1024 * 1024 * 1024,      // 200 GB
-        };
+        return PlanInfo::for($this);
     }
 }

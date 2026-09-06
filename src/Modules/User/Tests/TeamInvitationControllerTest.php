@@ -113,6 +113,28 @@ class TeamInvitationControllerTest extends BaseTest
         );
     }
 
+    /**
+     * PlanPolicy gate — see .claude/rules/plan.md. ProviderTenantScenario's
+     * default tenant is deliberately on 'firm' (5 seats) so unrelated tests
+     * never trip this; this flips the tenant down to 'starter' (1 seat) to
+     * exercise the gate directly. The scenario's owner + staff already fill
+     * 2 seats, so 'starter' (max 1) is already over — no need to invite
+     * anyone else first.
+     */
+    public function test_inviting_is_denied_once_the_plans_seat_limit_is_reached(): void
+    {
+        $this->tenant['provider']->update(['plan' => 'starter']);
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $response = $this->postJson('/api/v1/team/members', [
+            'email' => 'overflow@example.test',
+            'role' => 'staff',
+        ]);
+
+        $response->assertStatus(403)->assertJsonPath('reason', 'plan_limit_exceeded');
+        $this->assertDatabaseMissing('team_invitations', ['email' => 'overflow@example.test']);
+    }
+
     public function test_role_client_is_rejected_by_validation(): void
     {
         Sanctum::actingAs($this->tenant['owner']);

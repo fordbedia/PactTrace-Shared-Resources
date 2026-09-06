@@ -11,26 +11,37 @@ use PactTrackSDK\SharedResources\Modules\User\Console\Commands\NotifyTrialEnding
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\AccountDeletionSignalReader;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\DepartingStaffReassignment;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderInvitationCanceller;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\PlanUsageReader;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\StripeWebhookEventRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\TeamInvitationRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\AccessTokenIssuer;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\AvatarStorage;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\BillingProvider;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\ProviderLogoStorage;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\StripePriceCatalog;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Auth\SanctumTokenIssuer;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Service\PublicDiskAvatarStorage;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Service\PublicDiskProviderLogoStorage;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentAccountDeletionSignals;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentDepartingStaffReassignment;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentPlanUsageReader;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentProviderInvitationCanceller;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentProviderRepository;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentStripeWebhookEventRepository;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentSubscriptionRepository;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentTeamInvitationRepository;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentUserRepository;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Stripe\ConfigStripePriceCatalog;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Stripe\StripeBillingProvider;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use PactTrackSDK\SharedResources\Modules\User\Policies\ProviderPolicy;
 use PactTrackSDK\SharedResources\Modules\User\Policies\UserPolicy;
+use Stripe\StripeClient;
 
 class UserProvider extends ServiceProvider
 {
@@ -75,6 +86,8 @@ class UserProvider extends ServiceProvider
         SubdomainAvailability::class => EloquentProviderRepository::class,
         SubscriptionRepository::class => EloquentSubscriptionRepository::class,
         AccessTokenIssuer::class => SanctumTokenIssuer::class,
+        PlanUsageReader::class => EloquentPlanUsageReader::class,
+        StripeWebhookEventRepository::class => EloquentStripeWebhookEventRepository::class,
     ];
 
     public function register(): void
@@ -92,6 +105,30 @@ class UserProvider extends ServiceProvider
         // per-user value. Defaults to the app's existing public disk.
         $this->app->bind(AvatarStorage::class, fn ($app) => new PublicDiskAvatarStorage(
             disk: $app['config']->get('filesystems.avatar_disk', 'public'),
+        ));
+
+        // Same shape as AvatarStorage above — the disk is chosen once by
+        // config/env, not stored per row (providers.disk records which disk a
+        // given logo_path was written to, for a future S3 move).
+        $this->app->bind(ProviderLogoStorage::class, fn ($app) => new PublicDiskProviderLogoStorage(
+            disk: $app['config']->get('filesystems.provider_logo_disk', 'public'),
+        ));
+
+        // Reads config/env once at resolution time rather than per call —
+        // same reasoning as the two disks above. Swappable per-plan/interval
+        // matrix, not a switch statement scattered across call sites; see
+        // Domain\Ports\StripePriceCatalog.
+        $this->app->bind(StripePriceCatalog::class, fn ($app) => new ConfigStripePriceCatalog(
+            prices: (array) $app['config']->get('services.stripe.prices', []),
+        ));
+
+        // The real Stripe SDK client, scoped to this one binding rather than
+        // process-wide global state (\Stripe::setApiKey()). Tests rebind
+        // BillingProvider directly to Infrastructure\Stripe\FakeBillingProvider
+        // (see .claude/rules/signature.md's FakeSignatureProvider precedent)
+        // rather than relying on this binding at all.
+        $this->app->bind(BillingProvider::class, fn ($app) => new StripeBillingProvider(
+            client: new StripeClient((string) $app['config']->get('services.stripe.secret')),
         ));
     }
 

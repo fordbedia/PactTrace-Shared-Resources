@@ -2,6 +2,7 @@
 
 namespace PactTrackSDK\SharedResources\Modules\Client\Http\Controllers;
 
+use App\Http\Concerns\EnforcesPlanGate;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
@@ -18,9 +19,12 @@ use PactTrackSDK\SharedResources\Modules\Client\Http\Requests\ClientFormRequest;
 use PactTrackSDK\SharedResources\Modules\Notification\Application\DTO\ClientInvitationData;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\ClientInvitationEmail;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\DTO\ProviderData;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\GatedAction;
 
 class ClientController extends Controller
 {
+    use EnforcesPlanGate;
+
     /**
      * Display a listing of the resource.
      */
@@ -55,6 +59,10 @@ class ClientController extends Controller
      */
     public function store(ClientFormRequest $request, InviteClient $handler)
     {
+		if ($response = $this->denyIfPlanGateFails(GatedAction::InviteClient, auth()->user())) {
+			return $response;
+		}
+
 		$data = ClientData::fromRequest($request, auth()->user()->provider_id);
 
 		[$client, $invitation] = $handler->handle($data, auth()->id());

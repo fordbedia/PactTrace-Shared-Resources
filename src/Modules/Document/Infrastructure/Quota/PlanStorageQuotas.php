@@ -8,7 +8,7 @@ use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\StorageQuotas;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan;
 
 /**
- * Resolves a plan's storage allowance straight from the `Plan` enum — the one
+ * Resolves a plan's storage allowance straight from `Plan::info()` — the one
  * source of truth for both "what plans exist" and "what each allows".
  *
  * Replaced `ConfigStorageQuotas`, which read a hand-maintained
@@ -25,6 +25,6 @@ final class PlanStorageQuotas implements StorageQuotas
 {
     public function bytesForPlan(?string $plan): int
     {
-        return (Plan::tryFrom($plan ?? '') ?? Plan::default())->storageLimitBytes();
+        return (Plan::tryFrom($plan ?? '') ?? Plan::default())->info()->storageLimitBytes;
     }
 }
