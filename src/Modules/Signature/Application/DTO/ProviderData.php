@@ -2,6 +2,8 @@
 
 namespace PactTrackSDK\SharedResources\Modules\Signature\Application\DTO;
 
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan;
+
 class ProviderData
 {
 	public function __construct(
@@ -17,6 +19,19 @@ class ProviderData
 		public ?string $trial_ends_at = null,
 	)
 	{}
+
+	/**
+	 * Whether this tenant's plan permits white-labeling — the SAME
+	 * `Plan::info()->allowsCustomBranding` gate `/dashboard/branding`,
+	 * `ResolveEnvelopeBrand` and the client portal use. Drives which
+	 * client-facing emails carry the provider's own logo/colour and no
+	 * PactTrack footer vs. PactTrack's own branding. Resolves defensively:
+	 * an unknown/blank plan string falls back to the smallest tier.
+	 */
+	public function allowsCustomBranding(): bool
+	{
+		return (Plan::tryFrom($this->plan) ?? Plan::default())->info()->allowsCustomBranding;
+	}
 
 	public static function fromArray(array $data): self
 	{

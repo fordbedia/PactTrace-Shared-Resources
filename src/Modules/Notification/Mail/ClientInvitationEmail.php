@@ -38,6 +38,7 @@ class ClientInvitationEmail extends Mailable
         return new Content(
             view: 'notification::emails.client-invitation',
             with: [
+                'brandingEnabled' => $this->providerData->allowsCustomBranding(),
                 'providerName' => $this->providerData->business_name,
                 'primaryColor' => $this->providerData->primary_color,
                 'logoUrl' => $this->providerData->logo_path,

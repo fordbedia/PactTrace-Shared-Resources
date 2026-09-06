@@ -98,13 +98,49 @@ class GuestSigningInvitationEmailTest extends BaseTest
         $this->assertStringNotContainsString('relates to your work with', $holder);
     }
 
-    private function providerData(): ProviderData
+    public function test_a_starter_tenant_gets_pacttrack_branding_not_its_own(): void
+    {
+        $html = (new DocumentReadyForSignatureEmail(
+            providerData: $this->providerData(plan: 'starter', logo: 'https://cdn.test/doe-law.png', color: '#7C3AED'),
+            clientName: 'Alex Client',
+            documentName: 'NDA.pdf',
+            portalUrl: 'https://app.test/portal/matter/01J000000000000000000000',
+        ))->render();
+
+        // PactTrack wordmark in the footer, and the tenant's own logo/colour
+        // are NOT used (plan doesn't allow white-labeling).
+        $this->assertStringContainsString('PactTrack', $html);
+        $this->assertStringNotContainsString('https://cdn.test/doe-law.png', $html);
+        $this->assertStringNotContainsString('#7C3AED', $html);
+    }
+
+    public function test_a_professional_or_firm_tenant_is_fully_white_labeled(): void
+    {
+        foreach (['professional', 'firm'] as $plan) {
+            $html = (new DocumentReadyForSignatureEmail(
+                providerData: $this->providerData(plan: $plan, logo: 'https://cdn.test/doe-law.png', color: '#7C3AED'),
+                clientName: 'Alex Client',
+                documentName: 'NDA.pdf',
+                portalUrl: 'https://app.test/portal/matter/01J000000000000000000000',
+            ))->render();
+
+            $this->assertStringNotContainsString('PactTrack', $html, "[{$plan}] email still mentions PactTrack");
+            $this->assertStringContainsString('https://cdn.test/doe-law.png', $html, "[{$plan}] email missing the provider logo");
+            $this->assertStringContainsString('#7C3AED', $html, "[{$plan}] email missing the provider accent colour");
+            $this->assertStringContainsString('Doe Law', $html);
+        }
+    }
+
+    private function providerData(string $plan = 'professional', ?string $logo = null, ?string $color = null): ProviderData
     {
         return new ProviderData(
             id: 1,
             owner_user_id: 1,
             business_name: 'Doe Law',
             subdomain: 'doelaw',
+            plan: $plan,
+            logo_path: $logo,
+            primary_color: $color,
         );
     }
 }

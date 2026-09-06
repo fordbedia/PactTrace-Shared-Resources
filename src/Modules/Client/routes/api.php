@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use PactTrackSDK\SharedResources\Modules\Client\Http\Controllers\ClientController;
 use PactTrackSDK\SharedResources\Modules\Client\Http\Controllers\ClientInvitationController;
+use PactTrackSDK\SharedResources\Modules\Client\Http\Controllers\PortalNotificationController;
 
 Route::prefix('v1')->group(function () {
 	// Deliberately outside auth:sanctum — the whole point is that the person
@@ -25,4 +26,9 @@ Route::prefix('v1')->group(function () {
 		Route::post('/clients/{client}/invitations/resend', [ClientController::class, 'resendInvitation'])
 			->name('clients.invitations.resend');
 	});
+
+	// Client portal — outside auth:sanctum, same ResolvesActingUser + portal
+	// auth shape as Matter's /portal/matters and Messaging's /portal/* routes
+	// (see those route files). Backs the notification bell in PortalShell.
+	Route::get('/portal/notifications', [PortalNotificationController::class, 'index']);
 });
