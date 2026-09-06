@@ -72,6 +72,15 @@ class ProviderResource extends JsonResource
                 'subscription',
                 fn () => $this->subscription?->stripe_subscription_id !== null,
             ),
+            // The current Stripe billing-period end — what /dashboard/billing's
+            // Current Plan card renders as "Renews …". Null while the tenant is
+            // still on RegisterProvider's card-less trial (no period yet); the
+            // SPA hides the "Renews" line in that case. Same whenLoaded guard
+            // as the two subscription-derived fields above.
+            'current_period_ends_at' => $this->whenLoaded(
+                'subscription',
+                fn () => $this->subscription?->current_period_ends_at?->toIso8601String(),
+            ),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
