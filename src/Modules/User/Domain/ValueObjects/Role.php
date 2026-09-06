@@ -29,11 +29,12 @@ enum Role: string
     /**
      * A staff member who also administers the roster — Staff's permissions plus
      * user.invite/update/delete, and (per Ed, 2026-09-01) workspace
-     * create/delete so an Admin can stand up or retire a workspace alongside
-     * the Owner. This is what the "Invite a team member" modal calls "Admin";
-     * it is still NOT the tenant account owner (no billing, branding, or
-     * provider.update). Owner-only team actions (role change / removal) also
-     * remain owner-only — those gate on actorOwnsTenant(), not a permission.
+     * create/update/delete so an Admin can stand up, rename or retire a
+     * workspace alongside the Owner. This is what the "Invite a team member"
+     * modal calls "Admin"; it is still NOT the tenant account owner (no
+     * billing, branding, or provider.update). Owner-only team actions (role
+     * change / removal) also remain owner-only — those gate on
+     * actorOwnsTenant(), not a permission.
      */
     case Admin = 'admin';
 
@@ -68,16 +69,19 @@ enum Role: string
             self::Owner => Permission::cases(),
 
             // Everything Staff can do, plus managing the roster and standing
-            // up / retiring workspaces — but still no branding, billing or
-            // provider.update. Spread from Staff so the two never drift.
-            // (WorkspaceCreate/Delete added 2026-09-01 per Ed; Staff still gets
-            // only view + update from its own list below.)
+            // up / renaming / retiring workspaces — but still no branding,
+            // billing or provider.update. Spread from Staff so the two never
+            // drift. (WorkspaceCreate/Delete added 2026-09-01 per Ed;
+            // WorkspaceUpdate added here explicitly once it was removed from
+            // Staff's own list below — Staff may now only view and switch
+            // workspaces, so every structural change is an owner/admin action.)
             self::Admin => [
                 ...self::Staff->permissions(),
                 Permission::UserInvite,
                 Permission::UserUpdate,
                 Permission::UserDelete,
                 Permission::WorkspaceCreate,
+                Permission::WorkspaceUpdate,
                 Permission::WorkspaceDelete,
             ],
 
@@ -87,12 +91,12 @@ enum Role: string
                 Permission::ProviderView,
                 Permission::UserView,
 
-                // Staff work inside a workspace and may rename it, but
-                // creating or removing one is an owner's or admin's decision —
-                // it changes how the practice is organised, not how it is run
-                // day to day.
+                // Staff may view the workspace list and switch between the
+                // workspaces they have access to, but not change one: creating,
+                // editing (rename / labels) and deleting a workspace are all
+                // owner/admin decisions — they change how the practice is
+                // organised, not how it is run day to day.
                 Permission::WorkspaceView,
-                Permission::WorkspaceUpdate,
 
                 Permission::ClientView,
                 Permission::ClientCreate,

@@ -542,8 +542,11 @@ class WorkspaceControllerTest extends BaseTest
         ]);
     }
 
-    public function test_update_by_a_staff_user_is_allowed(): void
+    public function test_update_by_a_staff_user_is_forbidden(): void
     {
+        // Staff lost `workspace.update` — editing a workspace (rename / labels)
+        // is now an owner/admin-only action. Staff may still view the list and
+        // switch between workspaces (see the activate tests below).
         $workspace = $this->emptyWorkspace();
 
         Sanctum::actingAs($this->tenant['staff']);
@@ -551,7 +554,9 @@ class WorkspaceControllerTest extends BaseTest
         $this->putJson("/api/v1/workspaces/{$workspace->id}", [
             'name' => 'Staff Renamed',
             'workspace_type' => 'general',
-        ])->assertOk();
+        ])->assertStatus(403);
+
+        $this->assertDatabaseHas('workspaces', ['id' => $workspace->id, 'name' => $workspace->name]);
     }
 
     public function test_update_of_a_cross_tenant_workspace_is_a_404(): void

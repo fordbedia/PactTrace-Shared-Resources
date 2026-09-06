@@ -60,12 +60,19 @@ class RolePermissionTest extends BaseTest
         $this->assertTrue($user->hasPermissionTo(Permission::MatterCreate->value));
         $this->assertTrue($user->hasPermissionTo(Permission::DocumentUpload->value));
 
+        // Viewing the workspace list (to switch between workspaces): yes.
+        $this->assertTrue($user->hasPermissionTo(Permission::WorkspaceView->value));
+
         // Running the business: no.
         $this->assertFalse($user->hasPermissionTo(Permission::ProviderUpdate->value));
         $this->assertFalse($user->hasPermissionTo(Permission::ProviderManageBilling->value));
         $this->assertFalse($user->hasPermissionTo(Permission::ProviderManageBranding->value));
         $this->assertFalse($user->hasPermissionTo(Permission::UserInvite->value));
         $this->assertFalse($user->hasPermissionTo(Permission::ClientDelete->value));
+
+        // Changing a workspace (rename / labels): no — that became an
+        // owner/admin-only action.
+        $this->assertFalse($user->hasPermissionTo(Permission::WorkspaceUpdate->value));
     }
 
     public function test_admin_is_staff_plus_roster_management(): void
@@ -86,8 +93,11 @@ class RolePermissionTest extends BaseTest
         $this->assertTrue($admin->hasPermissionTo(Permission::UserUpdate->value));
         $this->assertTrue($admin->hasPermissionTo(Permission::UserDelete->value));
 
-        // …and, since 2026-09-01 (per Ed), standing up / retiring workspaces.
+        // …and, since 2026-09-01 (per Ed), standing up / retiring workspaces,
+        // plus editing one (WorkspaceUpdate moved off Staff — every structural
+        // workspace change is now owner/admin only).
         $this->assertTrue($admin->hasPermissionTo(Permission::WorkspaceCreate->value));
+        $this->assertTrue($admin->hasPermissionTo(Permission::WorkspaceUpdate->value));
         $this->assertTrue($admin->hasPermissionTo(Permission::WorkspaceDelete->value));
 
         // But not the tenant-running controls.

@@ -111,7 +111,8 @@ class WorkspaceController extends Controller
      * Workspace type is otherwise immutable — a differing `workspace_type` on
      * the request for an already-configured workspace is ignored, not
      * rejected; see UpdateWorkspace. Permission `workspace.update` (owner +
-     * staff + admin). Cross-tenant id is a 404 before the policy.
+     * admin — Staff lost it when workspace editing became an owner/admin-only
+     * action; see Role::Staff). Cross-tenant id is a 404 before the policy.
      */
     public function update(UpdateWorkspaceRequest $request, Workspace $workspace): JsonResponse
     {
