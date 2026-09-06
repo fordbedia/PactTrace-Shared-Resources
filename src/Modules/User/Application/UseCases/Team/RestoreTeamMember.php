@@ -6,7 +6,6 @@ namespace PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team;
 
 use Illuminate\Support\Facades\DB;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
-use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\DepartingStaffReassignment;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\CannotModifyTeamMemberException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Services\TeamMembershipRules;
@@ -14,30 +13,22 @@ use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 
 /**
- * Owner-only: remove a teammate from the roster.
+ * The inverse of DeactivateTeamMember: bring a soft-removed teammate back
+ * (`users.status = 'active'`, `deactivated_at = null`).
  *
- * "Remove" is a soft deactivation (`users.status = 'deactivated'`,
- * `deactivated_at = now`), never a hard `DELETE` — see
- * UserRepository::deactivate() for why (cascade-deletes would take out legal
- * documents, messages and the audit trail; `workspaces.owner_id` is
- * `restrictOnDelete`).
- *
- * The teammate's assigned matters are handed back to the owner
- * (DepartingStaffReassignment) — mirroring the schema's own
- * `assigned_staff_id`->`nullOnDelete()` intent, which never fires here because
- * the row is not deleted. Both writes run in one transaction so a matter is
- * never left reassigned against a still-active user, or vice versa.
+ * There is no DepartingStaffReassignment counterpart — restoring does not
+ * retroactively undo the matter reassignment that deactivation applied; the
+ * returning staffer is assigned new coverage going forward, not handed their
+ * old matters back. This is a deliberate product choice, not an oversight.
  *
  * The controller has already authorised `changeMemberStatus` (Owner, or Admin)
  * and tenant-scoped `$member`; TeamMembershipRules re-asserts "not yourself,
  * not the owner, and — for a non-owner caller — the target is a Staff member".
  */
-class DeactivateTeamMember
+class RestoreTeamMember
 {
-    public function __construct(
-        private readonly UserRepository $users,
-        private readonly DepartingStaffReassignment $reassignment,
-    ) {
+    public function __construct(private readonly UserRepository $users)
+    {
     }
 
     /**
@@ -52,19 +43,16 @@ class DeactivateTeamMember
         TeamMembershipRules::assertStatusChangeAllowed($member, $actor, $ownerUserId);
 
         return DB::transaction(function () use ($member, $actor): User {
-            $reassignedMatters = $this->reassignment->clearMatterAssignments((int) $member->id);
-
-            $member = $this->users->deactivate($member);
+            $member = $this->users->reactivate($member);
 
             AuditLog::create([
                 'provider_id' => $member->provider_id,
                 'user_id' => $actor->id,
-                'action' => 'user.deactivated',
+                'action' => 'user.reactivated',
                 'auditable_type' => User::class,
                 'auditable_id' => $member->id,
                 'metadata' => [
-                    'previous_role' => $member->primaryRole()?->value,
-                    'reassigned_matters' => $reassignedMatters,
+                    'role' => $member->primaryRole()?->value,
                 ],
             ]);
 

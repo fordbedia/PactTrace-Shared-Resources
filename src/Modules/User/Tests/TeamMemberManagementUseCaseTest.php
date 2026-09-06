@@ -9,6 +9,7 @@ use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\Depar
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\ChangeTeamMemberRole;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\DeactivateTeamMember;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Team\RestoreTeamMember;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\CannotModifyTeamMemberException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
@@ -40,6 +41,19 @@ class TeamMemberManagementUseCaseTest extends BaseTest
     private function deactivate(): DeactivateTeamMember
     {
         return $this->app->make(DeactivateTeamMember::class);
+    }
+
+    private function restore(): RestoreTeamMember
+    {
+        return $this->app->make(RestoreTeamMember::class);
+    }
+
+    private function admin(string $email = 'uc-admin@team-uc.test'): User
+    {
+        $u = User::factory()->create(['provider_id' => $this->tenant['provider']->id, 'email' => $email]);
+        $u->assignRole(Role::Admin->value);
+
+        return $u;
     }
 
     private function staff(string $email = 'uc-staff@team-uc.test'): User
@@ -161,6 +175,101 @@ class TeamMemberManagementUseCaseTest extends BaseTest
         $this->assertSame('active', $owner->fresh()->status);
     }
 
+    public function test_deactivate_lets_an_admin_act_on_a_staff_member(): void
+    {
+        $admin = $this->admin();
+        $member = $this->staff();
+
+        $this->deactivate()->handle($member, $admin);
+
+        $this->assertSame('deactivated', $member->fresh()->status);
+    }
+
+    public function test_deactivate_rejects_an_admin_acting_on_a_non_staff_member(): void
+    {
+        $admin = $this->admin();
+        $otherAdmin = $this->admin('uc-admin2@team-uc.test');
+
+        try {
+            $this->deactivate()->handle($otherAdmin, $admin);
+            $this->fail('Expected CannotModifyTeamMemberException');
+        } catch (CannotModifyTeamMemberException $e) {
+            $this->assertSame(CannotModifyTeamMemberException::REASON_STAFF_ONLY, $e->reason);
+        }
+
+        $this->assertSame('active', $otherAdmin->fresh()->status);
+    }
+
+    // ── RestoreTeamMember ───────────────────────────────────────────────
+
+    public function test_restore_reactivates_a_deactivated_member_and_audits_it(): void
+    {
+        $member = $this->staff();
+        $this->deactivate()->handle($member, $this->tenant['owner']);
+        $this->assertSame('deactivated', $member->fresh()->status);
+
+        $result = $this->restore()->handle($member->fresh(), $this->tenant['owner']);
+
+        $this->assertSame('active', $result->fresh()->status);
+        $this->assertNull($result->fresh()->deactivated_at);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'user.reactivated',
+            'auditable_id' => $member->id,
+        ]);
+    }
+
+    public function test_restore_does_not_reassign_the_members_old_matters_back(): void
+    {
+        $member = $this->staff();
+        $matter = $this->tenant['matter'];
+        $matter->forceFill(['assigned_staff_id' => $member->id])->save();
+
+        $this->deactivate()->handle($member, $this->tenant['owner']);
+        // Deactivation handed the matter back to nobody.
+        $this->assertNull(
+            Matter::query()->acrossWorkspaces()->whereKey($matter->id)->value('assigned_staff_id'),
+        );
+
+        $this->restore()->handle($member->fresh(), $this->tenant['owner']);
+
+        // Restore leaves it that way — coverage is picked up going forward.
+        $this->assertNull(
+            Matter::query()->acrossWorkspaces()->whereKey($matter->id)->value('assigned_staff_id'),
+        );
+    }
+
+    public function test_restore_lets_an_admin_act_on_a_staff_member_but_not_another_admin(): void
+    {
+        $admin = $this->admin();
+
+        $staff = $this->staff();
+        $this->deactivate()->handle($staff, $this->tenant['owner']);
+        $this->restore()->handle($staff->fresh(), $admin);
+        $this->assertSame('active', $staff->fresh()->status);
+
+        $otherAdmin = $this->admin('uc-admin3@team-uc.test');
+        $otherAdmin->forceFill(['status' => 'deactivated'])->save();
+
+        try {
+            $this->restore()->handle($otherAdmin->fresh(), $admin);
+            $this->fail('Expected CannotModifyTeamMemberException');
+        } catch (CannotModifyTeamMemberException $e) {
+            $this->assertSame(CannotModifyTeamMemberException::REASON_STAFF_ONLY, $e->reason);
+        }
+    }
+
+    public function test_restore_rejects_acting_on_self(): void
+    {
+        $owner = $this->tenant['owner'];
+
+        try {
+            $this->restore()->handle($owner, $owner);
+            $this->fail('Expected CannotModifyTeamMemberException');
+        } catch (CannotModifyTeamMemberException $e) {
+            $this->assertSame(CannotModifyTeamMemberException::REASON_SELF, $e->reason);
+        }
+    }
+
     // ── Repository / port units ─────────────────────────────────────────
 
     public function test_user_repository_sync_role_replaces_not_appends(): void
@@ -181,6 +290,18 @@ class TeamMemberManagementUseCaseTest extends BaseTest
 
         $this->assertSame('deactivated', $member->fresh()->status);
         $this->assertNotNull($member->fresh()->deactivated_at);
+    }
+
+    public function test_user_repository_reactivate_clears_status_and_timestamp(): void
+    {
+        $member = $this->staff();
+        $repo = $this->app->make(UserRepository::class);
+        $repo->deactivate($member);
+
+        $repo->reactivate($member->fresh());
+
+        $this->assertSame('active', $member->fresh()->status);
+        $this->assertNull($member->fresh()->deactivated_at);
     }
 
     public function test_departing_staff_reassignment_nulls_only_that_users_matters(): void

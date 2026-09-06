@@ -16,16 +16,18 @@ use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
 use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
 
 /**
- * HTTP coverage for the two owner-only roster actions (Task 5):
+ * HTTP coverage for the roster-mutating actions:
  *
- *   PATCH  /api/v1/team/members/{member}   — change a teammate's role
- *   DELETE /api/v1/team/members/{member}   — remove (soft-deactivate) a teammate
+ *   PATCH  /api/v1/team/members/{member}          — change a teammate's role
+ *   DELETE /api/v1/team/members/{member}          — deactivate a teammate
+ *   POST   /api/v1/team/members/{member}/restore  — restore a deactivated teammate
  *
- * The point of this class is the authorisation gap: `user.update` / `user.delete`
- * are held by the Admin role too, but these actions are gated on being the
- * provider *owner* (`providers.owner_user_id`) — so an Admin who can invite and
- * resend still gets a 403 here. Plus the structural guardrails: not yourself,
- * not the owner, not another tenant.
+ * Role change stays OWNER-ONLY (`manageMembers` — `providers.owner_user_id`,
+ * not merely a permission): an Admin who can invite/resend still gets a 403.
+ * Deactivate / Restore are wider (`changeMemberStatus`): the Owner on any
+ * non-owner member, OR an Admin on a *Staff* member — a non-Staff target from
+ * a non-owner is a 422 `reason: staff_only`. Plus the structural guardrails:
+ * not yourself, not the owner, not another tenant.
  */
 class TeamMemberManagementControllerTest extends BaseTest
 {
@@ -72,26 +74,36 @@ class TeamMemberManagementControllerTest extends BaseTest
         return $staff;
     }
 
+    private function deactivatedStaff(string $email = 'gone-staff@team-manage.test'): User
+    {
+        $staff = $this->extraStaff($email);
+        $staff->forceFill(['status' => 'deactivated', 'deactivated_at' => now()])->save();
+
+        return $staff;
+    }
+
     // ── Authentication / authorisation ────────────────────────────────────
 
-    public function test_both_endpoints_require_authentication(): void
+    public function test_all_three_endpoints_require_authentication(): void
     {
         $staff = $this->tenant['staff'];
 
         $this->patchJson("/api/v1/team/members/{$staff->id}", ['role' => 'admin'])->assertStatus(401);
         $this->deleteJson("/api/v1/team/members/{$staff->id}")->assertStatus(401);
+        $this->postJson("/api/v1/team/members/{$staff->id}/restore")->assertStatus(401);
     }
 
-    public function test_a_plain_staff_member_is_forbidden_from_both_endpoints(): void
+    public function test_a_plain_staff_member_is_forbidden_from_every_endpoint(): void
     {
         Sanctum::actingAs($this->tenant['staff']);
         $target = $this->extraStaff();
 
         $this->patchJson("/api/v1/team/members/{$target->id}", ['role' => 'admin'])->assertStatus(403);
         $this->deleteJson("/api/v1/team/members/{$target->id}")->assertStatus(403);
+        $this->postJson("/api/v1/team/members/{$target->id}/restore")->assertStatus(403);
     }
 
-    public function test_an_admin_with_invite_permission_is_still_forbidden_from_both_endpoints(): void
+    public function test_an_admin_is_still_forbidden_from_changing_a_role(): void
     {
         $admin = $this->admin();
         // Sanity: the Admin really does hold the invite/update/delete permissions.
@@ -102,12 +114,63 @@ class TeamMemberManagementControllerTest extends BaseTest
         Sanctum::actingAs($admin);
         $target = $this->extraStaff();
 
+        // Role change is owner-only regardless of the permission.
         $this->patchJson("/api/v1/team/members/{$target->id}", ['role' => 'staff'])->assertStatus(403);
-        $this->deleteJson("/api/v1/team/members/{$target->id}")->assertStatus(403);
-
-        // Nothing changed.
         $this->assertTrue($target->fresh()->hasRole(Role::Staff->value));
+    }
+
+    public function test_an_admin_can_deactivate_and_restore_a_staff_member(): void
+    {
+        $admin = $this->admin();
+        Sanctum::actingAs($admin);
+        $target = $this->extraStaff();
+
+        $this->deleteJson("/api/v1/team/members/{$target->id}")->assertStatus(204);
+        $this->assertSame('deactivated', $target->fresh()->status);
+
+        $this->postJson("/api/v1/team/members/{$target->id}/restore")
+            ->assertOk()
+            ->assertJsonPath('data.id', $target->id)
+            ->assertJsonPath('data.status', 'active');
         $this->assertSame('active', $target->fresh()->status);
+        $this->assertNull($target->fresh()->deactivated_at);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'user.deactivated',
+            'auditable_id' => $target->id,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'user.reactivated',
+            'auditable_id' => $target->id,
+        ]);
+    }
+
+    public function test_an_admin_cannot_deactivate_or_restore_a_non_staff_member(): void
+    {
+        $admin = $this->admin();
+        Sanctum::actingAs($admin);
+
+        $otherAdmin = User::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'email' => 'other-admin@team-manage.test',
+        ]);
+        $otherAdmin->assignRole(Role::Admin->value);
+
+        $this->deleteJson("/api/v1/team/members/{$otherAdmin->id}")
+            ->assertStatus(422)
+            ->assertJsonPath('reason', 'staff_only');
+        $this->assertSame('active', $otherAdmin->fresh()->status);
+
+        // The owner row from a non-owner caller — 'owner' wins over the staff check.
+        $this->deleteJson("/api/v1/team/members/{$this->tenant['owner']->id}")
+            ->assertStatus(422)
+            ->assertJsonPath('reason', 'owner');
+
+        $otherAdmin->forceFill(['status' => 'deactivated'])->save();
+        $this->postJson("/api/v1/team/members/{$otherAdmin->id}/restore")
+            ->assertStatus(422)
+            ->assertJsonPath('reason', 'staff_only');
+        $this->assertSame('deactivated', $otherAdmin->fresh()->status);
     }
 
     // ── The owner's happy paths ───────────────────────────────────────────
@@ -165,7 +228,39 @@ class TeamMemberManagementControllerTest extends BaseTest
         $this->assertDatabaseHas('users', ['id' => $target->id]);
     }
 
+    public function test_the_owner_can_restore_a_deactivated_member(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+        $target = $this->deactivatedStaff();
+
+        $this->postJson("/api/v1/team/members/{$target->id}/restore")
+            ->assertOk()
+            ->assertJsonPath('data.id', $target->id)
+            ->assertJsonPath('data.status', 'active');
+
+        $target->refresh();
+        $this->assertSame('active', $target->status);
+        $this->assertNull($target->deactivated_at);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'provider_id' => $this->tenant['provider']->id,
+            'user_id' => $this->tenant['owner']->id,
+            'action' => 'user.reactivated',
+            'auditable_id' => $target->id,
+        ]);
+    }
+
     // ── Guardrails ────────────────────────────────────────────────────────
+
+    public function test_the_owner_cannot_restore_themselves(): void
+    {
+        $owner = $this->tenant['owner'];
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/v1/team/members/{$owner->id}/restore")
+            ->assertStatus(422)
+            ->assertJsonPath('reason', 'self');
+    }
 
     public function test_the_owner_cannot_change_their_own_role(): void
     {
@@ -191,18 +286,18 @@ class TeamMemberManagementControllerTest extends BaseTest
         $this->assertSame('active', $owner->fresh()->status);
     }
 
-    public function test_zero_owners_is_structurally_unreachable_through_this_flow(): void
+    public function test_the_owner_row_is_untouchable_by_a_non_owner_owner_role_caller(): void
     {
         // `providers.owner_user_id` is a single column — a provider has exactly
         // one owner — so "block anything that would leave zero owners" reduces
-        // to "the owner row is untouchable here", and it is, two ways over:
+        // to "the owner row is untouchable here":
         //
-        //  1. The `manageMembers` gate only passes for the real owner row, so
-        //     an owner-*role* user who isn't `owner_user_id` can't even reach
-        //     the endpoint (403) — there is no "second owner" that could act.
-        //  2. The one caller who does pass the gate is the owner acting on the
-        //     owner row = acting on themselves → 422 `reason: self`
-        //     (test_the_owner_cannot_* above).
+        //  - PATCH (role change): `manageMembers` only passes for the real
+        //    owner row, so an owner-*role* user who isn't `owner_user_id`
+        //    can't reach it at all (403).
+        //  - DELETE/restore: `changeMemberStatus` passes for any `user.delete`
+        //    holder (this caller holds every permission), but the owner-row
+        //    guard in TeamMembershipRules then rejects it → 422 `reason: owner`.
         $ownerRoleButNotTheRow = User::factory()->create([
             'provider_id' => $this->tenant['provider']->id,
             'email' => 'not-really-owner@team-manage.test',
@@ -213,13 +308,15 @@ class TeamMemberManagementControllerTest extends BaseTest
         $owner = $this->tenant['owner'];
 
         $this->patchJson("/api/v1/team/members/{$owner->id}", ['role' => 'staff'])->assertStatus(403);
-        $this->deleteJson("/api/v1/team/members/{$owner->id}")->assertStatus(403);
+        $this->deleteJson("/api/v1/team/members/{$owner->id}")
+            ->assertStatus(422)
+            ->assertJsonPath('reason', 'owner');
 
         $this->assertTrue($owner->fresh()->hasRole(Role::Owner->value));
         $this->assertSame('active', $owner->fresh()->status);
     }
 
-    public function test_another_tenants_member_is_a_404_on_both_endpoints(): void
+    public function test_another_tenants_member_is_a_404_on_every_endpoint(): void
     {
         $other = ProviderTenantScenario::make('team-manage-other');
 
@@ -228,6 +325,8 @@ class TeamMemberManagementControllerTest extends BaseTest
         $this->patchJson("/api/v1/team/members/{$other['staff']->id}", ['role' => 'admin'])
             ->assertStatus(404);
         $this->deleteJson("/api/v1/team/members/{$other['staff']->id}")
+            ->assertStatus(404);
+        $this->postJson("/api/v1/team/members/{$other['staff']->id}/restore")
             ->assertStatus(404);
 
         $this->assertTrue($other['staff']->fresh()->hasRole(Role::Staff->value));

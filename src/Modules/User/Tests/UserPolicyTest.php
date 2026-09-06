@@ -11,14 +11,17 @@ use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
 use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
 
 /**
- * Coverage for UserPolicy::manageMembers — exercised through the real Gate
- * (`$user->can(...)`), the same way TenantIsolationTest checks its policies, so
- * an unregistered policy can't pass its own unit test while authorising nothing
- * in production.
+ * Coverage for UserPolicy::manageMembers and ::changeMemberStatus — exercised
+ * through the real Gate (`$user->can(...)`), the same way TenantIsolationTest
+ * checks its policies, so an unregistered policy can't pass its own unit test
+ * while authorising nothing in production.
  *
- * The gate is deliberately narrower than the `user.invite` / `user.update`
- * permission (which the Admin role also holds): it additionally requires the
- * actor to *be* the provider owner.
+ * `manageMembers` (role change) is deliberately narrower than the
+ * `user.invite` / `user.update` permission (which the Admin role also holds):
+ * it additionally requires the actor to *be* the provider owner.
+ * `changeMemberStatus` (deactivate / restore) is the wider gate: any
+ * `user.delete` holder passes it (Owner + Admin), with the per-target
+ * Staff-only restriction enforced in TeamMembershipRules, not here.
  */
 class UserPolicyTest extends BaseTest
 {
@@ -63,5 +66,22 @@ class UserPolicyTest extends BaseTest
         $pretender->assignRole(Role::Owner->value);
 
         $this->assertFalse($pretender->can('manageMembers', User::class));
+    }
+
+    // ── changeMemberStatus (deactivate / restore) ────────────────────────
+
+    public function test_the_owner_and_an_admin_may_change_member_status(): void
+    {
+        $admin = User::factory()->create(['provider_id' => $this->tenant['provider']->id]);
+        $admin->assignRole(Role::Admin->value);
+
+        $this->assertTrue($this->tenant['owner']->can('changeMemberStatus', User::class));
+        $this->assertTrue($admin->can('changeMemberStatus', User::class));
+    }
+
+    public function test_a_plain_staff_or_client_may_not_change_member_status(): void
+    {
+        $this->assertFalse($this->tenant['staff']->can('changeMemberStatus', User::class));
+        $this->assertFalse($this->tenant['clientUser']->can('changeMemberStatus', User::class));
     }
 }

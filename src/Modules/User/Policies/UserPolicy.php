@@ -60,4 +60,23 @@ class UserPolicy extends TenantScopedPolicy
         return $this->check($user, Permission::UserUpdate)
             && $this->actorOwnsTenant($user);
     }
+
+    /**
+     * Deactivate or restore a teammate.
+     *
+     * Wider than `manageMembers` (which is owner-only): an Admin may also do
+     * this, but only for a Staff target — that per-target restriction is a
+     * domain guard in TeamMembershipRules::assertStatusChangeAllowed(), not
+     * part of this coarse permission gate. `user.delete` is held by both Owner
+     * and Admin per Role::permissions(), and the owner holds it as part of
+     * holding every permission, so the explicit `actorOwnsTenant()` branch is
+     * belt-and-suspenders. A `staff`/`client` caller has neither and gets a
+     * 403 here. Role changes are deliberately NOT covered by this — they stay
+     * on `manageMembers`.
+     */
+    public function changeMemberStatus(User $user): bool
+    {
+        return $this->actorOwnsTenant($user)
+            || $this->check($user, Permission::UserDelete);
+    }
 }

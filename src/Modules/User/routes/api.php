@@ -105,6 +105,12 @@ Route::prefix('v1')->group(function () {
 		Route::prefix('team')->name('team.')->group(function () {
 			Route::apiResource('members', TeamController::class);
 
+			// Restore a soft-deactivated member (the inverse of
+			// DELETE members/{member}). Gated on `changeMemberStatus` in the
+			// controller — Owner, or Admin acting on a Staff target.
+			Route::post('members/{member}/restore', [TeamController::class, 'restore'])
+				->name('members.restore');
+
 			// Re-send a pending invite with a fresh token. Same permission as
 			// inviting (checked in the controller). `throttle:team-invitation-resend`
 			// is a named limiter keyed per acting-user + invitation id — see

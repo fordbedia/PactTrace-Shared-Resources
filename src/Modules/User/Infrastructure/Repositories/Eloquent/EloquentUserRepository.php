@@ -78,6 +78,16 @@ class EloquentUserRepository extends BaseRepository implements UserRepository
 		return $user;
 	}
 
+	public function reactivate(User $user): User
+	{
+		$user->forceFill([
+			'status' => 'active',
+			'deactivated_at' => null,
+		])->save();
+
+		return $user;
+	}
+
 	/**
 	 * The provider-side users (owner + admin + staff) backing /dashboard/team.
 	 *
@@ -88,8 +98,15 @@ class EloquentUserRepository extends BaseRepository implements UserRepository
 	 * The role set comes from Role::providerSide() (owner > admin > staff), not
 	 * a local literal, so a new provider-side role can't silently be excluded
 	 * here the way `admin` was.
+	 *
+	 * `$status` splits the roster into the two /dashboard/team tabs (same
+	 * convention as EloquentClientRepository::paginateActive/Archived):
+	 *   - 'active'   — everyone whose `users.status` is not 'deactivated'
+	 *   - 'archived' — only the soft-deactivated rows
+	 * It is applied only when `$providerId` is given, so the historical
+	 * "every user everywhere" call is unaffected.
 	 */
-	public function all(?int $providerId = null)
+	public function all(?int $providerId = null, string $status = 'active')
 	{
 		$query = $this->model->newQuery();
 
@@ -103,6 +120,15 @@ class EloquentUserRepository extends BaseRepository implements UserRepository
 				->whereHas('roles', function ($roleQuery) use ($providerSideRoles): void {
 					$roleQuery->whereIn('name', $providerSideRoles);
 				});
+
+			if ($status === 'archived') {
+				$query->where('status', 'deactivated');
+			} else {
+				$query->where(function ($statusQuery): void {
+					$statusQuery->where('status', '!=', 'deactivated')
+						->orWhereNull('status');
+				});
+			}
 		}
 
 		return $query->get();

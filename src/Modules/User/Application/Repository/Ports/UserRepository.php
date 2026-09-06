@@ -73,4 +73,15 @@ interface UserRepository
      * this.
      */
     public function deactivate(User $user): User;
+
+    /**
+     * The inverse of `deactivate()`: `status = 'active'`, `deactivated_at = null`.
+     *
+     * Restoring a previously soft-removed teammate — never a hard-delete
+     * concern, so there is no cascade reasoning to mirror here. It deliberately
+     * does NOT re-assign matters back to the returning user: the fallback to
+     * the owner that `DepartingStaffReassignment` applied on deactivation
+     * stands, and coverage is picked up going forward, not retroactively.
+     */
+    public function reactivate(User $user): User;
 }
