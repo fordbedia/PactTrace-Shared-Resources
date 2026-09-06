@@ -38,6 +38,10 @@ class PlanPolicyTest extends BaseTest
 
                 $this->assertFalse($result->allowed, "expected {$action->value} denied for status " . ($status ?? 'null'));
                 $this->assertSame(GateDenialReason::SubscriptionInactive, $result->reason);
+                // The raw status is carried through so the frontend can tell
+                // past_due (card declined) from canceled (subscription ended).
+                $this->assertSame($status, $result->subscriptionStatus);
+                $this->assertSame($status, $result->toArray()['subscription_status']);
             }
         }
     }
@@ -50,6 +54,8 @@ class PlanPolicyTest extends BaseTest
             $result = $policy->evaluate(GatedAction::UploadDocument, Plan::Professional, $status, $this->usage());
 
             $this->assertTrue($result->allowed);
+            $this->assertSame($status, $result->subscriptionStatus);
+            $this->assertSame($status, $result->toArray()['subscription_status']);
         }
     }
 
@@ -61,9 +67,13 @@ class PlanPolicyTest extends BaseTest
         $atLimit = $policy->evaluate(GatedAction::UploadDocument, Plan::Starter, 'active', $this->usage(storageUsedBytes: $limit));
         $this->assertFalse($atLimit->allowed);
         $this->assertSame(GateDenialReason::PlanLimitExceeded, $atLimit->reason);
+        // A plan-limit denial still reports the (active) subscription status.
+        $this->assertSame('active', $atLimit->subscriptionStatus);
+        $this->assertSame('active', $atLimit->toArray()['subscription_status']);
 
         $underLimit = $policy->evaluate(GatedAction::UploadDocument, Plan::Starter, 'active', $this->usage(storageUsedBytes: $limit - 1));
         $this->assertTrue($underLimit->allowed);
+        $this->assertSame('active', $underLimit->subscriptionStatus);
     }
 
     public function test_prepare_for_signature_denied_at_monthly_envelope_limit(): void
@@ -122,5 +132,39 @@ class PlanPolicyTest extends BaseTest
             $this->usage(envelopesSentThisMonth: 1_000_000),
         );
         $this->assertTrue($result->allowed);
+        $this->assertSame('active', $result->subscriptionStatus);
+    }
+
+    public function test_result_carries_the_subscription_status_for_every_outcome(): void
+    {
+        $policy = new PlanPolicy();
+
+        $pastDue = $policy->evaluate(GatedAction::UploadDocument, Plan::Professional, 'past_due', $this->usage());
+        $this->assertFalse($pastDue->allowed);
+        $this->assertSame(GateDenialReason::SubscriptionInactive, $pastDue->reason);
+        $this->assertSame('past_due', $pastDue->subscriptionStatus);
+        $this->assertSame('past_due', $pastDue->toArray()['subscription_status']);
+        $this->assertSame('subscription_inactive', $pastDue->toArray()['reason']);
+
+        $canceled = $policy->evaluate(GatedAction::InviteClient, Plan::Firm, 'canceled', $this->usage());
+        $this->assertFalse($canceled->allowed);
+        $this->assertSame('canceled', $canceled->subscriptionStatus);
+        $this->assertSame('canceled', $canceled->toArray()['subscription_status']);
+
+        $active = $policy->evaluate(GatedAction::UploadDocument, Plan::Professional, 'active', $this->usage());
+        $this->assertTrue($active->allowed);
+        $this->assertSame('active', $active->toArray()['subscription_status']);
+
+        // plan_limit_exceeded on an otherwise-fine active subscription still
+        // reports that active status.
+        $limitHit = $policy->evaluate(
+            GatedAction::InviteClient,
+            Plan::Starter,
+            'active',
+            $this->usage(activeClientCount: Plan::Starter->info()->maxActiveClients),
+        );
+        $this->assertFalse($limitHit->allowed);
+        $this->assertSame('plan_limit_exceeded', $limitHit->toArray()['reason']);
+        $this->assertSame('active', $limitHit->toArray()['subscription_status']);
     }
 }

@@ -53,6 +53,7 @@ final class PlanPolicy
                 'Your subscription is not active. Please update your billing to continue.',
                 $usage,
                 $limits,
+                $subscriptionStatus,
             );
         }
 
@@ -64,10 +65,11 @@ final class PlanPolicy
                 $this->limitMessage($action, $limits),
                 $usage,
                 $limits,
+                $subscriptionStatus,
             );
         }
 
-        return PlanGateResult::allowed($usage, $limits);
+        return PlanGateResult::allowed($usage, $limits, $subscriptionStatus);
     }
 
     /**
