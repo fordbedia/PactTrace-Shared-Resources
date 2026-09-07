@@ -11,7 +11,6 @@ use PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Repository\Mat
 use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Repositories\BaseRepository;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Milestone;
-use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
 
 class EloquentMattersRepository extends BaseRepository implements MattersRepository
 {
@@ -53,21 +52,16 @@ class EloquentMattersRepository extends BaseRepository implements MattersReposit
 
 	public function searchClientsForSelection(int $providerId, string $search, int $limit): Collection
 	{
-		// Deliberately fails closed rather than relying on WorkspaceScope's
-		// default fail-open behaviour: this is a live, interactive pick for a
-		// workspace-scoped Matter, not a background job with no request to
-		// resolve a workspace from. If the current workspace can't be resolved
-		// (a provider with 2+ workspaces and no active selection yet — there's
-		// no workspace switcher in the product yet), returning every
-		// workspace's clients would let one get attached to the wrong
-		// workspace's Matter, so we return none instead. See
-		// BelongsToWorkspace::scopeWhereWorkspace() and
-		// .claude/rules/workspace.md.
-		$workspaceId = app(CurrentWorkspace::class)->id();
-
+		// Scoped to the tenant (`provider_id`) only — a Client is a
+		// provider-scoped CRM record, NOT workspace-scoped (see
+		// .claude/rules/client.md). It's fine to attach any of the provider's
+		// clients to a Matter in any workspace: the Matter carries the
+		// workspace, the Client does not. This used to call
+		// `Client::whereWorkspace()` off the (now removed) `BelongsToWorkspace`
+		// trait / `clients.workspace_id` column, which silently hid every
+		// client with a null workspace_id.
 		$query = Client::query()
-			->where('provider_id', $providerId)
-			->whereWorkspace($workspaceId);
+			->where('provider_id', $providerId);
 
 		if ($search !== '') {
 			$query->where(function ($clientQuery) use ($search) {

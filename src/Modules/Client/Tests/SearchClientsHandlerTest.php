@@ -9,6 +9,7 @@ use PactTrackSDK\SharedResources\Modules\Client\Application\DTO\ClientSearchData
 use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 
 /**
@@ -88,6 +89,30 @@ class SearchClientsHandlerTest extends BaseTest
         $results = $this->handler->handle(new ClientSearchData($this->provider->id, '', 5));
 
         $this->assertCount(5, $results);
+    }
+
+    /**
+     * A Client is provider-scoped, never workspace-scoped (see
+     * .claude/rules/client.md). Regression: `Client` briefly carried the
+     * `BelongsToWorkspace` global scope plus a `clients.workspace_id` column,
+     * so whenever a workspace context was active every scoped client query
+     * gained `AND clients.workspace_id = <active>` and silently dropped every
+     * client whose `workspace_id` was null — which was every client, since the
+     * invite flow never set one. Reported live: a client showed for an admin
+     * whose session had no workspace context but vanished for the owner who
+     * had switched into a workspace.
+     */
+    public function test_results_are_not_filtered_by_the_active_workspace_context(): void
+    {
+        $match = $this->client('Workspace Agnostic', 'active', withUser: true);
+
+        // Simulate a signed-in user who has switched into a workspace.
+        app(CurrentWorkspace::class)->setId(4242);
+
+        $results = $this->handler->handle(new ClientSearchData($this->provider->id, 'Workspace', 20));
+
+        $this->assertCount(1, $results);
+        $this->assertSame($match->id, $results->first()->id);
     }
 
     public function test_a_partial_email_match_is_returned_like_a_partial_name(): void

@@ -14,11 +14,21 @@ use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
-use PactTrackSDK\SharedResources\Modules\Workspace\Models\Concerns\BelongsToWorkspace;
 
+/**
+ * A Client is a provider-scoped CRM record — NOT workspace-scoped. It
+ * deliberately does NOT use BelongsToWorkspace: one client can have matters
+ * across several of a provider's workspaces, and the roster on
+ * /dashboard/clients must show every client of the tenant regardless of which
+ * workspace is active. (It briefly carried the trait + a `clients.workspace_id`
+ * column; that silently hid every client with a null workspace_id from any
+ * provider that had an active workspace — removed, see
+ * 2026_09_07_..._remove_workspace_id_from_clients_table and
+ * .claude/rules/client.md.)
+ */
 class Client extends Model
 {
-    use BelongsToWorkspace, HasFactory;
+    use HasFactory;
 
     protected $fillable = [
         'provider_id',

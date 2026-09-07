@@ -7,6 +7,7 @@ namespace PactTrackSDK\SharedResources\Modules\Matter\Tests;
 use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Repositories\Eloquent\EloquentMattersRepository;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 
 /**
@@ -31,5 +32,33 @@ class EloquentMattersRepositoryTest extends BaseTest
         $this->assertTrue($results->first()->relationLoaded('client'));
         $this->assertSame('Jane Smith', $results->first()->client->name);
         $this->assertSame('Smith Co', $results->first()->client->company_name);
+    }
+
+    /**
+     * `searchClientsForSelection()` backs the New Matter drawer's client
+     * picker. A Client is provider-scoped, NOT workspace-scoped (see
+     * .claude/rules/client.md) — any of a provider's clients may own a Matter
+     * in any workspace.
+     *
+     * Regression: this method used to call `Client::whereWorkspace($id)` off
+     * the `BelongsToWorkspace` trait. With the trait (and the
+     * `clients.workspace_id` column) removed, that call degraded to Eloquent's
+     * dynamic `where('workspace', $id)` and threw
+     * `SQLSTATE[42S22] ... Unknown column 'workspace'`. Before that, while the
+     * column existed, it hid every client with a null `workspace_id` whenever
+     * a workspace context was active.
+     */
+    public function test_search_clients_for_selection_returns_clients_regardless_of_active_workspace(): void
+    {
+        $client = Client::factory()->create(['name' => 'Rae Nakamura']);
+
+        // Simulate a signed-in user who has switched into a workspace.
+        app(CurrentWorkspace::class)->setId(4242);
+
+        $results = app(EloquentMattersRepository::class)
+            ->searchClientsForSelection($client->provider_id, 'Rae', 5);
+
+        $this->assertCount(1, $results);
+        $this->assertSame($client->id, $results->first()->id);
     }
 }

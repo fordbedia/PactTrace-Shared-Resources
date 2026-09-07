@@ -11,6 +11,7 @@ use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\ClientInvitationEmail;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan;
 use PactTrackSDK\SharedResources\Modules\User\Models\Subscription;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
 use PactTrackSDK\SharedResources\TestCase\Extras\LoadsModuleApiRoutes;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
@@ -108,5 +109,34 @@ class ClientControllerTest extends BaseTest
 
         $response->assertStatus(403)->assertJsonPath('reason', 'plan_limit_exceeded');
         $this->assertDatabaseMissing('clients', ['email' => 'overflow@example.test']);
+    }
+
+    /**
+     * `GET /clients` — the /dashboard/clients roster. A Client is
+     * provider-scoped, never workspace-scoped (see .claude/rules/client.md),
+     * so the roster must list every client of the tenant no matter which
+     * workspace the acting user has switched into.
+     *
+     * Regression for the reported bug: `Client` had the `BelongsToWorkspace`
+     * global scope + a `clients.workspace_id` column, so an active workspace
+     * context appended `AND clients.workspace_id = <active>` and hid every
+     * client with a null workspace_id (all of them — the invite flow sets no
+     * workspace). The client showed for an admin whose session had no
+     * workspace context but not for the owner who had switched workspaces.
+     */
+    public function test_the_roster_is_not_filtered_by_the_active_workspace(): void
+    {
+        // The acting user has switched into a workspace.
+        app(CurrentWorkspace::class)->setId($this->tenant['workspace']->id);
+
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $response = $this->getJson('/api/v1/clients');
+
+        $response->assertOk();
+
+        $emails = collect($response->json('data'))->pluck('email');
+        $this->assertContains($this->tenant['client']->email, $emails);
+        $this->assertContains($this->tenant['otherClient']->email, $emails);
     }
 }

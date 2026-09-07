@@ -23,13 +23,12 @@ interface MattersRepository
 	/**
 	 * Clients selectable as the owner of a new matter — the "Search or select
 	 * client…" field on the New Matter drawer. Scoped to the actor's tenant
-	 * (`provider_id`) and, explicitly, to the current workspace via
-	 * `Client::whereWorkspace()` — see .claude/rules/workspace.md. Deliberately
-	 * fails closed (no current workspace ⇒ no clients) rather than falling
-	 * back to `BelongsToWorkspace`'s default fail-open scope: this backs a
-	 * live user pick for a workspace-scoped Matter, so leaking another
-	 * workspace's clients into it would be a correctness bug, not just a
-	 * background-job ambiguity.
+	 * (`provider_id`) only: a Client is a provider-scoped CRM record, not
+	 * workspace-scoped (see .claude/rules/client.md), and any of the
+	 * provider's clients may own a Matter in any workspace — the Matter
+	 * carries the workspace, the Client does not. (Previously workspace-scoped
+	 * via `Client::whereWorkspace()`, which depended on the since-removed
+	 * `clients.workspace_id` column.)
 	 */
 	public function searchClientsForSelection(int $providerId, string $search, int $limit): Collection;
 

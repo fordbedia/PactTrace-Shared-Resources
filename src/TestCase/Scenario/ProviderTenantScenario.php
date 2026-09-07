@@ -13,6 +13,7 @@ use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 use PactTrackSDK\SharedResources\Modules\User\Models\Subscription;
+use PactTrackSDK\SharedResources\Modules\Workspace\Domain\Ports\CurrentWorkspace;
 use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
 
 /**
@@ -43,6 +44,21 @@ class ProviderTenantScenario extends BaseScenario
 
     public function handle(): TestScenarioCollection
     {
+        // Pin "no workspace context" for the rest of the test. This fixture's
+        // workspace-scoped rows (matter/document/envelope) all carry an
+        // explicit `workspace_id`, and its assertions — cross-tenant isolation
+        // especially — assume queries are NOT narrowed by an ambient
+        // workspace. That used to hold incidentally: `Client::factory()` ran
+        // `BelongsToWorkspace`'s creating hook, which called
+        // `CurrentWorkspace::id()` here (no auth ⇒ null) and cached it, so a
+        // later authenticated request reused the cached null. `Client` is no
+        // longer workspace-scoped (see .claude/rules/client.md), so without
+        // this an authenticated request's first `CurrentWorkspace::id()` call
+        // resolves the acting user's *sole* workspace and starts narrowing —
+        // turning cross-tenant 403s into 404s. A test that wants narrowing
+        // still overrides this with its own `setId($realWorkspaceId)`.
+        app(CurrentWorkspace::class)->setId(null);
+
         // Owner before provider, so the factory does not mint a throwaway user
         // for `owner_user_id` that we would immediately replace.
         $owner = User::factory()->create(['email' => "{$this->prefix}-owner@pacttrack.test"]);
