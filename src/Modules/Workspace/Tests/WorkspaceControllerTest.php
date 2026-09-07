@@ -123,6 +123,102 @@ class WorkspaceControllerTest extends BaseTest
             ->assertJsonMissing(['id' => $deactivated->id]);
     }
 
+    // ── index: searchable switcher (?q= / ?limit=) ─────────────────────
+
+    public function test_the_switcher_search_orders_primary_first_then_alpha_and_excludes_deactivated(): void
+    {
+        // ProviderTenantScenario's own workspace is not primary; give it a
+        // deterministic name so ordering is checkable.
+        $this->tenant['workspace']->forceFill(['name' => 'Zulu Workspace'])->save();
+
+        $primary = $this->primaryWorkspace();
+        $primary->forceFill(['name' => 'Mid Primary'])->save();
+
+        $alpha = $this->emptyWorkspace();
+        $alpha->forceFill(['name' => 'Alpha Workspace'])->save();
+
+        $deactivated = $this->emptyWorkspace();
+        $deactivated->forceFill(['name' => 'Aaa Deactivated'])->save();
+        $deactivated->delete();
+
+        Sanctum::actingAs($this->owner());
+
+        $ids = $this->getJson('/api/v1/workspaces?limit=5')
+            ->assertOk()
+            ->json('data.*.id');
+
+        // Primary first regardless of its name; then the rest alphabetically.
+        $this->assertSame(
+            [$primary->id, $alpha->id, $this->tenant['workspace']->id],
+            $ids,
+        );
+        $this->assertNotContains($deactivated->id, $ids);
+    }
+
+    public function test_the_switcher_search_filters_by_name_case_insensitively(): void
+    {
+        $rivera = $this->emptyWorkspace();
+        $rivera->forceFill(['name' => 'Rivera Consulting'])->save();
+
+        $harlow = $this->emptyWorkspace();
+        $harlow->forceFill(['name' => 'Harlow & Cole CPA'])->save();
+
+        Sanctum::actingAs($this->owner());
+
+        $this->getJson('/api/v1/workspaces?q=rIvErA')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonFragment(['id' => $rivera->id])
+            ->assertJsonMissing(['id' => $harlow->id]);
+    }
+
+    public function test_the_switcher_search_never_returns_another_providers_workspace(): void
+    {
+        $mine = $this->emptyWorkspace();
+        $mine->forceFill(['name' => 'Meridian Legal Group'])->save();
+
+        $other = ProviderTenantScenario::make('ws-search-other');
+        $other['workspace']->forceFill(['name' => 'Meridian Legal Group'])->save();
+
+        Sanctum::actingAs($this->owner());
+
+        $this->getJson('/api/v1/workspaces?q=Meridian')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonFragment(['id' => $mine->id])
+            ->assertJsonMissing(['id' => $other['workspace']->id]);
+    }
+
+    public function test_the_switcher_search_clamps_the_limit(): void
+    {
+        // Six extra active workspaces (+ the scenario's own = 7 total).
+        collect(range(1, 6))->each(fn (int $i) => $this->emptyWorkspace()
+            ->forceFill(['name' => "Bulk {$i}"])->save());
+
+        Sanctum::actingAs($this->owner());
+
+        // A hostile limit is clamped to 20 — never an unbounded dump.
+        $count = $this->getJson('/api/v1/workspaces?limit=100000')
+            ->assertOk()
+            ->json('data');
+
+        $this->assertLessThanOrEqual(20, count($count));
+        $this->assertGreaterThanOrEqual(7, count($count));
+    }
+
+    public function test_the_bare_index_is_unchanged_by_the_switcher_params(): void
+    {
+        // No q / no limit → the original full, name-ordered active list.
+        $extra = $this->emptyWorkspace();
+
+        Sanctum::actingAs($this->owner());
+
+        $this->getJson('/api/v1/workspaces')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $this->tenant['workspace']->id])
+            ->assertJsonFragment(['id' => $extra->id]);
+    }
+
     // ── deactivation-eligibility ────────────────────────────────────────
 
     public function test_an_empty_workspace_is_eligible_for_deactivation(): void

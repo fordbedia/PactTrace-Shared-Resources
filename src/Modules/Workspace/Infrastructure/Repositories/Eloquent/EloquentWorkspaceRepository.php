@@ -36,6 +36,32 @@ class EloquentWorkspaceRepository extends BaseRepository implements WorkspaceRep
             ->get();
     }
 
+    public function search(int $providerId, ?string $search = null, ?int $limit = null): Collection
+    {
+        $query = Workspace::query()
+            ->where('provider_id', $providerId)
+            // Primary first (the one RegisterProvider stamps at sign-up), then
+            // by name. `is_primary` is a 0/1 column, so DESC puts the 1 on top.
+            ->orderByDesc('is_primary')
+            ->orderBy('name');
+
+        $search = $search === null ? null : trim($search);
+
+        if ($search !== null && $search !== '') {
+            // LIKE with escaped wildcards — a case-insensitive substring match
+            // under MySQL's default (ci) collation, tenant-scoped by the
+            // provider_id above so another provider's workspace can't leak in.
+            $escaped = addcslashes($search, '%_\\');
+            $query->where('name', 'like', "%{$escaped}%");
+        }
+
+        if ($limit !== null) {
+            $query->limit($limit);
+        }
+
+        return $query->get();
+    }
+
     public function forProviderIncludingDeactivated(int $providerId): Collection
     {
         return Workspace::withTrashed()

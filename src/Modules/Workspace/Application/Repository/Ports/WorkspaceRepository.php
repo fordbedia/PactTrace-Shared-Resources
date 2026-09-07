@@ -49,6 +49,28 @@ interface WorkspaceRepository
     public function forProvider(int $providerId): Collection;
 
     /**
+     * A capped, optionally name-filtered slice of the provider's ACTIVE
+     * workspaces, ordered primary-first then alphabetically.
+     *
+     * Backs the searchable sidebar switcher (`GET /workspaces?q=&limit=`). The
+     * two knobs are independent:
+     *   - `$search` null / '' → no name filter; otherwise a case-insensitive
+     *     substring match on `name`, scoped to `$providerId` (a same-named
+     *     workspace of another provider can never appear).
+     *   - `$limit` null → no cap; otherwise at most that many rows. The caller
+     *     (the controller) is responsible for clamping it to a sane ceiling —
+     *     this method trusts the value it is handed.
+     *
+     * Deactivated workspaces are always excluded (the model's SoftDeletes
+     * scope) — a switcher must never offer a switch into a dead workspace.
+     * `forProvider()` / `forProviderIncludingDeactivated()` are untouched, so
+     * every existing caller keeps its exact current behaviour.
+     *
+     * @return Collection<int, Workspace>
+     */
+    public function search(int $providerId, ?string $search = null, ?int $limit = null): Collection;
+
+    /**
      * Every workspace belonging to the provider — active AND deactivated
      * (soft-deleted) — name-ordered.
      *

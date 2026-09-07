@@ -61,18 +61,48 @@ class WorkspaceController extends Controller
     ) {
     }
 
+    /** The switcher never asks for more than this many rows, whatever it sends. */
+    private const SWITCHER_MAX_LIMIT = 20;
+
     /**
-     * `?include_deactivated=1` (only the `/workspaces` management screen sends
-     * it) folds soft-deleted workspaces into the list; every other caller — the
-     * sidebar switcher, the Deactivate modal — gets active-only.
+     * Three shapes, picked by query params — an existing caller sends none of
+     * them and gets exactly what it always did:
+     *
+     *   (no params)             → every active workspace, name-ordered.
+     *   ?include_deactivated=1  → active + soft-deleted, name-ordered
+     *                             (only the `/workspaces` management screen).
+     *   ?q= and/or ?limit=      → the searchable sidebar switcher — active
+     *                             only, primary-first then alpha, name-filtered
+     *                             by `q` (case-insensitive, tenant-scoped) and
+     *                             capped at `limit` (clamped to 1..20 here,
+     *                             never trusted from the client).
+     *
+     * `q`/`limit` and `include_deactivated` are never combined by any caller;
+     * if both arrive, the switcher shape wins (a switch into a deactivated
+     * workspace is meaningless).
      */
     public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('viewAny', Workspace::class);
 
+        $providerId = (int) $request->user()->provider_id;
+
+        if ($request->has('q') || $request->has('limit')) {
+            $rawSearch = trim((string) $request->query('q', ''));
+            $search = $rawSearch === '' ? null : $rawSearch;
+
+            $limit = $request->has('limit')
+                ? max(1, min(self::SWITCHER_MAX_LIMIT, (int) $request->query('limit')))
+                : self::SWITCHER_MAX_LIMIT;
+
+            return WorkspaceResource::collection(
+                $this->listWorkspaces->search($providerId, $search, $limit)
+            );
+        }
+
         return WorkspaceResource::collection(
             $this->listWorkspaces->handle(
-                (int) $request->user()->provider_id,
+                $providerId,
                 $request->boolean('include_deactivated'),
             )
         );
