@@ -109,6 +109,8 @@ class PortalMessagingControllerTest extends BaseTest
     public function test_directory_for_a_matter_with_no_assigned_staff_returns_only_the_owner(): void
     {
         // ProviderTenantScenario's matter has no assigned_staff_id.
+        $this->tenant['owner']->forceFill(['title' => 'Managing Partner'])->save();
+
         $response = $this->actingAs($this->tenant['clientUser'])
             ->getJson("/api/v1/portal/matters/{$this->matterKey()}/staff-directory");
 
@@ -118,10 +120,11 @@ class PortalMessagingControllerTest extends BaseTest
         $this->assertCount(1, $data);
         $this->assertSame($this->tenant['owner']->id, $data[0]['id']);
         $this->assertSame('owner', $data[0]['relationship']);
-
-        // Allow-list: no email / title leak.
+        // `title` IS exposed now — the portal shows the job title, not the
+        // relationship (Ed 2026-09-06). `email` / `role` still are not.
+        $this->assertSame('Managing Partner', $data[0]['title']);
         $this->assertArrayNotHasKey('email', $data[0]);
-        $this->assertArrayNotHasKey('title', $data[0]);
+        $this->assertArrayNotHasKey('role', $data[0]);
     }
 
     public function test_directory_for_a_matter_with_an_assigned_staff_returns_owner_and_that_staffer(): void

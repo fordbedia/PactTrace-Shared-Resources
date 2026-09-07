@@ -22,9 +22,10 @@ use PactTrackSDK\SharedResources\Modules\User\Models\User;
  *      is set;
  *
  * de-duplicated (if the assigned staff member *is* the owner, one row).
- * Each returned `User` carries a transient `matter_relationship`
- * (`'owner'` | `'assigned'`) so the portal can show the person's
- * relationship to this matter instead of a job title.
+ * Each returned `User` carries its job `title` (what the portal renders
+ * under the name — see PortalStaffResource) plus a transient
+ * `matter_relationship` (`'owner'` | `'assigned'`) the frontend uses only
+ * as a fallback label when `title` is unset.
  *
  * The caller loads `provider.owner` and `assignedStaff` on the matter
  * before calling this.

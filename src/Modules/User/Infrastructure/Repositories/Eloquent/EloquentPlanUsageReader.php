@@ -33,12 +33,39 @@ final class EloquentPlanUsageReader implements PlanUsageReader
 
     public function activeStaffCount(int $providerId): int
     {
+        // The Owner is deliberately EXCLUDED (policy change, Ed 2026-09-06):
+        // a "seat" is for someone the owner brings on (Admin or Staff), not
+        // the owner's own login. On every plan — so Starter/Professional's
+        // `maxSeats: 1` now means "the owner PLUS one teammate", not "the
+        // owner and nobody else, ever". PlanPolicy's InviteStaff gate and
+        // PlanChangePolicy's downgrade pre-flight both read this figure, so
+        // this one query change is what shifts their real-world behaviour.
+        return $this->activeUserCountForRoles($providerId, [Role::Admin, Role::Staff]);
+    }
+
+    /** Admins alone — one half of {@see activeStaffCount()}. */
+    public function activeAdminCount(int $providerId): int
+    {
+        return $this->activeUserCountForRoles($providerId, [Role::Admin]);
+    }
+
+    /** Staff alone — the other half of {@see activeStaffCount()}. */
+    public function activeStaffRoleCount(int $providerId): int
+    {
+        return $this->activeUserCountForRoles($providerId, [Role::Staff]);
+    }
+
+    /**
+     * @param  list<Role>  $roles
+     */
+    private function activeUserCountForRoles(int $providerId, array $roles): int
+    {
         return User::query()
             ->where('provider_id', $providerId)
             ->where('status', 'active')
             ->whereHas('roles', fn ($query) => $query->whereIn('name', array_map(
                 static fn (Role $role): string => $role->value,
-                Role::providerSide(),
+                $roles,
             )))
             ->count();
     }

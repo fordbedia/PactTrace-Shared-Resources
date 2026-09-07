@@ -12,6 +12,7 @@ use PactTrackSDK\SharedResources\Modules\Signature\Domain\Enums\EnvelopeStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\GetPlanUsageSummary;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use PactTrackSDK\SharedResources\TestCase\Extras\LoadsModuleApiRoutes;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
@@ -70,33 +71,57 @@ class GetPlanUsageSummaryTest extends BaseTest
         $this->assertSame(2, $usage->activeClientCount);
     }
 
-    public function test_it_counts_active_provider_side_staff_including_the_owner(): void
+    public function test_it_counts_admin_and_staff_seats_but_not_the_owner(): void
     {
-        // ProviderTenantScenario already gives this tenant an owner + a
-        // staff member — both active, both provider-side.
+        // ProviderTenantScenario gives this tenant an owner + one staff
+        // member. The owner is NOT a seat (policy, Ed 2026-09-06), so only
+        // the staff member counts.
+        $usage = app(GetPlanUsageSummary::class)->handle($this->tenant['provider']->id);
+
+        $this->assertSame(1, $usage->activeStaffCount);
+        $this->assertSame(0, $usage->activeAdminCount);
+        $this->assertSame(1, $usage->activeStaffRoleCount);
+    }
+
+    public function test_an_admin_counts_as_a_seat_and_the_admin_staff_split_sums_to_the_total(): void
+    {
+        $admin = User::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'status' => 'active',
+        ]);
+        $admin->assignRole(Role::Admin->value);
+
         $usage = app(GetPlanUsageSummary::class)->handle($this->tenant['provider']->id);
 
         $this->assertSame(2, $usage->activeStaffCount);
+        $this->assertSame(1, $usage->activeAdminCount);
+        $this->assertSame(1, $usage->activeStaffRoleCount);
+        $this->assertSame(
+            $usage->activeStaffCount,
+            $usage->activeAdminCount + $usage->activeStaffRoleCount,
+        );
     }
 
     public function test_a_deactivated_staff_member_does_not_count_toward_seats(): void
     {
-        $this->tenant['staff']->update(['status' => 'deactivated']);
+        // `status` is not mass-assignable on User (see its #[Fillable]) — force it.
+        $this->tenant['staff']->forceFill(['status' => 'deactivated'])->save();
 
         $usage = app(GetPlanUsageSummary::class)->handle($this->tenant['provider']->id);
 
-        $this->assertSame(1, $usage->activeStaffCount);
+        // The owner never counted, and the one staff member is now inactive.
+        $this->assertSame(0, $usage->activeStaffCount);
     }
 
     public function test_a_client_role_user_never_counts_as_a_seat(): void
     {
         // The scenario's clientUser (Role::Client) is already active and
         // provider_id-scoped to this tenant — if the seat count ever grouped
-        // by provider_id alone instead of the providerSide role list, this
+        // by provider_id alone instead of the Admin/Staff role list, this
         // would wrongly count them.
         $usage = app(GetPlanUsageSummary::class)->handle($this->tenant['provider']->id);
 
-        $this->assertSame(2, $usage->activeStaffCount);
+        $this->assertSame(1, $usage->activeStaffCount);
         $this->assertNotContains(Role::Client, Role::providerSide());
     }
 
@@ -148,10 +173,16 @@ class GetPlanUsageSummaryTest extends BaseTest
 
         $response->assertOk()
             ->assertJsonStructure([
-                'usage' => ['active_client_count', 'active_staff_count', 'storage_used_bytes', 'envelopes_sent_this_month'],
+                'usage' => [
+                    'active_client_count', 'active_staff_count', 'admin_count', 'staff_count',
+                    'storage_used_bytes', 'envelopes_sent_this_month',
+                ],
                 'limits' => ['plan', 'max_seats', 'max_active_clients', 'storage_limit_bytes'],
             ])
             ->assertJsonPath('limits.plan', 'starter')
-            ->assertJsonPath('usage.active_staff_count', 2);
+            // Owner excluded — the scenario's lone staff member is the only seat.
+            ->assertJsonPath('usage.active_staff_count', 1)
+            ->assertJsonPath('usage.admin_count', 0)
+            ->assertJsonPath('usage.staff_count', 1);
     }
 }

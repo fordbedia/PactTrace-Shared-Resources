@@ -64,6 +64,7 @@ class ProfileController extends Controller
             (string) $request->validated('last_name'),
             (string) $request->validated('email'),
             $request->validated('phone'),
+            $request->validated('title'),
         );
 
         // Re-attach the plaintext hint cookie — name/email may have changed.

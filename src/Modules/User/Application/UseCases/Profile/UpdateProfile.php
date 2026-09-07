@@ -14,8 +14,8 @@ use PactTrackSDK\SharedResources\Modules\User\Models\User;
  *
  * The card shows First Name / Last Name separately but `users.name` is a
  * single column — they're recombined here (and split back apart in the UI).
- * `title` is not editable ("Managed by firm owner" in the design), so it's
- * not a parameter.
+ * `title` (free-text job title) is now editable by every provider-side role
+ * for their own account — a blank value stores `null`.
  *
  * Changing the email address clears `email_verified_at` — the new address is
  * unverified by definition. There's no re-verification flow wired yet, so the
@@ -34,6 +34,7 @@ final class UpdateProfile
         string $lastName,
         string $email,
         ?string $phone,
+        ?string $title = null,
     ): User {
         $attributes = [
             'name' => trim($firstName . ' ' . $lastName),
@@ -41,6 +42,7 @@ final class UpdateProfile
             // the column is compared with `=` under a UNIQUE index.
             'email' => Str::lower(trim($email)),
             'phone' => $phone !== null && trim($phone) !== '' ? trim($phone) : null,
+            'title' => $title !== null && trim($title) !== '' ? trim($title) : null,
         ];
 
         $changed = [];

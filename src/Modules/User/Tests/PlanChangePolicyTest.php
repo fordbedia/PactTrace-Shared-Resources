@@ -47,7 +47,8 @@ class PlanChangePolicyTest extends BaseTest
     {
         $usage = new PlanUsageSummary(
             activeClientCount: 5,
-            activeStaffCount: 2,
+            // 1 non-owner seat — fits Professional's cap, so only storage blocks.
+            activeStaffCount: 1,
             storageUsedBytes: 120 * 1024 * 1024 * 1024,
             envelopesSentThisMonth: 0,
         );

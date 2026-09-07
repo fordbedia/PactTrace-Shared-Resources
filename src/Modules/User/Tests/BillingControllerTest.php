@@ -114,9 +114,9 @@ class BillingControllerTest extends BaseTest
         Sanctum::actingAs($this->owner());
         $this->givenAnActiveStripeSubscription();
 
-        // The scenario already seeds an owner + a staff member (2 seats);
-        // add 5 more so this tenant has 7 provider-side users, matching
-        // Ed's own "Firm -> Professional with 7 staff seats" example.
+        // The scenario seeds an owner (not a seat) + one staff member (1
+        // seat); add 5 more staff so this tenant holds 6 seats, comfortably
+        // over Professional's cap of 1.
         User::factory()->count(5)->create(['provider_id' => $this->tenant['provider']->id])
             ->each(fn (User $u) => $u->assignRole('staff'));
 
@@ -131,7 +131,7 @@ class BillingControllerTest extends BaseTest
     {
         Sanctum::actingAs($this->owner());
         $this->givenAnActiveStripeSubscription();
-        $this->deactivateStaffSoOnlyTheOwnerHoldsASeat();
+        $this->deactivateStaffSoNoSeatsAreHeld();
 
         Document::factory()->create([
             'provider_id' => $this->tenant['provider']->id,
@@ -151,7 +151,7 @@ class BillingControllerTest extends BaseTest
     {
         Sanctum::actingAs($this->owner());
         $this->givenAnActiveStripeSubscription();
-        $this->deactivateStaffSoOnlyTheOwnerHoldsASeat();
+        $this->deactivateStaffSoNoSeatsAreHeld();
 
         Client::factory()->count(20)->create([
             'provider_id' => $this->tenant['provider']->id,
@@ -169,7 +169,7 @@ class BillingControllerTest extends BaseTest
     {
         Sanctum::actingAs($this->owner());
         $this->givenAnActiveStripeSubscription();
-        $this->deactivateStaffSoOnlyTheOwnerHoldsASeat();
+        $this->deactivateStaffSoNoSeatsAreHeld();
 
         config(['services.stripe.prices.starter.monthly' => 'price_starter_monthly']);
 
@@ -193,12 +193,13 @@ class BillingControllerTest extends BaseTest
     }
 
     /**
-     * The scenario fixture always seeds an owner + a staff member (2 seats)
-     * — Professional/Starter's own 1-seat cap would otherwise block every
-     * downgrade test below on `seats` before it ever reaches the dimension
-     * actually under test.
+     * The scenario fixture seeds an owner (not a seat) + one staff member
+     * (1 seat) — Professional/Starter's own 1-seat cap would otherwise block
+     * every downgrade test below on `seats` before it reaches the dimension
+     * actually under test. Deactivating the staffer drops the tenant to 0
+     * seats held.
      */
-    private function deactivateStaffSoOnlyTheOwnerHoldsASeat(): void
+    private function deactivateStaffSoNoSeatsAreHeld(): void
     {
         $this->tenant['staff']->forceFill(['status' => 'deactivated'])->save();
     }

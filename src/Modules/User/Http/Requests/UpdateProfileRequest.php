@@ -31,6 +31,10 @@ class UpdateProfileRequest extends FormRequest
                 Rule::unique('users', 'email')->ignore($this->user()->id),
             ],
             'phone' => ['nullable', 'string', 'max:40'],
+            // Free-text job title, editable by every provider-side role
+            // (owner / admin / staff) for their own account — it's a display
+            // label, unrelated to Role/Permission. See .claude/rules/profile.md.
+            'title' => ['nullable', 'string', 'max:150'],
         ];
     }
 

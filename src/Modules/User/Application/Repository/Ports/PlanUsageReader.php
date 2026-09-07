@@ -22,8 +22,23 @@ interface PlanUsageReader
     /** Clients with `status = 'active'` for one tenant — what "active clients" means throughout .claude/rules/plan.md. */
     public function activeClientCount(int $providerId): int;
 
-    /** Accepted, still-active provider-side users (owner + admin + staff) for one tenant — what a "seat" is. */
+    /**
+     * Accepted, still-active Admin + Staff users for one tenant — what a
+     * "seat" is. The Owner is deliberately NOT counted (policy, Ed
+     * 2026-09-06): a seat is for people the owner brings on, so
+     * Starter/Professional's `maxSeats: 1` fits the owner plus one teammate.
+     */
     public function activeStaffCount(int $providerId): int;
+
+    /**
+     * Just the Admins. Invariant: for the same tenant at the same instant,
+     * {@see activeAdminCount()} + {@see activeStaffRoleCount()} === {@see activeStaffCount()}
+     * (all three are live COUNTs against the same `users` rows).
+     */
+    public function activeAdminCount(int $providerId): int;
+
+    /** Just the Staff — the complement of {@see activeAdminCount()}. */
+    public function activeStaffRoleCount(int $providerId): int;
 
     /** Envelopes with a non-draft status created since the start of the current calendar month, for one tenant. */
     public function envelopesSentThisMonth(int $providerId): int;

@@ -123,6 +123,42 @@ class ProfileControllerTest extends BaseTest
         ]);
     }
 
+    public function test_every_provider_side_role_can_edit_their_own_title(): void
+    {
+        foreach (['owner', 'staff'] as $key) {
+            $user = $this->tenant[$key];
+            $user->forceFill(['title' => null])->save();
+            Sanctum::actingAs($user);
+
+            $this->patchJson('/api/v1/profile', [
+                'first_name' => 'X',
+                'last_name' => 'Y',
+                'email' => $user->email,
+                'phone' => null,
+                'title' => 'Senior Counsel',
+            ])->assertOk()->assertJsonPath('data.title', 'Senior Counsel');
+
+            $this->assertSame('Senior Counsel', $user->refresh()->title);
+        }
+    }
+
+    public function test_a_blank_title_clears_it_to_null(): void
+    {
+        $user = $this->owner();
+        $user->forceFill(['title' => 'Attorney'])->save();
+        Sanctum::actingAs($user);
+
+        $this->patchJson('/api/v1/profile', [
+            'first_name' => 'A',
+            'last_name' => 'B',
+            'email' => $user->email,
+            'phone' => null,
+            'title' => '   ',
+        ])->assertOk()->assertJsonPath('data.title', null);
+
+        $this->assertNull($user->refresh()->title);
+    }
+
     public function test_it_updates_only_the_first_name_leaving_the_last_name_intact(): void
     {
         $user = $this->owner();
