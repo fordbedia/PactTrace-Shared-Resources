@@ -8,6 +8,7 @@ use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\InvalidStripeWeb
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\BillingProvider;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSession;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSessionRequest;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSessionStatus;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\StripeWebhookEventData;
 
 /**
@@ -35,11 +36,29 @@ final class FakeBillingProvider implements BillingProvider
     /** Set by a test to control what {@see constructWebhookEvent()} returns. */
     public ?StripeWebhookEventData $nextEvent = null;
 
+    /** Every session id {@see retrieveCheckoutSession()} was asked about, in order. */
+    public array $retrievedCheckoutSessions = [];
+
+    /** Per-session-id canned answers for {@see retrieveCheckoutSession()}. */
+    public array $checkoutSessionStatusById = [];
+
+    /** Fallback answer for {@see retrieveCheckoutSession()} when the id has no entry above. */
+    public ?CheckoutSessionStatus $nextCheckoutSessionStatus = null;
+
     public function createCheckoutSession(CheckoutSessionRequest $request): CheckoutSession
     {
         $this->checkoutSessions[] = $request;
 
         return new CheckoutSession(url: $this->checkoutUrl);
+    }
+
+    public function retrieveCheckoutSession(string $sessionId): CheckoutSessionStatus
+    {
+        $this->retrievedCheckoutSessions[] = $sessionId;
+
+        return $this->checkoutSessionStatusById[$sessionId]
+            ?? $this->nextCheckoutSessionStatus
+            ?? CheckoutSessionStatus::notFound();
     }
 
     public function createBillingPortalSession(string $customerId, string $returnUrl): string

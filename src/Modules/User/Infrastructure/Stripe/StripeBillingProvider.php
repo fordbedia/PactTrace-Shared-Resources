@@ -8,7 +8,9 @@ use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\InvalidStripeWeb
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\BillingProvider;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSession;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSessionRequest;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSessionStatus;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\StripeWebhookEventData;
+use Stripe\Exception\ApiErrorException;
 use Stripe\Exception\SignatureVerificationException;
 use Stripe\StripeClient;
 use Stripe\Webhook;
@@ -36,8 +38,11 @@ final class StripeBillingProvider implements BillingProvider
                 ['price' => $request->priceId, 'quantity' => 1],
             ],
             'client_reference_id' => $request->providerId,
+            // No `trial_period_days`: every provider already had their 14-day
+            // card-less trial at sign-up, so Checkout is always an immediate
+            // charge — Stripe's page shows "Subscribe" / amount due today, not
+            // "N days free". See CreateCheckoutSession.
             'subscription_data' => [
-                'trial_period_days' => $request->trialPeriodDays,
                 'metadata' => ['provider_id' => $request->providerId],
             ],
             'success_url' => $request->successUrl,
@@ -53,6 +58,69 @@ final class StripeBillingProvider implements BillingProvider
         $session = $this->client->checkout->sessions->create($params);
 
         return new CheckoutSession(url: (string) $session->url);
+    }
+
+    public function retrieveCheckoutSession(string $sessionId): CheckoutSessionStatus
+    {
+        try {
+            $session = $this->client->checkout->sessions->retrieve($sessionId, [
+                'expand' => ['subscription', 'subscription.default_payment_method'],
+            ]);
+        } catch (ApiErrorException $e) {
+            // A bad/unknown/expired session id — not an error condition here,
+            // it's exactly the "we couldn't confirm this payment" outcome.
+            return CheckoutSessionStatus::notFound();
+        }
+
+        $subscription = $session->subscription; // expanded object, a string id, or null
+        $subscriptionObject = is_object($subscription) ? $subscription->toArray() : [];
+
+        $customer = $session->customer; // not expanded — a string id or null
+        $customerId = is_string($customer) && $customer !== '' ? $customer : null;
+
+        [$cardBrand, $cardLast4] = $this->cardFrom($subscription);
+
+        return new CheckoutSessionStatus(
+            found: true,
+            paymentStatus: (string) ($session->payment_status ?? ''),
+            customerId: $customerId,
+            clientReferenceId: $session->client_reference_id !== null
+                ? (string) $session->client_reference_id
+                : null,
+            subscriptionObject: $subscriptionObject,
+            amountTotalCents: $session->amount_total !== null ? (int) $session->amount_total : null,
+            currency: $session->currency !== null ? (string) $session->currency : null,
+            cardBrand: $cardBrand,
+            cardLast4: $cardLast4,
+        );
+    }
+
+    /**
+     * Best-effort card brand/last4 off the expanded
+     * `subscription.default_payment_method`. Often absent on a
+     * just-created subscription (the method can live on the customer's
+     * invoice settings or the first invoice instead) — a null pair is a
+     * normal outcome, the success screen just omits the "Billed to" line.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function cardFrom(mixed $subscription): array
+    {
+        if (! is_object($subscription)) {
+            return [null, null];
+        }
+
+        $method = $subscription->default_payment_method ?? null;
+        $card = is_object($method) ? ($method->card ?? null) : null;
+
+        if (! is_object($card)) {
+            return [null, null];
+        }
+
+        return [
+            isset($card->brand) ? (string) $card->brand : null,
+            isset($card->last4) ? (string) $card->last4 : null,
+        ];
     }
 
     public function createBillingPortalSession(string $customerId, string $returnUrl): string

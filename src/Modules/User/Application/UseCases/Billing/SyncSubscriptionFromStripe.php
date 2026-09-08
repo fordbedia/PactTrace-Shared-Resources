@@ -70,11 +70,19 @@ final class SyncSubscriptionFromStripe
             return;
         }
 
-        $priceId = (string) ($event->object['items']['data'][0]['price']['id'] ?? '');
+        $firstItem = $event->object['items']['data'][0] ?? [];
+        $priceId = (string) ($firstItem['price']['id'] ?? '');
         $plan = $priceId !== '' ? $this->prices->resolve($priceId)?->plan : null;
         $status = self::STATUS_MAP[(string) ($event->object['status'] ?? '')] ?? 'past_due';
-        $currentPeriodEndsAt = ! empty($event->object['current_period_end'])
-            ? Carbon::createFromTimestamp((int) $event->object['current_period_end'])
+        // Stripe API version 2025-03-31 ("basil") moved `current_period_end`
+        // off the Subscription and onto each Subscription *item*. Read the
+        // subscription-level field for older payloads, fall back to the first
+        // item's for newer ones — without this, `current_period_ends_at`
+        // silently stays null on every sync (webhook and reconciliation alike).
+        $currentPeriodEnd = $event->object['current_period_end']
+            ?? ($firstItem['current_period_end'] ?? null);
+        $currentPeriodEndsAt = ! empty($currentPeriodEnd)
+            ? Carbon::createFromTimestamp((int) $currentPeriodEnd)
             : null;
         $trialEndsAt = ! empty($event->object['trial_end'])
             ? Carbon::createFromTimestamp((int) $event->object['trial_end'])

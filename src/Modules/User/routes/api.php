@@ -31,6 +31,13 @@ Route::prefix('v1')->group(function () {
 	Route::post('user/register', [RegistrationController::class, 'store'])
 		->name('user.register');
 
+	// The plan catalogue (every tier's PlanInfo) — read-only, non-tenant
+	// reference data. Deliberately OUTSIDE auth:sanctum: the public marketing
+	// pricing page (frontend/app/page.js) renders its feature bullets from
+	// this so they can't drift from the enforced matrix, and that page has no
+	// signed-in user. Also feeds /dashboard/billing's comparison grid.
+	Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
+
 	Route::prefix('auth')->name('auth.')->group(function () {
 		Route::post('login', [SessionController::class, 'store'])
 			->name('login');
@@ -44,10 +51,6 @@ Route::prefix('v1')->group(function () {
 
 	Route::middleware('auth:sanctum')->group(function () {
 		Route::apiResource('user', UserController::class);
-
-		// The plan catalogue (every tier's PlanInfo) — read-only reference
-		// data for /dashboard/billing's comparison grid. Not tenant-specific.
-		Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
 
 		// This tenant's own live usage against its plan's limits — the one
 		// payload the storage indicators and the frontend plan-guard hook
@@ -93,6 +96,13 @@ Route::prefix('v1')->group(function () {
 			Route::post('checkout', [BillingController::class, 'checkout'])->name('checkout');
 			Route::get('portal-session', [BillingController::class, 'portalSession'])->name('portal-session');
 			Route::post('change-plan', [BillingController::class, 'changePlan'])->name('change-plan');
+
+			// The `/checkout/success` landing page's reconciliation call —
+			// "did this checkout actually go through", answered from Stripe
+			// directly when the webhook hasn't landed yet. `{session}` is a
+			// Stripe `cs_...` id, not a model.
+			Route::get('checkout-session/{session}/status', [BillingController::class, 'checkoutSessionStatus'])
+				->name('checkout-session.status');
 		});
 
 		// ------------------------------------------------------------------

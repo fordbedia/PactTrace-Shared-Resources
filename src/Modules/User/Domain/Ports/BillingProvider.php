@@ -7,6 +7,7 @@ namespace PactTrackSDK\SharedResources\Modules\User\Domain\Ports;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\InvalidStripeWebhookSignatureException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSession;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSessionRequest;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSessionStatus;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\StripeWebhookEventData;
 
 /**
@@ -20,6 +21,17 @@ use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\StripeWebhookE
 interface BillingProvider
 {
     public function createCheckoutSession(CheckoutSessionRequest $request): CheckoutSession;
+
+    /**
+     * Reads a Checkout Session straight from Stripe (never from local state) —
+     * the reconciliation fallback for a browser that lands back on
+     * `/checkout/success` before, or without, the webhook having been
+     * processed. Expands `subscription` (and its payment method) so
+     * subscription status/price and the card come back in one round trip.
+     * Returns {@see CheckoutSessionStatus::notFound()} — never throws — when
+     * the id doesn't resolve.
+     */
+    public function retrieveCheckoutSession(string $sessionId): CheckoutSessionStatus;
 
     /**
      * @return string the hosted Billing Portal URL to redirect to

@@ -87,6 +87,89 @@ class BillingControllerTest extends BaseTest
         $this->assertSame((string) $this->tenant['provider']->id, $this->stripe->checkoutSessions[0]->providerId);
     }
 
+    public function test_checkout_success_and_cancel_urls_are_distinct_and_success_carries_the_session_placeholder(): void
+    {
+        Sanctum::actingAs($this->owner());
+        config([
+            'services.stripe.prices.professional.monthly' => 'price_professional_monthly',
+            'services.stripe.return_url' => 'https://app.example.test/checkout/success',
+        ]);
+
+        $this->postJson('/api/v1/billing/checkout', ['plan' => 'professional'])->assertOk();
+
+        $request = $this->stripe->checkoutSessions[0];
+        $this->assertSame('https://app.example.test/checkout/success?session_id={CHECKOUT_SESSION_ID}', $request->successUrl);
+        $this->assertSame('https://app.example.test/checkout/success?canceled=1', $request->cancelUrl);
+        $this->assertNotSame($request->successUrl, $request->cancelUrl);
+    }
+
+    public function test_checkout_session_status_requires_authentication(): void
+    {
+        $this->getJson('/api/v1/billing/checkout-session/cs_test_1/status')->assertUnauthorized();
+    }
+
+    public function test_a_staff_user_cannot_read_checkout_session_status(): void
+    {
+        Sanctum::actingAs($this->tenant['staff']);
+
+        $this->getJson('/api/v1/billing/checkout-session/cs_test_1/status')->assertForbidden();
+    }
+
+    public function test_checkout_session_status_reports_a_synced_subscription_as_confirmed(): void
+    {
+        Sanctum::actingAs($this->owner());
+
+        Subscription::query()->where('provider_id', $this->tenant['provider']->id)->update([
+            'plan' => 'professional',
+            'status' => 'active',
+            'stripe_subscription_id' => 'sub_live',
+            'current_period_ends_at' => now()->addDays(20),
+        ]);
+
+        $response = $this->getJson('/api/v1/billing/checkout-session/cs_test_ok/status');
+
+        $response->assertOk()
+            ->assertJsonPath('status', 'confirmed')
+            ->assertJsonPath('plan', 'Professional')
+            ->assertJsonPath('plan_key', 'professional')
+            ->assertJsonPath('billing_email', $this->owner()->email);
+
+        // The already-synced fast path must not have touched Stripe.
+        $this->assertSame([], $this->stripe->retrievedCheckoutSessions);
+    }
+
+    public function test_checkout_session_status_reports_an_unresolved_session_as_failed(): void
+    {
+        Sanctum::actingAs($this->owner());
+
+        Subscription::query()->where('provider_id', $this->tenant['provider']->id)->update([
+            'status' => 'trialing',
+            'stripe_subscription_id' => null,
+            'current_period_ends_at' => null,
+        ]);
+
+        // FakeBillingProvider returns CheckoutSessionStatus::notFound() by default.
+        $this->getJson('/api/v1/billing/checkout-session/cs_bogus/status')
+            ->assertOk()
+            ->assertJsonPath('status', 'failed');
+    }
+
+    public function test_checkout_never_carries_a_stripe_side_trial(): void
+    {
+        Sanctum::actingAs($this->owner());
+        config(['services.stripe.prices.professional.monthly' => 'price_professional_monthly']);
+
+        // Even a provider comfortably inside their sign-up trial window (the
+        // scenario's default is a pristine trialing subscription, trial_ends_at
+        // ~14 days out) gets an immediate-charge session — the sign-up trial is
+        // the only trial; Checkout is the conversion to paid.
+        $this->postJson('/api/v1/billing/checkout', ['plan' => 'professional'])->assertOk();
+
+        $this->assertCount(1, $this->stripe->checkoutSessions);
+        $request = $this->stripe->checkoutSessions[0];
+        $this->assertObjectNotHasProperty('trialPeriodDays', $request);
+    }
+
     public function test_portal_session_requires_an_existing_stripe_customer(): void
     {
         Sanctum::actingAs($this->owner());

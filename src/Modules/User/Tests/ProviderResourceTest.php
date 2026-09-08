@@ -62,4 +62,30 @@ class ProviderResourceTest extends BaseTest
         $this->assertArrayNotHasKey('current_period_ends_at', $data);
         $this->assertArrayNotHasKey('subscription_status', $data);
     }
+
+    /**
+     * `capabilities` spreads `PlanInfo::toArray()` — the frontend reads
+     * `allows_audit_log_export` off it to decide whether `/dashboard/audit-log`
+     * shows the Export button (Firm only). See .claude/rules/plan.md.
+     *
+     * @param 'starter'|'professional'|'firm' $plan
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('auditLogExportByTier')]
+    public function test_capabilities_carries_allows_audit_log_export_per_tier(string $plan, bool $expected): void
+    {
+        $provider = Provider::factory()->create(['plan' => $plan]);
+
+        $data = $this->resolve($provider);
+
+        $this->assertSame($expected, $data['capabilities']['allows_audit_log_export']);
+    }
+
+    public static function auditLogExportByTier(): array
+    {
+        return [
+            'starter' => ['starter', false],
+            'professional' => ['professional', false],
+            'firm' => ['firm', true],
+        ];
+    }
 }

@@ -12,6 +12,7 @@ use PactTrackSDK\SharedResources\Modules\Notification\Application\DTO\AuditLogLi
 use PactTrackSDK\SharedResources\Modules\Notification\Application\Ports\Repository\AuditLogRepository;
 use PactTrackSDK\SharedResources\Modules\Notification\Http\Resources\AuditLogResource;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan;
 
 /**
  * Read-only HTTP surface for the compliance audit trail — backs
@@ -32,9 +33,15 @@ class AuditLogController extends Controller
     {
         Gate::authorize('viewAny', AuditLog::class);
 
-        $data = AuditLogListData::fromRequest($request, auth()->user()->provider_id);
+        $user = auth()->user();
+        $data = AuditLogListData::fromRequest($request, $user->provider_id);
 
-        return AuditLogResource::collection($handler->handle($data));
+        // The tenant's plan decides how far back the listing is allowed to
+        // reach (Starter = 90 days). Resolving the enum is all that happens
+        // here — the retention rule itself lives in ListAuditLogsHandler.
+        $plan = Plan::tryFrom((string) $user->provider?->plan) ?? Plan::default();
+
+        return AuditLogResource::collection($handler->handle($data, $plan));
     }
 
     /**

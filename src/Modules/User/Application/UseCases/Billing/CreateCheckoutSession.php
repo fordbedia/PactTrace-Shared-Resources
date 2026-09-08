@@ -25,6 +25,13 @@ use PactTrackSDK\SharedResources\Modules\User\Models\User;
  * file (a returning trial who already started Checkout once before, or is
  * changing which plan they're subscribing to) so Stripe doesn't mint a
  * second Customer for the same tenant.
+ *
+ * **No Stripe-side trial is ever granted here.** Every provider already gets
+ * a 14-day card-less trial at sign-up (RegisterProvider), enforced app-side
+ * (`useTrialGate` / `ProcessTrialExpirations`). Reaching Checkout means
+ * converting to paid, so the session is always an immediate charge — Stripe's
+ * hosted page reads "Subscribe" / amount due today, never "N days free". See
+ * .claude/rules/plan.md, "Checkout never grants a Stripe-side trial".
  */
 final class CreateCheckoutSession
 {
@@ -40,13 +47,19 @@ final class CreateCheckoutSession
         $providerId = (int) $user->provider_id;
         $priceId = $this->prices->priceIdFor($plan, $interval);
         $subscription = $this->subscriptions->findByProviderId($providerId);
-        $returnUrl = (string) config('services.stripe.return_url');
+
+        // One base URL (`STRIPE_RETURN_URL` = the frontend's `/checkout/success`
+        // route), two distinct outcomes. Success carries Stripe's own
+        // `{CHECKOUT_SESSION_ID}` placeholder so the landing page can reconcile
+        // the session (see ReconcileCheckoutSession); cancel carries
+        // `?canceled=1` so the same route can tell "backed out" from "paid".
+        $baseUrl = rtrim((string) config('services.stripe.return_url'), '/');
 
         return $this->billing->createCheckoutSession(new CheckoutSessionRequest(
             priceId: $priceId,
             providerId: (string) $providerId,
-            successUrl: $returnUrl,
-            cancelUrl: $returnUrl,
+            successUrl: $baseUrl . '?session_id={CHECKOUT_SESSION_ID}',
+            cancelUrl: $baseUrl . '?canceled=1',
             customerId: $subscription?->stripe_customer_id,
             customerEmail: $subscription?->stripe_customer_id === null ? $user->email : null,
         ));

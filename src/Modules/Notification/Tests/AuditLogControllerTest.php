@@ -190,6 +190,38 @@ class AuditLogControllerTest extends BaseTest
         $this->assertSame('a.mid', $response->json('data.0.action'));
     }
 
+    public function test_starter_plan_hides_audit_rows_older_than_the_90_day_retention_window(): void
+    {
+        $this->tenant['provider']->forceFill(['plan' => 'starter'])->save();
+
+        $this->log(['action' => 'a.recent', 'created_at' => now()->subDays(5)]);
+        $this->log(['action' => 'a.stale', 'created_at' => now()->subDays(95)]);
+        $this->log(['action' => 'a.ancient', 'created_at' => now()->subDays(120)]);
+
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $response = $this->getJson('/api/v1/audit-logs')->assertOk();
+
+        $response->assertJsonCount(1, 'data');
+        $this->assertSame('a.recent', $response->json('data.0.action'));
+    }
+
+    public function test_professional_and_firm_plans_apply_no_retention_window(): void
+    {
+        $this->log(['action' => 'a.recent', 'created_at' => now()->subDays(5)]);
+        $this->log(['action' => 'a.stale', 'created_at' => now()->subDays(95)]);
+        $this->log(['action' => 'a.ancient', 'created_at' => now()->subDays(120)]);
+
+        Sanctum::actingAs($this->tenant['owner']);
+
+        // The shared fixture is on 'firm' — all three rows come back.
+        $this->getJson('/api/v1/audit-logs')->assertOk()->assertJsonCount(3, 'data');
+
+        $this->tenant['provider']->forceFill(['plan' => 'professional'])->save();
+
+        $this->getJson('/api/v1/audit-logs')->assertOk()->assertJsonCount(3, 'data');
+    }
+
     public function test_search_matches_action_and_actor_name(): void
     {
         $this->tenant['owner']->forceFill(['name' => 'Rachel Harmon'])->save();

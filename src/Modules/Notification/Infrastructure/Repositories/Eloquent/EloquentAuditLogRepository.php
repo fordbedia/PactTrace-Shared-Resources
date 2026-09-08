@@ -19,12 +19,20 @@ class EloquentAuditLogRepository extends BaseRepository implements AuditLogRepos
         return AuditLog::class;
     }
 
-    public function paginateFiltered(AuditLogListData $data): LengthAwarePaginator
+    public function paginateFiltered(AuditLogListData $data, ?string $retentionCutoff = null): LengthAwarePaginator
     {
         $query = $this->baseQuery($data->provider_id)
             ->with('user')
             ->latest()
             ->latest('id');
+
+        if ($retentionCutoff !== null) {
+            // Plan-enforced retention window (Starter = 90 days; unlimited
+            // for Professional/Firm, in which case the handler passes null).
+            // Visibility only — older rows are kept, just not returned here.
+            // See .claude/rules/plan.md.
+            $query->where('created_at', '>=', $retentionCutoff);
+        }
 
         if ($data->actions !== []) {
             $query->whereIn('action', $data->actions);

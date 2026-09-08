@@ -141,6 +141,43 @@ class StripeWebhookControllerTest extends BaseTest
         $this->assertSame('professional', $this->tenant['provider']->plan);
     }
 
+    public function test_subscription_updated_reads_current_period_end_from_the_item_when_absent_at_the_top_level(): void
+    {
+        // Stripe API version 2025-03-31 ("basil") moved `current_period_end`
+        // off the Subscription and onto each Subscription item.
+        $subscription = $this->subscriptionFor($this->tenant, [
+            'stripe_customer_id' => 'cus_basil',
+            'stripe_subscription_id' => 'sub_basil',
+            'status' => 'trialing',
+            'current_period_ends_at' => null,
+        ]);
+
+        $periodEnd = now()->addDays(30)->timestamp;
+
+        $this->stripe->nextEvent = new StripeWebhookEventData(
+            id: 'evt_sub_basil_1',
+            type: 'customer.subscription.updated',
+            object: [
+                'id' => 'sub_basil',
+                'customer' => 'cus_basil',
+                'status' => 'active',
+                // No top-level `current_period_end`.
+                'items' => ['data' => [[
+                    'current_period_end' => $periodEnd,
+                    'price' => ['id' => 'price_firm_monthly'],
+                ]]],
+            ],
+        );
+        config(['services.stripe.prices.firm.monthly' => 'price_firm_monthly']);
+
+        $this->postJson('/api/v1/stripe/webhook', [])->assertOk();
+
+        $subscription->refresh();
+        $this->assertSame('active', $subscription->status);
+        $this->assertNotNull($subscription->current_period_ends_at);
+        $this->assertSame($periodEnd, $subscription->current_period_ends_at->timestamp);
+    }
+
     public function test_unpaid_status_collapses_into_past_due(): void
     {
         $subscription = $this->subscriptionFor($this->tenant, [

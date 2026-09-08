@@ -21,8 +21,6 @@ final class CheckoutSessionRequest
         /** An existing Stripe customer to reuse, or null to let Stripe create one. */
         public readonly ?string $customerId = null,
         public readonly ?string $customerEmail = null,
-        /** Every sign-up trial is 14 days once Stripe is the trial clock for it — see RegisterProvider::TRIAL_DAYS and .claude/rules/user.md. */
-        public readonly int $trialPeriodDays = 14,
     ) {
     }
 }

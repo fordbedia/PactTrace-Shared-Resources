@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Gate;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Billing\ChangeSubscriptionPlan;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Billing\CreateBillingPortalSession;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Billing\CreateCheckoutSession;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Billing\ReconcileCheckoutSession;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\NoStripeCustomerException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\PlanChangeBlockedException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\BillingInterval;
@@ -33,6 +34,7 @@ class BillingController extends Controller
         private readonly CreateCheckoutSession $createCheckoutSession,
         private readonly CreateBillingPortalSession $createPortalSession,
         private readonly ChangeSubscriptionPlan $changePlan,
+        private readonly ReconcileCheckoutSession $reconcileCheckoutSession,
     ) {
     }
 
@@ -65,6 +67,34 @@ class BillingController extends Controller
         }
 
         return response()->json(['portal_url' => $url]);
+    }
+
+    /**
+     * GET /api/v1/billing/checkout-session/{session}/status
+     *
+     * The `/checkout/success` landing page's reconciliation call. `{session}`
+     * is a Stripe Checkout Session id (`cs_...`), not a model — no route
+     * binding. Returns `status` (`confirmed` | `pending` | `failed`) plus the
+     * details the success screen renders; `amount_label` / `card_label` are
+     * present only when the reconciliation actually had to read Stripe.
+     */
+    public function checkoutSessionStatus(Request $request, string $session): JsonResponse
+    {
+        $user = $this->gate($request);
+
+        $result = $this->reconcileCheckoutSession->handle((int) $user->provider_id, $session);
+        $subscription = $result->subscription;
+        $plan = $subscription?->plan !== null ? Plan::tryFrom((string) $subscription->plan) : null;
+
+        return response()->json([
+            'status' => $result->state,
+            'plan' => $plan?->label(),
+            'plan_key' => $plan?->value,
+            'amount_label' => $result->amountLabel(),
+            'card_label' => $result->cardLabel(),
+            'renews_at' => $subscription?->current_period_ends_at?->toIso8601String(),
+            'billing_email' => $user->email,
+        ]);
     }
 
     /**
