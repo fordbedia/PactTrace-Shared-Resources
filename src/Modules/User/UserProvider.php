@@ -7,25 +7,25 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
-use PactTrackSDK\SharedResources\Modules\User\Console\Commands\NotifyTrialEnding;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\AccountDeletionSignalReader;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\DepartingStaffReassignment;
-use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderInvitationCanceller;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\PlanUsageReader;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderInvitationCanceller;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\StripeWebhookEventRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\TeamInvitationRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
+use PactTrackSDK\SharedResources\Modules\User\Console\Commands\NotifyTrialEnding;
+use PactTrackSDK\SharedResources\Modules\User\Console\Commands\SyncStripePortalConfigurations;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\AccessTokenIssuer;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\AvatarStorage;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\BillingPortalConfigurator;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\BillingProvider;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\ProviderLogoStorage;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\StripePriceCatalog;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Auth\SanctumTokenIssuer;
-use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Service\PublicDiskAvatarStorage;
-use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Service\PublicDiskProviderLogoStorage;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentAccountDeletionSignals;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentDepartingStaffReassignment;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentPlanUsageReader;
@@ -35,7 +35,10 @@ use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloque
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentSubscriptionRepository;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentTeamInvitationRepository;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentUserRepository;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Service\PublicDiskAvatarStorage;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Service\PublicDiskProviderLogoStorage;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Stripe\ConfigStripePriceCatalog;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Stripe\StripeBillingPortalConfigurator;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Stripe\StripeBillingProvider;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
@@ -130,6 +133,13 @@ class UserProvider extends ServiceProvider
         $this->app->bind(BillingProvider::class, fn ($app) => new StripeBillingProvider(
             client: new StripeClient((string) $app['config']->get('services.stripe.secret')),
         ));
+
+        // Provisioning-only seam (the `stripe:sync-portal-configs` command),
+        // separate from BillingProvider on purpose — nothing in the request
+        // path touches it. Tests rebind to FakeBillingPortalConfigurator.
+        $this->app->bind(BillingPortalConfigurator::class, fn ($app) => new StripeBillingPortalConfigurator(
+            client: new StripeClient((string) $app['config']->get('services.stripe.secret')),
+        ));
     }
 
     public function boot(): void
@@ -148,13 +158,14 @@ class UserProvider extends ServiceProvider
             $invitationKey = is_object($invitation) ? $invitation->getKey() : $invitation;
 
             return Limit::perMinute(2)->by(
-                ($request->user()?->getAuthIdentifier() ?? $request->ip()) . '|' . $invitationKey
+                ($request->user()?->getAuthIdentifier() ?? $request->ip()).'|'.$invitationKey
             );
         });
 
         if ($this->app->runningInConsole()) {
             $this->commands([
                 NotifyTrialEnding::class,
+                SyncStripePortalConfigurations::class,
             ]);
         }
     }

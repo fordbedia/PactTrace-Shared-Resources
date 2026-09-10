@@ -33,7 +33,7 @@ final class GetPlanUsageSummary
             activeClientCount: $this->usage->activeClientCount($providerId),
             activeStaffCount: $this->usage->activeStaffCount($providerId),
             storageUsedBytes: $this->storage->forProvider($providerId)->usedBytes,
-            envelopesSentThisMonth: $this->usage->envelopesSentThisMonth($providerId),
+            envelopesSentThisCycle: $this->usage->envelopesSentThisCycle($providerId),
             activeAdminCount: $this->usage->activeAdminCount($providerId),
             activeStaffRoleCount: $this->usage->activeStaffRoleCount($providerId),
         );

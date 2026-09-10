@@ -81,6 +81,19 @@ class ProviderResource extends JsonResource
                 'subscription',
                 fn () => $this->subscription?->current_period_ends_at?->toIso8601String(),
             ),
+            // A downgrade scheduled in the Stripe Customer Portal, not yet in
+            // effect — Stripe defers it to the period end. Null = no pending
+            // change. PactTrack already enforces this (lower) plan's limits;
+            // /dashboard/billing shows a "Downgrading to X on <date>" banner.
+            // See .claude/rules/plan.md, "Pending downgrade".
+            'pending_plan' => $this->whenLoaded(
+                'subscription',
+                fn () => $this->subscription?->pending_plan,
+            ),
+            'pending_plan_effective_at' => $this->whenLoaded(
+                'subscription',
+                fn () => $this->subscription?->pending_plan_effective_at?->toIso8601String(),
+            ),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

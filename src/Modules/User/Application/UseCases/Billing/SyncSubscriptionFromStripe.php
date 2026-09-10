@@ -84,19 +84,39 @@ final class SyncSubscriptionFromStripe
         $currentPeriodEndsAt = ! empty($currentPeriodEnd)
             ? Carbon::createFromTimestamp((int) $currentPeriodEnd)
             : null;
+        // Same subscription-level → item-level fallback as `current_period_end`
+        // (the "basil" API move). Backs the per-billing-cycle e-signature count
+        // in EloquentPlanUsageReader.
+        $currentPeriodStart = $event->object['current_period_start']
+            ?? ($firstItem['current_period_start'] ?? null);
+        $currentPeriodStartsAt = ! empty($currentPeriodStart)
+            ? Carbon::createFromTimestamp((int) $currentPeriodStart)
+            : null;
         $trialEndsAt = ! empty($event->object['trial_end'])
             ? Carbon::createFromTimestamp((int) $event->object['trial_end'])
             : null;
 
+        // A scheduled downgrade that has now executed — the live plan has
+        // caught up to what `pending_plan` was pointing at, so clear it (and
+        // its date) in the same write. `subscription_schedule.released` covers
+        // the "cancelled before it ran" case; see SyncScheduledPlanChange.
+        $pendingCleared = $plan !== null && $subscription->pending_plan === $plan->value;
+
         $subscriptionAttributes = array_filter([
             'plan' => $plan?->value,
             'status' => $status,
+            'current_period_starts_at' => $currentPeriodStartsAt,
             'current_period_ends_at' => $currentPeriodEndsAt,
             'trial_ends_at' => $trialEndsAt,
             'stripe_subscription_id' => $stripeSubscriptionId,
             'stripe_customer_id' => $customerId !== '' ? $customerId : null,
             'stripe_price_id' => $priceId !== '' ? $priceId : null,
         ], static fn ($value): bool => $value !== null);
+
+        if ($pendingCleared) {
+            $subscriptionAttributes['pending_plan'] = null;
+            $subscriptionAttributes['pending_plan_effective_at'] = null;
+        }
 
         $providerAttributes = array_filter([
             'plan' => $plan?->value,

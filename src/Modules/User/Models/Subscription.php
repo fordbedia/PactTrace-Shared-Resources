@@ -25,8 +25,11 @@ class Subscription extends Model
     protected $fillable = [
         'provider_id',
         'plan',
+        'pending_plan',
+        'pending_plan_effective_at',
         'status',
         'trial_ends_at',
+        'current_period_starts_at',
         'current_period_ends_at',
         'stripe_customer_id',
         'stripe_subscription_id',
@@ -36,6 +39,8 @@ class Subscription extends Model
 
     protected $casts = [
         'trial_ends_at' => 'datetime',
+        'pending_plan_effective_at' => 'datetime',
+        'current_period_starts_at' => 'datetime',
         'current_period_ends_at' => 'datetime',
         'canceled_at' => 'datetime',
     ];

@@ -14,6 +14,7 @@ use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Billing\Clear
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Billing\HandleTrialWillEnd;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Billing\LinkStripeCustomerToSubscription;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Billing\RecordPaymentFailure;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Billing\SyncScheduledPlanChange;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Billing\SyncSubscriptionFromStripe;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\InvalidStripeWebhookSignatureException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\BillingProvider;
@@ -43,6 +44,7 @@ class StripeWebhookController extends Controller
         private readonly RecordPaymentFailure $recordPaymentFailure,
         private readonly ClearPaymentFailure $clearPaymentFailure,
         private readonly HandleTrialWillEnd $handleTrialWillEnd,
+        private readonly SyncScheduledPlanChange $syncScheduledPlanChange,
     ) {
     }
 
@@ -77,6 +79,8 @@ class StripeWebhookController extends Controller
             'invoice.payment_failed' => $this->recordPaymentFailure->handle($event),
             'invoice.paid' => $this->clearPaymentFailure->handle($event),
             'customer.subscription.trial_will_end' => $this->handleTrialWillEnd->handle($event),
+            'subscription_schedule.created', 'subscription_schedule.updated' => $this->syncScheduledPlanChange->handle($event),
+            'subscription_schedule.released', 'subscription_schedule.canceled' => $this->syncScheduledPlanChange->clear($event),
             default => Log::debug('Stripe webhook ignored: no handler for this event type.', ['type' => $event->type]),
         };
 

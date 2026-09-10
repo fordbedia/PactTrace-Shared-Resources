@@ -10,6 +10,7 @@ use PactTrackSDK\SharedResources\Modules\Signature\Domain\Enums\EnvelopeStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\PlanUsageReader;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
+use PactTrackSDK\SharedResources\Modules\User\Models\Subscription;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use PactTrackSDK\SharedResources\Modules\Workspace\Models\Scopes\WorkspaceScope;
 
@@ -70,16 +71,27 @@ final class EloquentPlanUsageReader implements PlanUsageReader
             ->count();
     }
 
-    public function envelopesSentThisMonth(int $providerId): int
+    public function envelopesSentThisCycle(int $providerId): int
     {
-        // The monthly cap is provider-wide, not per-workspace (see
-        // .claude/rules/plan.md) — dropped for the same cross-workspace-total
-        // reason EloquentAccountDeletionSignals drops it for its document count.
+        // Count from the Stripe billing-cycle start, not the 1st of the month:
+        // `maxEnvelopesPerMonth` is a flow limit and must reset when Stripe
+        // bills the tenant. A card-less trial that never reached Checkout has
+        // no `current_period_starts_at` yet — fall back to the calendar month
+        // there (a ~monthly window is fine for that transient state).
+        $cycleStart = Subscription::query()
+            ->where('provider_id', $providerId)
+            ->first(['current_period_starts_at'])
+            ?->current_period_starts_at
+            ?? Carbon::now()->startOfMonth();
+
+        // The cap is provider-wide, not per-workspace (see .claude/rules/plan.md)
+        // — dropped for the same cross-workspace-total reason
+        // EloquentAccountDeletionSignals drops it for its document count.
         return Envelope::query()
             ->withoutGlobalScope(WorkspaceScope::class)
             ->where('provider_id', $providerId)
             ->where('status', '!=', EnvelopeStatus::Draft->value)
-            ->where('created_at', '>=', Carbon::now()->startOfMonth())
+            ->where('created_at', '>=', $cycleStart)
             ->count();
     }
 }

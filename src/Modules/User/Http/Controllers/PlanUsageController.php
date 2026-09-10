@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\GetPlanUsageSummary;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Services\EffectivePlan;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Services\PortalDowngradeAvailability;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan;
 
 /**
@@ -21,17 +23,34 @@ final class PlanUsageController extends Controller
 {
     public function __construct(
         private readonly GetPlanUsageSummary $usageSummary,
-    ) {
-    }
+        private readonly PortalDowngradeAvailability $downgradeAvailability,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $plan = Plan::tryFrom((string) $user->provider?->plan) ?? Plan::default();
+        $subscription = $user->provider?->subscription;
+
+        // The *effective* plan — the pending (lower) tier once a Portal
+        // downgrade is scheduled, so the frontend plan-guard hook pre-checks
+        // against the same limits the server will actually enforce. See
+        // Domain\Services\EffectivePlan and .claude/rules/plan.md.
+        $plan = EffectivePlan::resolve(
+            $user->provider?->plan,
+            $subscription?->pending_plan,
+            $subscription?->pending_plan_effective_at?->toIso8601String(),
+        )->plan;
+
+        $usage = $this->usageSummary->handle((int) $user->provider_id);
+        $storedPlan = Plan::tryFrom((string) $user->provider?->plan) ?? Plan::default();
 
         return response()->json([
-            'usage' => $this->usageSummary->handle((int) $user->provider_id)->toArray(),
+            'usage' => $usage->toArray(),
             'limits' => $plan->info()->toArray(),
+            // Whether *any* lower tier still fits this tenant's usage — the
+            // same fact ResolvePortalConfiguration swaps the Stripe Portal on.
+            // `/dashboard/billing` shows a "downgrades paused" note when false.
+            'downgrade_available' => $this->downgradeAvailability->anyLowerTierFits($storedPlan, $usage),
         ]);
     }
 }

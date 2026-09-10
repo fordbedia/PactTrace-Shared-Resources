@@ -323,6 +323,204 @@ class StripeWebhookControllerTest extends BaseTest
         ]);
     }
 
+    // ───────────────────── subscription_schedule.* (pending downgrade) ─────
+
+    public function test_a_scheduled_downgrade_records_the_pending_plan_and_effective_date(): void
+    {
+        config(['services.stripe.prices.starter.monthly' => 'price_starter_monthly']);
+        $subscription = $this->subscriptionFor($this->tenant, [
+            'stripe_customer_id' => 'cus_sched',
+            'stripe_subscription_id' => 'sub_sched',
+            'plan' => 'firm',
+            'status' => 'active',
+        ]);
+        $effectiveAt = now()->addDays(21)->startOfSecond();
+
+        $this->stripe->nextEvent = new StripeWebhookEventData(
+            id: 'evt_sched_created_1',
+            type: 'subscription_schedule.created',
+            object: [
+                'id' => 'sub_sched_1',
+                'subscription' => 'sub_sched',
+                'customer' => 'cus_sched',
+                'status' => 'active',
+                'phases' => [
+                    ['start_date' => now()->timestamp, 'items' => [['price' => ['id' => 'price_firm_monthly']]]],
+                    ['start_date' => $effectiveAt->timestamp, 'items' => [['price' => ['id' => 'price_starter_monthly']]]],
+                ],
+            ],
+        );
+
+        $this->postJson('/api/v1/stripe/webhook', [])->assertOk();
+
+        $subscription->refresh();
+        $this->assertSame('starter', $subscription->pending_plan);
+        $this->assertSame($effectiveAt->timestamp, $subscription->pending_plan_effective_at->timestamp);
+        // The live plan is untouched until the schedule executes.
+        $this->assertSame('firm', $subscription->plan);
+    }
+
+    public function test_editing_the_schedule_to_a_different_target_updates_the_pending_plan(): void
+    {
+        config([
+            'services.stripe.prices.starter.monthly' => 'price_starter_monthly',
+            'services.stripe.prices.professional.monthly' => 'price_professional_monthly',
+        ]);
+        $subscription = $this->subscriptionFor($this->tenant, [
+            'stripe_customer_id' => 'cus_sched2',
+            'stripe_subscription_id' => 'sub_sched2',
+            'plan' => 'firm',
+            'status' => 'active',
+            'pending_plan' => 'starter',
+            'pending_plan_effective_at' => now()->addDays(10),
+        ]);
+
+        $this->stripe->nextEvent = new StripeWebhookEventData(
+            id: 'evt_sched_updated_1',
+            type: 'subscription_schedule.updated',
+            object: [
+                'id' => 'sub_sched_2',
+                'subscription' => 'sub_sched2',
+                'customer' => 'cus_sched2',
+                'status' => 'active',
+                'phases' => [
+                    ['start_date' => now()->timestamp, 'items' => [['price' => ['id' => 'price_firm_monthly']]]],
+                    ['start_date' => now()->addDays(15)->timestamp, 'items' => [['price' => ['id' => 'price_professional_monthly']]]],
+                ],
+            ],
+        );
+
+        $this->postJson('/api/v1/stripe/webhook', [])->assertOk();
+
+        $this->assertSame('professional', $subscription->refresh()->pending_plan);
+    }
+
+    public function test_releasing_the_schedule_clears_the_pending_plan(): void
+    {
+        $subscription = $this->subscriptionFor($this->tenant, [
+            'stripe_customer_id' => 'cus_sched3',
+            'stripe_subscription_id' => 'sub_sched3',
+            'plan' => 'firm',
+            'status' => 'active',
+            'pending_plan' => 'starter',
+            'pending_plan_effective_at' => now()->addDays(10),
+        ]);
+
+        $this->stripe->nextEvent = new StripeWebhookEventData(
+            id: 'evt_sched_released_1',
+            type: 'subscription_schedule.released',
+            object: [
+                'id' => 'sub_sched_3',
+                'subscription' => 'sub_sched3',
+                'customer' => 'cus_sched3',
+                'status' => 'released',
+                'phases' => [],
+            ],
+        );
+
+        $this->postJson('/api/v1/stripe/webhook', [])->assertOk();
+
+        $subscription->refresh();
+        $this->assertNull($subscription->pending_plan);
+        $this->assertNull($subscription->pending_plan_effective_at);
+    }
+
+    public function test_a_schedule_whose_target_is_not_a_downgrade_does_not_set_a_pending_plan(): void
+    {
+        config(['services.stripe.prices.firm.monthly' => 'price_firm_monthly']);
+        $subscription = $this->subscriptionFor($this->tenant, [
+            'stripe_customer_id' => 'cus_sched4',
+            'stripe_subscription_id' => 'sub_sched4',
+            'plan' => 'starter',
+            'status' => 'active',
+        ]);
+
+        $this->stripe->nextEvent = new StripeWebhookEventData(
+            id: 'evt_sched_up_1',
+            type: 'subscription_schedule.created',
+            object: [
+                'id' => 'sub_sched_4',
+                'subscription' => 'sub_sched4',
+                'customer' => 'cus_sched4',
+                'status' => 'active',
+                'phases' => [
+                    ['start_date' => now()->timestamp, 'items' => [['price' => ['id' => 'price_starter_monthly']]]],
+                    ['start_date' => now()->addDays(10)->timestamp, 'items' => [['price' => ['id' => 'price_firm_monthly']]]],
+                ],
+            ],
+        );
+
+        $this->postJson('/api/v1/stripe/webhook', [])->assertOk();
+
+        $this->assertNull($subscription->refresh()->pending_plan);
+    }
+
+    public function test_the_executing_subscription_update_clears_the_pending_plan(): void
+    {
+        config(['services.stripe.prices.starter.monthly' => 'price_starter_monthly']);
+        $subscription = $this->subscriptionFor($this->tenant, [
+            'stripe_customer_id' => 'cus_exec',
+            'stripe_subscription_id' => 'sub_exec',
+            'plan' => 'firm',
+            'status' => 'active',
+            'pending_plan' => 'starter',
+            'pending_plan_effective_at' => now()->addDays(3),
+        ]);
+        $this->tenant['provider']->forceFill(['plan' => 'firm'])->save();
+
+        // The schedule fires: the live subscription is now on the Starter price.
+        $this->stripe->nextEvent = new StripeWebhookEventData(
+            id: 'evt_exec_1',
+            type: 'customer.subscription.updated',
+            object: [
+                'id' => 'sub_exec',
+                'customer' => 'cus_exec',
+                'status' => 'active',
+                'items' => ['data' => [[
+                    'current_period_end' => now()->addDays(30)->timestamp,
+                    'price' => ['id' => 'price_starter_monthly'],
+                ]]],
+            ],
+        );
+
+        $this->postJson('/api/v1/stripe/webhook', [])->assertOk();
+
+        $subscription->refresh();
+        $this->assertSame('starter', $subscription->plan);
+        $this->assertNull($subscription->pending_plan);
+        $this->assertNull($subscription->pending_plan_effective_at);
+        $this->assertSame('starter', $this->tenant['provider']->refresh()->plan);
+    }
+
+    public function test_subscription_update_syncs_the_current_period_start(): void
+    {
+        config(['services.stripe.prices.firm.monthly' => 'price_firm_monthly']);
+        $subscription = $this->subscriptionFor($this->tenant, [
+            'stripe_customer_id' => 'cus_pstart',
+            'stripe_subscription_id' => 'sub_pstart',
+        ]);
+        $periodStart = now()->subDays(2)->startOfSecond();
+
+        $this->stripe->nextEvent = new StripeWebhookEventData(
+            id: 'evt_pstart_1',
+            type: 'customer.subscription.updated',
+            object: [
+                'id' => 'sub_pstart',
+                'customer' => 'cus_pstart',
+                'status' => 'active',
+                'items' => ['data' => [[
+                    'current_period_start' => $periodStart->timestamp,
+                    'current_period_end' => now()->addDays(28)->timestamp,
+                    'price' => ['id' => 'price_firm_monthly'],
+                ]]],
+            ],
+        );
+
+        $this->postJson('/api/v1/stripe/webhook', [])->assertOk();
+
+        $this->assertSame($periodStart->timestamp, $subscription->refresh()->current_period_starts_at->timestamp);
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      */

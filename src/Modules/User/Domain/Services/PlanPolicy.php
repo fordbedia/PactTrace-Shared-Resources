@@ -39,11 +39,20 @@ final class PlanPolicy
     /** @var list<string> */
     private const ACTIVE_SUBSCRIPTION_STATUSES = ['trialing', 'active'];
 
+    /**
+     * `$plan` is the *effective* plan — {@see \PactTrackSDK\SharedResources\Modules\User\Domain\Services\EffectivePlan}
+     * resolves it to the pending (lower) tier the moment a Portal downgrade is
+     * scheduled. `$viaPendingDowngrade` / `$pendingEffectiveAtLabel` only shape
+     * the denial copy so the modal can say *why* the smaller limit applies —
+     * they never change the verdict.
+     */
     public function evaluate(
         GatedAction $action,
         Plan $plan,
         ?string $subscriptionStatus,
         PlanUsageSummary $usage,
+        bool $viaPendingDowngrade = false,
+        ?string $pendingEffectiveAtLabel = null,
     ): PlanGateResult {
         $limits = $plan->info();
 
@@ -62,7 +71,9 @@ final class PlanPolicy
         if ($limit !== null && $current >= $limit) {
             return PlanGateResult::denied(
                 GateDenialReason::PlanLimitExceeded,
-                $this->limitMessage($action, $limits),
+                $viaPendingDowngrade
+                    ? $this->pendingDowngradeMessage($action, $limits, $pendingEffectiveAtLabel)
+                    : $this->limitMessage($action, $limits),
                 $usage,
                 $limits,
                 $subscriptionStatus,
@@ -79,7 +90,7 @@ final class PlanPolicy
     {
         return match ($action) {
             GatedAction::UploadDocument => [$limits->storageLimitBytes, $usage->storageUsedBytes],
-            GatedAction::PrepareForSignature => [$limits->maxEnvelopesPerMonth, $usage->envelopesSentThisMonth],
+            GatedAction::PrepareForSignature => [$limits->maxEnvelopesPerMonth, $usage->envelopesSentThisCycle],
             GatedAction::InviteClient => [$limits->maxActiveClients, $usage->activeClientCount],
             GatedAction::InviteStaff => [$limits->maxSeats, $usage->activeStaffCount],
         };
@@ -89,9 +100,27 @@ final class PlanPolicy
     {
         return match ($action) {
             GatedAction::UploadDocument => "You've reached your {$limits->label} plan's {$limits->storageLimitLabel} storage limit. Upgrade to keep uploading.",
-            GatedAction::PrepareForSignature => "You've reached your {$limits->label} plan's {$limits->maxEnvelopesPerMonth}-envelope-per-month limit. Upgrade to send more for signature this month.",
+            GatedAction::PrepareForSignature => "You've reached your {$limits->label} plan's {$limits->maxEnvelopesPerMonth}-envelope-per-billing-cycle limit. Upgrade to send more for signature this cycle.",
             GatedAction::InviteClient => "You've reached your {$limits->label} plan's {$limits->maxActiveClients}-client limit. Upgrade to add more clients.",
             GatedAction::InviteStaff => "You've reached your {$limits->label} plan's {$limits->maxSeats}-seat limit. Upgrade to add more team members.",
+        };
+    }
+
+    /**
+     * Same denial, but worded for a tenant who is over the limit *because they
+     * scheduled a downgrade in the Stripe Portal* — names the cause and both
+     * fixes (cancel the downgrade, or reduce usage). See
+     * {@see \PactTrackSDK\SharedResources\Modules\User\Domain\Services\EffectivePlan}.
+     */
+    private function pendingDowngradeMessage(GatedAction $action, PlanInfo $limits, ?string $effectiveAtLabel): string
+    {
+        $when = $effectiveAtLabel !== null && $effectiveAtLabel !== '' ? ", effective {$effectiveAtLabel}," : '';
+
+        return match ($action) {
+            GatedAction::UploadDocument => "Your scheduled downgrade to {$limits->label}{$when} caps storage at {$limits->storageLimitLabel}, and you've reached it. Cancel the downgrade or free up space to keep uploading.",
+            GatedAction::PrepareForSignature => "Your scheduled downgrade to {$limits->label}{$when} caps e-signatures at {$limits->maxEnvelopesPerMonth} per billing cycle, and you've reached it. Cancel the downgrade to send more this cycle.",
+            GatedAction::InviteClient => "Your scheduled downgrade to {$limits->label}{$when} caps active clients at {$limits->maxActiveClients}, and you've reached it. Cancel the downgrade or archive clients to add more.",
+            GatedAction::InviteStaff => "Your scheduled downgrade to {$limits->label}{$when} caps team members at {$limits->maxSeats}, and you've reached it. Cancel the downgrade or remove a member to add more.",
         };
     }
 }

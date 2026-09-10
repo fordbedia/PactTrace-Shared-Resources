@@ -39,14 +39,14 @@ class BillingControllerTest extends BaseTest
 
     protected function moduleApiRoutes(): array
     {
-        return [__DIR__ . '/../routes/api.php'];
+        return [__DIR__.'/../routes/api.php'];
     }
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->stripe = new FakeBillingProvider();
+        $this->stripe = new FakeBillingProvider;
         $this->app->bind(BillingProvider::class, fn () => $this->stripe);
 
         $this->tenant = ProviderTenantScenario::make('billing-controller');
@@ -190,6 +190,44 @@ class BillingControllerTest extends BaseTest
         $response = $this->getJson('/api/v1/billing/portal-session');
 
         $response->assertOk()->assertJsonStructure(['portal_url']);
+    }
+
+    public function test_portal_session_uses_the_permissive_configuration_when_a_downgrade_still_fits(): void
+    {
+        Sanctum::actingAs($this->owner());
+        config([
+            'services.stripe.billing_portal_configuration_id' => 'bpc_permissive',
+            'services.stripe.billing_portal_configuration_id_restricted' => 'bpc_restricted',
+        ]);
+        $this->tenant['provider']->update(['plan' => 'firm']);
+        Subscription::query()->where('provider_id', $this->tenant['provider']->id)
+            ->update(['stripe_customer_id' => 'cus_portal']);
+
+        $this->getJson('/api/v1/billing/portal-session')->assertOk();
+
+        $this->assertSame(['bpc_permissive'], $this->stripe->portalSessionConfigurationIds);
+    }
+
+    public function test_portal_session_uses_the_restricted_configuration_when_no_lower_tier_fits(): void
+    {
+        Sanctum::actingAs($this->owner());
+        config([
+            'services.stripe.billing_portal_configuration_id' => 'bpc_permissive',
+            'services.stripe.billing_portal_configuration_id_restricted' => 'bpc_restricted',
+        ]);
+        $this->tenant['provider']->update(['plan' => 'firm']);
+        Subscription::query()->where('provider_id', $this->tenant['provider']->id)
+            ->update(['stripe_customer_id' => 'cus_portal']);
+
+        // 4 total seats — fits Firm (5), busts Professional & Starter (1).
+        User::factory()->count(3)->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'status' => 'active',
+        ])->each(fn (User $u) => $u->assignRole('staff'));
+
+        $this->getJson('/api/v1/billing/portal-session')->assertOk();
+
+        $this->assertSame(['bpc_restricted'], $this->stripe->portalSessionConfigurationIds);
     }
 
     public function test_change_plan_is_blocked_when_seats_exceed_the_target_plan(): void

@@ -30,6 +30,9 @@ final class FakeBillingProvider implements BillingProvider
 
     public string $portalUrl = 'https://billing.stripe.com/p/session/fake';
 
+    /** Every configuration id {@see createBillingPortalSession()} was handed, in order (null = adapter default). */
+    public array $portalSessionConfigurationIds = [];
+
     /** Set by a test to make {@see constructWebhookEvent()} throw. */
     public bool $rejectSignature = false;
 
@@ -61,8 +64,13 @@ final class FakeBillingProvider implements BillingProvider
             ?? CheckoutSessionStatus::notFound();
     }
 
-    public function createBillingPortalSession(string $customerId, string $returnUrl): string
-    {
+    public function createBillingPortalSession(
+        string $customerId,
+        string $returnUrl,
+        ?string $configurationId = null,
+    ): string {
+        $this->portalSessionConfigurationIds[] = $configurationId;
+
         return $this->portalUrl;
     }
 

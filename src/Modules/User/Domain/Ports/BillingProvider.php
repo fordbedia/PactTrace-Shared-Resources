@@ -34,9 +34,21 @@ interface BillingProvider
     public function retrieveCheckoutSession(string $sessionId): CheckoutSessionStatus;
 
     /**
+     * `$configurationId` selects which Stripe Billing Portal *configuration*
+     * the session renders with — the permissive one (all plan switches) or
+     * the downgrade-locked one, chosen per session by the Application layer's
+     * ResolvePortalConfiguration service.
+     * Null lets the adapter fall back to its configured default
+     * (`services.stripe.billing_portal_configuration_id`), preserving the
+     * original behaviour for any caller that doesn't resolve one.
+     *
      * @return string the hosted Billing Portal URL to redirect to
      */
-    public function createBillingPortalSession(string $customerId, string $returnUrl): string;
+    public function createBillingPortalSession(
+        string $customerId,
+        string $returnUrl,
+        ?string $configurationId = null,
+    ): string;
 
     /**
      * Changes which Price a live subscription is billed against. Does not

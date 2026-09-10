@@ -438,9 +438,11 @@ class ProfileControllerTest extends BaseTest
 
     public function test_an_active_subscription_blocks_deletion(): void
     {
-        Subscription::factory()->active()->create([
-            'provider_id' => $this->tenant['provider']->id,
-        ]);
+        // ProviderTenantScenario already seeds one (trialing) subscription per
+        // provider and `subscriptions.provider_id` is unique — update it rather
+        // than minting a second.
+        Subscription::query()->where('provider_id', $this->tenant['provider']->id)
+            ->update(['status' => 'active']);
 
         Sanctum::actingAs($this->owner());
 
@@ -452,10 +454,8 @@ class ProfileControllerTest extends BaseTest
 
     public function test_a_trialing_subscription_does_not_block_deletion(): void
     {
-        Subscription::factory()->create([
-            'provider_id' => $this->tenant['provider']->id,
-            'status' => 'trialing',
-        ]);
+        Subscription::query()->where('provider_id', $this->tenant['provider']->id)
+            ->update(['status' => 'trialing']);
 
         Sanctum::actingAs($this->owner());
 
@@ -594,9 +594,8 @@ class ProfileControllerTest extends BaseTest
         $user = $this->owner();
         $user->forceFill(['name' => 'Sarah Mitchell', 'password' => 'right-password'])->save();
 
-        Subscription::factory()->active()->create([
-            'provider_id' => $this->tenant['provider']->id,
-        ]);
+        Subscription::query()->where('provider_id', $this->tenant['provider']->id)
+            ->update(['status' => 'active']);
 
         Sanctum::actingAs($user);
 

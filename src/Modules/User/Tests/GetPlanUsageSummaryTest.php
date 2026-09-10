@@ -42,7 +42,7 @@ class GetPlanUsageSummaryTest extends BaseTest
 
     protected function moduleApiRoutes(): array
     {
-        return [__DIR__ . '/../routes/api.php'];
+        return [__DIR__.'/../routes/api.php'];
     }
 
     protected function setUp(): void
@@ -161,7 +161,7 @@ class GetPlanUsageSummaryTest extends BaseTest
 
         $usage = app(GetPlanUsageSummary::class)->handle($this->tenant['provider']->id);
 
-        $this->assertSame(2, $usage->envelopesSentThisMonth);
+        $this->assertSame(2, $usage->envelopesSentThisCycle);
     }
 
     public function test_plan_usage_endpoint_returns_usage_and_limits(): void
@@ -175,14 +175,39 @@ class GetPlanUsageSummaryTest extends BaseTest
             ->assertJsonStructure([
                 'usage' => [
                     'active_client_count', 'active_staff_count', 'admin_count', 'staff_count',
-                    'storage_used_bytes', 'envelopes_sent_this_month',
+                    'storage_used_bytes', 'envelopes_sent_this_cycle',
                 ],
                 'limits' => ['plan', 'max_seats', 'max_active_clients', 'storage_limit_bytes'],
+                'downgrade_available',
             ])
             ->assertJsonPath('limits.plan', 'starter')
             // Owner excluded — the scenario's lone staff member is the only seat.
             ->assertJsonPath('usage.active_staff_count', 1)
             ->assertJsonPath('usage.admin_count', 0)
-            ->assertJsonPath('usage.staff_count', 1);
+            ->assertJsonPath('usage.staff_count', 1)
+            // Starter has no tier below it — nothing to downgrade to.
+            ->assertJsonPath('downgrade_available', false);
+    }
+
+    public function test_downgrade_available_is_true_for_a_firm_tenant_with_room_and_false_when_over_every_lower_tier(): void
+    {
+        $this->tenant['provider']->update(['plan' => 'firm']);
+        Sanctum::actingAs($this->tenant['owner']);
+
+        // Modest usage — Professional and Starter both fit.
+        $this->getJson('/api/v1/plan-usage')
+            ->assertOk()
+            ->assertJsonPath('downgrade_available', true);
+
+        // 3 extra staff (4 seats total) — fits Firm (5), busts Professional
+        // and Starter (1 each). No lower tier is reachable.
+        User::factory()->count(3)->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'status' => 'active',
+        ])->each(fn (User $u) => $u->assignRole(Role::Staff->value));
+
+        $this->getJson('/api/v1/plan-usage')
+            ->assertOk()
+            ->assertJsonPath('downgrade_available', false);
     }
 }

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace PactTrackSDK\SharedResources\Modules\User\Application\Services;
 
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\GetPlanUsageSummary;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Services\EffectivePlan;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Services\PlanPolicy;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\GatedAction;
-use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\PlanGateResult;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 
@@ -30,14 +30,23 @@ final class PlanGate
     public function check(GatedAction $action, User $user): PlanGateResult
     {
         $provider = $user->provider;
-        $plan = Plan::tryFrom((string) $provider?->plan) ?? Plan::default();
-        $subscriptionStatus = $provider?->subscription?->status;
+        $subscription = $provider?->subscription;
+
+        // The plan whose limits apply *now* — the pending (lower) tier the
+        // moment a Portal downgrade is scheduled. See Domain\Services\EffectivePlan.
+        $effective = EffectivePlan::resolve(
+            $provider?->plan,
+            $subscription?->pending_plan,
+            $subscription?->pending_plan_effective_at?->toIso8601String(),
+        );
 
         return $this->policy->evaluate(
             $action,
-            $plan,
-            $subscriptionStatus,
+            $effective->plan,
+            $subscription?->status,
             $this->usageSummary->handle((int) $user->provider_id),
+            $effective->viaPendingDowngrade,
+            $subscription?->pending_plan_effective_at?->toFormattedDateString(),
         );
     }
 }

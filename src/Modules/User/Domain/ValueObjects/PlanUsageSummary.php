@@ -21,8 +21,8 @@ final class PlanUsageSummary
         /** Admin + Staff seats used — the Owner is NOT counted (see PlanUsageReader). */
         public readonly int $activeStaffCount,
         public readonly int $storageUsedBytes,
-        /** Envelopes with a non-draft status created since the start of the current calendar month — a flow count, resets every cycle. */
-        public readonly int $envelopesSentThisMonth,
+        /** Envelopes with a non-draft status created since the start of the current Stripe billing cycle (`subscriptions.current_period_starts_at`, calendar month as a fallback) — a flow count that resets every cycle. */
+        public readonly int $envelopesSentThisCycle,
         /**
          * The Admin / Staff split of {@see $activeStaffCount}. When built by
          * GetPlanUsageSummary from live queries,
@@ -45,7 +45,7 @@ final class PlanUsageSummary
             'admin_count' => $this->activeAdminCount,
             'staff_count' => $this->activeStaffRoleCount,
             'storage_used_bytes' => $this->storageUsedBytes,
-            'envelopes_sent_this_month' => $this->envelopesSentThisMonth,
+            'envelopes_sent_this_cycle' => $this->envelopesSentThisCycle,
         ];
     }
 }

@@ -27,8 +27,7 @@ final class StripeBillingProvider implements BillingProvider
 {
     public function __construct(
         private readonly StripeClient $client,
-    ) {
-    }
+    ) {}
 
     public function createCheckoutSession(CheckoutSessionRequest $request): CheckoutSession
     {
@@ -123,11 +122,14 @@ final class StripeBillingProvider implements BillingProvider
         ];
     }
 
-    public function createBillingPortalSession(string $customerId, string $returnUrl): string
-    {
+    public function createBillingPortalSession(
+        string $customerId,
+        string $returnUrl,
+        ?string $configurationId = null,
+    ): string {
         $params = ['customer' => $customerId, 'return_url' => $returnUrl];
 
-        $configurationId = config('services.stripe.billing_portal_configuration_id');
+        $configurationId ??= config('services.stripe.billing_portal_configuration_id');
         if (! empty($configurationId)) {
             $params['configuration'] = $configurationId;
         }

@@ -52,6 +52,26 @@ enum Plan: string
     }
 
     /**
+     * Tier order, cheapest first — the same ordering the frontend's
+     * `meetsPlanRequirement` compares. Used by {@see \PactTrackSDK\SharedResources\Modules\User\Domain\Services\EffectivePlan}
+     * to tell a *downgrade* (which Stripe schedules to period-end and which
+     * PactTrack starts enforcing immediately) from an upgrade.
+     */
+    public function rank(): int
+    {
+        return match ($this) {
+            self::Starter => 0,
+            self::Professional => 1,
+            self::Firm => 2,
+        };
+    }
+
+    public function isLowerThan(self $other): bool
+    {
+        return $this->rank() < $other->rank();
+    }
+
+    /**
      * Everything this plan allows — seats, quotas, feature flags. The one way
      * to ask "what does this tier get"; see {@see PlanInfo} and
      * .claude/rules/plan.md.

@@ -23,9 +23,9 @@ class PlanPolicyTest extends BaseTest
         int $activeClientCount = 0,
         int $activeStaffCount = 0,
         int $storageUsedBytes = 0,
-        int $envelopesSentThisMonth = 0,
+        int $envelopesSentThisCycle = 0,
     ): PlanUsageSummary {
-        return new PlanUsageSummary($activeClientCount, $activeStaffCount, $storageUsedBytes, $envelopesSentThisMonth);
+        return new PlanUsageSummary($activeClientCount, $activeStaffCount, $storageUsedBytes, $envelopesSentThisCycle);
     }
 
     public function test_inactive_subscription_denies_every_action_regardless_of_usage(): void
@@ -81,10 +81,10 @@ class PlanPolicyTest extends BaseTest
         $policy = new PlanPolicy();
         $limit = Plan::Starter->info()->maxEnvelopesPerMonth;
 
-        $atLimit = $policy->evaluate(GatedAction::PrepareForSignature, Plan::Starter, 'active', $this->usage(envelopesSentThisMonth: $limit));
+        $atLimit = $policy->evaluate(GatedAction::PrepareForSignature, Plan::Starter, 'active', $this->usage(envelopesSentThisCycle: $limit));
         $this->assertFalse($atLimit->allowed);
 
-        $underLimit = $policy->evaluate(GatedAction::PrepareForSignature, Plan::Starter, 'active', $this->usage(envelopesSentThisMonth: $limit - 1));
+        $underLimit = $policy->evaluate(GatedAction::PrepareForSignature, Plan::Starter, 'active', $this->usage(envelopesSentThisCycle: $limit - 1));
         $this->assertTrue($underLimit->allowed);
     }
 
@@ -129,7 +129,7 @@ class PlanPolicyTest extends BaseTest
             GatedAction::PrepareForSignature,
             Plan::Professional,
             'active',
-            $this->usage(envelopesSentThisMonth: 1_000_000),
+            $this->usage(envelopesSentThisCycle: 1_000_000),
         );
         $this->assertTrue($result->allowed);
         $this->assertSame('active', $result->subscriptionStatus);
@@ -166,5 +166,85 @@ class PlanPolicyTest extends BaseTest
         $this->assertFalse($limitHit->allowed);
         $this->assertSame('plan_limit_exceeded', $limitHit->toArray()['reason']);
         $this->assertSame('active', $limitHit->toArray()['subscription_status']);
+    }
+
+    // ───────────────────────── Pending-downgrade wording ─────────────────
+    // When PlanGate resolves the effective plan to a pending (lower) tier it
+    // passes viaPendingDowngrade=true so the denial modal can explain the
+    // cause. The verdict is unchanged — only the message differs.
+
+    public function test_a_pending_downgrade_denial_names_the_scheduled_change_and_both_fixes(): void
+    {
+        $policy = new PlanPolicy();
+
+        $result = $policy->evaluate(
+            GatedAction::UploadDocument,
+            Plan::Starter, // the effective (pending) plan PlanGate resolved
+            'active',
+            $this->usage(storageUsedBytes: Plan::Starter->info()->storageLimitBytes),
+            viaPendingDowngrade: true,
+            pendingEffectiveAtLabel: 'Oct 8, 2026',
+        );
+
+        $this->assertFalse($result->allowed);
+        $this->assertSame('plan_limit_exceeded', $result->toArray()['reason']);
+        $this->assertStringContainsString('scheduled downgrade to Starter', $result->message);
+        $this->assertStringContainsString('Oct 8, 2026', $result->message);
+        $this->assertStringContainsString('5 GB', $result->message);
+        $this->assertStringContainsString('Cancel the downgrade', $result->message);
+    }
+
+    public function test_pending_downgrade_wording_covers_every_gated_action(): void
+    {
+        $policy = new PlanPolicy();
+        $starter = Plan::Starter->info();
+
+        $cases = [
+            [GatedAction::UploadDocument, $this->usage(storageUsedBytes: $starter->storageLimitBytes)],
+            [GatedAction::PrepareForSignature, $this->usage(envelopesSentThisCycle: $starter->maxEnvelopesPerMonth)],
+            [GatedAction::InviteClient, $this->usage(activeClientCount: $starter->maxActiveClients)],
+            [GatedAction::InviteStaff, $this->usage(activeStaffCount: $starter->maxSeats)],
+        ];
+
+        foreach ($cases as [$action, $usage]) {
+            $result = $policy->evaluate($action, Plan::Starter, 'active', $usage, viaPendingDowngrade: true, pendingEffectiveAtLabel: 'Oct 8, 2026');
+
+            $this->assertFalse($result->allowed, $action->value);
+            $this->assertStringContainsString('scheduled downgrade to Starter', $result->message, $action->value);
+        }
+    }
+
+    public function test_effective_at_label_is_optional_in_the_pending_downgrade_message(): void
+    {
+        $policy = new PlanPolicy();
+
+        $result = $policy->evaluate(
+            GatedAction::InviteClient,
+            Plan::Starter,
+            'active',
+            $this->usage(activeClientCount: Plan::Starter->info()->maxActiveClients),
+            viaPendingDowngrade: true,
+            pendingEffectiveAtLabel: null,
+        );
+
+        $this->assertFalse($result->allowed);
+        $this->assertStringContainsString('scheduled downgrade to Starter', $result->message);
+        $this->assertStringNotContainsString('effective ,', $result->message); // no dangling comma
+    }
+
+    public function test_without_the_pending_flag_the_standard_message_is_used(): void
+    {
+        $policy = new PlanPolicy();
+
+        $result = $policy->evaluate(
+            GatedAction::UploadDocument,
+            Plan::Starter,
+            'active',
+            $this->usage(storageUsedBytes: Plan::Starter->info()->storageLimitBytes),
+        );
+
+        $this->assertFalse($result->allowed);
+        $this->assertStringContainsString("You've reached your Starter plan's 5 GB storage limit", $result->message);
+        $this->assertStringNotContainsString('scheduled downgrade', $result->message);
     }
 }

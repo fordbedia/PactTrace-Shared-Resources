@@ -40,6 +40,12 @@ interface PlanUsageReader
     /** Just the Staff — the complement of {@see activeAdminCount()}. */
     public function activeStaffRoleCount(int $providerId): int;
 
-    /** Envelopes with a non-draft status created since the start of the current calendar month, for one tenant. */
-    public function envelopesSentThisMonth(int $providerId): int;
+    /**
+     * Envelopes with a non-draft status created since the start of the tenant's
+     * current **Stripe billing cycle** (`subscriptions.current_period_starts_at`),
+     * falling back to the start of the calendar month when that is null (a
+     * card-less trial that never reached Stripe Checkout). `maxEnvelopesPerMonth`
+     * is a flow limit that must reset when Stripe bills, not on the 1st.
+     */
+    public function envelopesSentThisCycle(int $providerId): int;
 }
