@@ -14,6 +14,7 @@ use PactTrackSDK\SharedResources\Modules\Matter\Application\Services\MilestonePr
 use PactTrackSDK\SharedResources\Modules\Matter\Domain\ValueObjects\DefaultMilestone;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\NewDocumentUploadedEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Support\Notification;
+use PactTrackSDK\SharedResources\Modules\User\Application\Services\ProviderStorageLedger;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Throwable;
 
@@ -33,6 +34,7 @@ class UploadDocumentAction
         private readonly DocumentRepository $documents,
         private readonly MilestoneProgressionService $milestoneProgression,
         private readonly MatterNotificationRecipientResolver $recipients,
+        private readonly ProviderStorageLedger $storageLedger,
     ) {
     }
 
@@ -52,6 +54,11 @@ class UploadDocumentAction
             'size' => $data->file->getSize(),
             'version' => 1,
         ]);
+
+        // Keep the cached provider-wide storage total current — one atomic
+        // credit per new file. The nightly `storage:reconcile` corrects this
+        // if it is ever missed. See ProviderStorageLedger.
+        $this->storageLedger->credit((int) $data->provider_id, (int) $document->size);
 
         // "Drafting" represents a document existing on the matter to work
         // from — a no-op when $data->matter_id is null (a document filed

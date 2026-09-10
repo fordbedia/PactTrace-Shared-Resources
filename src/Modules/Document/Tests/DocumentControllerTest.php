@@ -329,16 +329,15 @@ class DocumentControllerTest extends BaseTest
         Document::query()->delete();
         // Allowances now come from PlanInfo, not config — Professional is
         // 50 GB. See User\Domain\ValueObjects\PlanInfo.
-        $this->tenant['provider']->forceFill(['plan' => 'professional'])->save();
+        // The provider-wide "used" figure is the cached
+        // `providers.storage_used_bytes` column now, not a live document sum —
+        // seed it the way an upload would (see ProviderStorageLedger).
+        $this->tenant['provider']->forceFill([
+            'plan' => 'professional',
+            'storage_used_bytes' => 620,
+        ])->save();
 
         $limit = \PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan::Professional->info()->storageLimitBytes;
-
-        Document::factory()->create([
-            'provider_id' => $this->tenant['provider']->id,
-            'workspace_id' => $this->tenant['workspace']->id,
-            'uploaded_by' => $this->tenant['owner']->id,
-            'size' => 620,
-        ]);
 
         $this->actingAs($this->tenant['owner']->fresh())
             ->getJson('/api/documents/storage')
@@ -367,20 +366,11 @@ class DocumentControllerTest extends BaseTest
 
     public function test_storage_usage_excludes_other_tenants(): void
     {
-        Document::query()->delete();
-
-        Document::factory()->create([
-            'provider_id' => $this->tenant['provider']->id,
-            'workspace_id' => $this->tenant['workspace']->id,
-            'uploaded_by' => $this->tenant['owner']->id,
-            'size' => 100,
-        ]);
-        Document::factory()->create([
-            'provider_id' => $this->otherTenant['provider']->id,
-            'workspace_id' => $this->otherTenant['workspace']->id,
-            'uploaded_by' => $this->otherTenant['owner']->id,
-            'size' => 5_000,
-        ]);
+        // Provider-wide "used" is each provider's own cached column — a value
+        // ProviderStorageLedger maintains per provider, so cross-tenant
+        // isolation is structural.
+        $this->tenant['provider']->forceFill(['storage_used_bytes' => 100])->save();
+        $this->otherTenant['provider']->forceFill(['storage_used_bytes' => 5_000])->save();
 
         $this->actingAs($this->tenant['owner'])
             ->getJson('/api/documents/storage')

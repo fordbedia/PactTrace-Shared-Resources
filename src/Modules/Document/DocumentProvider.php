@@ -14,10 +14,12 @@ use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Repositories\El
 use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentFolderRepository;
 use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\S3\S3DocumentStorage;
 use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Services\DocumentStorageUsageService;
+use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Storage\DocumentStorageSource;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Folder;
 use PactTrackSDK\SharedResources\Modules\Document\Policies\DocumentPolicy;
 use PactTrackSDK\SharedResources\Modules\Document\Policies\FolderPolicy;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\StorageSource;
 
 class DocumentProvider extends ServiceProvider
 {
@@ -51,6 +53,13 @@ class DocumentProvider extends ServiceProvider
 		// so it never sees a query builder.
 		$this->app->singleton(StorageQuotas::class, PlanStorageQuotas::class);
 		$this->app->singleton(StorageUsageCalculator::class, DocumentStorageUsageService::class);
+
+		// The `documents` table's contribution to the cross-module storage
+		// total — collected with every other module's StorageSource by
+		// User\Application\Services\StorageUsageAggregator (used by
+		// `storage:reconcile`). DocumentStorageUsageService's own
+		// provider-wide figure now reads the cached column, not this.
+		$this->app->tag(DocumentStorageSource::class, StorageSource::class);
     }
 
     public function boot(): void

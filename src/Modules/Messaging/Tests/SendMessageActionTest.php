@@ -15,6 +15,7 @@ use PactTrackSDK\SharedResources\Modules\Messaging\Events\NewMessage;
 use PactTrackSDK\SharedResources\Modules\Messaging\Infrastructure\Upload\MessageAttachmentStorageService;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\Message;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
+use PactTrackSDK\SharedResources\Modules\User\Application\Services\ProviderStorageLedger;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
 use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
@@ -43,6 +44,7 @@ class SendMessageActionTest extends BaseTest
             new AppendMessageToThread(
                 app(MessageRepository::class),
                 new MessageAttachmentStorageService($this->storage),
+                new ProviderStorageLedger(),
             ),
         );
         $this->tenant = ProviderTenantScenario::make('send-msg');

@@ -254,12 +254,12 @@ class BillingControllerTest extends BaseTest
         $this->givenAnActiveStripeSubscription();
         $this->deactivateStaffSoNoSeatsAreHeld();
 
-        Document::factory()->create([
-            'provider_id' => $this->tenant['provider']->id,
-            'workspace_id' => $this->tenant['workspace']->id,
-            'uploaded_by' => $this->owner()->id,
-            'size' => 120 * 1024 * 1024 * 1024,
-        ]);
+        // Storage used is the cached provider column now (see
+        // ProviderStorageLedger), not a live document sum — set it directly,
+        // the way an upload would.
+        $this->tenant['provider']->forceFill([
+            'storage_used_bytes' => 120 * 1024 * 1024 * 1024,
+        ])->save();
 
         $response = $this->postJson('/api/v1/billing/change-plan', ['target_plan' => 'professional']);
 

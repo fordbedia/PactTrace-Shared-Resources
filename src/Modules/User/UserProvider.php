@@ -8,15 +8,19 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\AccountDeletionSignalReader;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\CachedStorageUsageReader;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\DepartingStaffReassignment;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\PlanUsageReader;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderInvitationCanceller;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
+use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\StorageSource;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\StripeWebhookEventRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\SubscriptionRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\TeamInvitationRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\UserRepository;
+use PactTrackSDK\SharedResources\Modules\User\Application\Services\StorageUsageAggregator;
 use PactTrackSDK\SharedResources\Modules\User\Console\Commands\NotifyTrialEnding;
+use PactTrackSDK\SharedResources\Modules\User\Console\Commands\ReconcileProviderStorage;
 use PactTrackSDK\SharedResources\Modules\User\Console\Commands\SyncStripePortalConfigurations;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\AccessTokenIssuer;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\AvatarStorage;
@@ -27,6 +31,7 @@ use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\StripePriceCatalog;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Auth\SanctumTokenIssuer;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentAccountDeletionSignals;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentCachedStorageUsageReader;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentDepartingStaffReassignment;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentPlanUsageReader;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentProviderInvitationCanceller;
@@ -90,6 +95,7 @@ class UserProvider extends ServiceProvider
         SubscriptionRepository::class => EloquentSubscriptionRepository::class,
         AccessTokenIssuer::class => SanctumTokenIssuer::class,
         PlanUsageReader::class => EloquentPlanUsageReader::class,
+        CachedStorageUsageReader::class => EloquentCachedStorageUsageReader::class,
         StripeWebhookEventRepository::class => EloquentStripeWebhookEventRepository::class,
     ];
 
@@ -102,6 +108,16 @@ class UserProvider extends ServiceProvider
         foreach ($this->ports as $port => $adapter) {
             $this->app->bind($port, $adapter);
         }
+
+        // "What counts as storage" is assembled from every module's tagged
+        // StorageSource — each module tags its own in its own provider
+        // (DocumentProvider, MessagingProvider), so there is no central
+        // hardcoded list of storage tables. Used only by `storage:reconcile`;
+        // per-request reads go through CachedStorageUsageReader above.
+        $this->app->singleton(
+            StorageUsageAggregator::class,
+            fn ($app) => new StorageUsageAggregator($app->tagged(StorageSource::class)),
+        );
 
         // Not in $ports: the adapter needs the disk name, chosen once by
         // config/env (same pattern as Document's `document_disk`), not a
@@ -165,6 +181,7 @@ class UserProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 NotifyTrialEnding::class,
+                ReconcileProviderStorage::class,
                 SyncStripePortalConfigurations::class,
             ]);
         }

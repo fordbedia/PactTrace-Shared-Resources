@@ -125,11 +125,14 @@ class GetPlanUsageSummaryTest extends BaseTest
         $this->assertNotContains(Role::Client, Role::providerSide());
     }
 
-    public function test_it_sums_document_sizes_for_storage(): void
+    public function test_storage_used_comes_from_the_cached_provider_total(): void
     {
-        Document::factory()->create(['provider_id' => $this->tenant['provider']->id, 'size' => 100]);
-        Document::factory()->create(['provider_id' => $this->tenant['provider']->id, 'size' => 250]);
-        Document::factory()->create(['provider_id' => $this->otherTenant['provider']->id, 'size' => 999]);
+        // Storage is no longer a live SUM here — GetPlanUsageSummary reads the
+        // cached `providers.storage_used_bytes` column, which
+        // ProviderStorageLedger maintains at write time and `storage:reconcile`
+        // corrects nightly (spanning documents AND message attachments).
+        $this->tenant['provider']->forceFill(['storage_used_bytes' => 350])->save();
+        $this->otherTenant['provider']->forceFill(['storage_used_bytes' => 999])->save();
 
         $usage = app(GetPlanUsageSummary::class)->handle($this->tenant['provider']->id);
 

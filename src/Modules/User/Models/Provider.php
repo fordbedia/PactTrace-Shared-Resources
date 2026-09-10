@@ -37,11 +37,19 @@ class Provider extends Model
         'plan',
         'trial_ends_at',
         'docusign_brand_id',
+        'storage_used_bytes',
+        'storage_recalculated_at',
     ];
 
     protected $casts = [
         'trial_ends_at' => 'datetime',
         'email_powered_by_footer' => 'boolean',
+        // Cached provider-wide stored-bytes total — maintained by
+        // User\Application\Services\ProviderStorageLedger at write time,
+        // corrected nightly by `storage:reconcile`. See the
+        // 2026_09_10_120000 migration.
+        'storage_used_bytes' => 'integer',
+        'storage_recalculated_at' => 'datetime',
     ];
 
     protected static function newFactory(): ProviderFactory

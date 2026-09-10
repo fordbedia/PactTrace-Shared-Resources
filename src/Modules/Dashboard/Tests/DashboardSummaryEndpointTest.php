@@ -12,6 +12,7 @@ use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Milestone;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
+use PactTrackSDK\SharedResources\Modules\User\Application\Services\ProviderStorageLedger;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use PactTrackSDK\SharedResources\TestCase\Extras\LoadsModuleApiRoutes;
@@ -160,6 +161,10 @@ class DashboardSummaryEndpointTest extends BaseTest
                     'size' => $size,
                     'archived_at' => null,
                 ]);
+                // The dashboard's storage figure reads the cached
+                // `providers.storage_used_bytes` column now — keep it in step
+                // with the seeded rows the way UploadDocumentAction would.
+                (new ProviderStorageLedger())->credit((int) $provider->id, $size);
                 $firstDocument ??= $document;
             }
         }
@@ -197,6 +202,7 @@ class DashboardSummaryEndpointTest extends BaseTest
             'size' => 9999,
             'archived_at' => null,
         ]);
+        (new ProviderStorageLedger())->credit((int) $other->id, 2 * 9999);
         Envelope::factory()->count(2)->create([
             'provider_id' => $other->id,
             'client_id' => $client->id,

@@ -16,6 +16,7 @@ use PactTrackSDK\SharedResources\Modules\Messaging\Models\Message;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\NewMessageFromClientEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Support\Notification;
+use PactTrackSDK\SharedResources\Modules\User\Application\Services\ProviderStorageLedger;
 use Throwable;
 
 /**
@@ -44,6 +45,7 @@ class AppendMessageToThread
     public function __construct(
         private readonly MessageRepository $messages,
         private readonly MessageAttachmentStorageService $attachmentStorage,
+        private readonly ProviderStorageLedger $storageLedger,
     ) {
     }
 
@@ -60,14 +62,20 @@ class AppendMessageToThread
 
         foreach ($attachments as $file) {
             $path = $this->attachmentStorage->store($file, (int) $thread->provider_id);
+            $size = $file->getSize() !== false ? (int) $file->getSize() : null;
 
             $this->messages->createAttachment(
                 messageId: $message->id,
                 fileName: $file->getClientOriginalName(),
                 s3Path: $path,
                 mimeType: $file->getClientMimeType(),
-                size: $file->getSize() !== false ? (int) $file->getSize() : null,
+                size: $size,
             );
+
+            // Attachment bytes count toward the provider's plan storage — one
+            // atomic credit per stored file (a null/0 size is a no-op). See
+            // User\Application\Services\ProviderStorageLedger.
+            $this->storageLedger->credit((int) $thread->provider_id, (int) $size);
         }
 
         $thread->recordActivity($message->created_at ?? now());

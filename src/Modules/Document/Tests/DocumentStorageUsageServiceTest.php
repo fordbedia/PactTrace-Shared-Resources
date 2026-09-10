@@ -11,19 +11,23 @@ use PactTrackSDK\SharedResources\Modules\Document\Domain\ValueObjects\StorageUsa
 use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentDocumentRepository;
 use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Services\DocumentStorageUsageService;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\User\Application\Services\ProviderStorageLedger;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentCachedStorageUsageReader;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
 use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
 
 /**
- * The calculation behind the STORAGE indicator on /dashboard/documents — a
- * live SUM over the tenant's documents against the plan's allowance.
+ * The calculation behind the STORAGE indicator on /dashboard/documents and
+ * the storage figure in PlanUsageSummary.
  *
- * Run against the real Eloquent repository rather than a fake: the number
- * being *live* is the whole point of the feature, and a stubbed repository
- * would assert nothing about whether the aggregate actually reflects what was
- * uploaded. The quota side is stubbed instead — resolving a plan to a byte
- * allowance is PlanStorageQuotas' job, covered by StorageQuotaTest.
+ * The provider-wide "used" figure is now a plain read of the cached
+ * `providers.storage_used_bytes` column (documents + message attachments,
+ * maintained at write time, corrected nightly) — so the `document()` helper
+ * here credits that column as an upload would. The client-narrowed figure
+ * stays a live per-client `SUM(documents.size)`, run against the real Eloquent
+ * repository. The quota side is stubbed — resolving a plan to a byte allowance
+ * is PlanStorageQuotas' job, covered by StorageQuotaTest.
  */
 class DocumentStorageUsageServiceTest extends BaseTest
 {
@@ -40,14 +44,18 @@ class DocumentStorageUsageServiceTest extends BaseTest
         $this->service = new DocumentStorageUsageService(
             new EloquentDocumentRepository(),
             new FixedStorageQuotas(1_000),
+            new EloquentCachedStorageUsageReader(),
         );
 
         $this->tenant = ProviderTenantScenario::make('usage-a');
         $this->otherTenant = ProviderTenantScenario::make('usage-b');
 
         // The scenario seeds documents of random size; start from a known
-        // zero so every assertion below is about what this test uploaded.
+        // zero — both the rows and the cached provider totals — so every
+        // assertion below is about what this test uploaded.
         Document::query()->delete();
+        $this->tenant['provider']->forceFill(['storage_used_bytes' => 0])->save();
+        $this->otherTenant['provider']->forceFill(['storage_used_bytes' => 0])->save();
     }
 
     public function test_it_is_the_bound_implementation_of_the_port(): void
@@ -111,6 +119,7 @@ class DocumentStorageUsageServiceTest extends BaseTest
         $service = new DocumentStorageUsageService(
             new EloquentDocumentRepository(),
             new FixedStorageQuotas(1_000, ['firm' => 9_000]),
+            new EloquentCachedStorageUsageReader(),
         );
 
         $this->assertSame(1_000, $service->forProvider($this->tenant['provider']->id, 'starter')->limitBytes);
@@ -151,6 +160,7 @@ class DocumentStorageUsageServiceTest extends BaseTest
         $calculator = new DocumentStorageUsageService(
             new EloquentDocumentRepository(),
             new FixedStorageQuotas(1_000, ['firm' => 9_000]),
+            new EloquentCachedStorageUsageReader(),
         );
         $action = new GetStorageUsageAction($calculator);
 
@@ -166,13 +176,19 @@ class DocumentStorageUsageServiceTest extends BaseTest
 
     private function document(TestScenarioCollection $tenant, int $size, ?int $clientId = null): Document
     {
-        return Document::factory()->create([
+        $document = Document::factory()->create([
             'provider_id' => $tenant['provider']->id,
             'workspace_id' => $tenant['workspace']->id,
             'uploaded_by' => $tenant['owner']->id,
             'client_id' => $clientId,
             'size' => $size,
         ]);
+
+        // Mirror UploadDocumentAction: creating a document credits the cached
+        // provider-wide total, which is what forProvider() now reads.
+        (new ProviderStorageLedger())->credit((int) $tenant['provider']->id, $size);
+
+        return $document;
     }
 }
 
