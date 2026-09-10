@@ -9,6 +9,7 @@ use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\BillingProvider;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSession;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSessionRequest;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSessionStatus;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\PlanChangePreview;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\StripeWebhookEventData;
 
 /**
@@ -22,6 +23,12 @@ final class FakeBillingProvider implements BillingProvider
 {
     /** @var list<array{subscriptionId: string, newPriceId: string, prorationBehavior: string}> */
     public array $subscriptionUpdates = [];
+
+    /** @var list<array{subscriptionId: string, newPriceId: string}> — every {@see previewPlanChange()} call. */
+    public array $planChangePreviews = [];
+
+    /** Canned answer for {@see previewPlanChange()}; falls back to a plausible default. */
+    public ?PlanChangePreview $nextPlanChangePreview = null;
 
     /** @var list<CheckoutSessionRequest> */
     public array $checkoutSessions = [];
@@ -81,6 +88,26 @@ final class FakeBillingProvider implements BillingProvider
             'newPriceId' => $newPriceId,
             'prorationBehavior' => $prorationBehavior,
         ];
+    }
+
+    public function previewPlanChange(string $subscriptionId, string $newPriceId): PlanChangePreview
+    {
+        $this->planChangePreviews[] = [
+            'subscriptionId' => $subscriptionId,
+            'newPriceId' => $newPriceId,
+        ];
+
+        return $this->nextPlanChangePreview ?? new PlanChangePreview(
+            dueTodayCents: 0,
+            nextInvoiceTotalCents: 22900,
+            nextInvoiceDateIso: '2026-10-10T00:00:00+00:00',
+            recurringAmountCents: 14900,
+            currency: 'usd',
+            lineItems: [
+                ['description' => 'Remaining time on Firm - Monthly', 'amount_cents' => 8000],
+                ['description' => '1 × Firm - Monthly', 'amount_cents' => 14900],
+            ],
+        );
     }
 
     public function constructWebhookEvent(string $payload, string $signature, string $webhookSecret): StripeWebhookEventData

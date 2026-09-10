@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace PactTrackSDK\SharedResources\Modules\User\Infrastructure\Stripe;
 
+use Illuminate\Support\Carbon;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\InvalidStripeWebhookSignatureException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\BillingProvider;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSession;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSessionRequest;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSessionStatus;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\PlanChangePreview;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\StripeWebhookEventData;
 use Stripe\Exception\ApiErrorException;
 use Stripe\Exception\SignatureVerificationException;
@@ -150,6 +152,52 @@ final class StripeBillingProvider implements BillingProvider
             ],
             'proration_behavior' => $prorationBehavior,
         ]);
+    }
+
+    public function previewPlanChange(string $subscriptionId, string $newPriceId): PlanChangePreview
+    {
+        $subscription = $this->client->subscriptions->retrieve($subscriptionId);
+        $item = $subscription->items->data[0];
+        $itemId = (string) $item->id;
+
+        $periodEndTs = (int) ($item->current_period_end ?? $subscription->current_period_end ?? 0);
+        $periodEndIso = $periodEndTs > 0 ? Carbon::createFromTimestamp($periodEndTs)->toIso8601String() : null;
+
+        $targetPrice = $this->client->prices->retrieve($newPriceId);
+        $recurringCents = (int) ($targetPrice->unit_amount ?? 0);
+        $currency = (string) ($targetPrice->currency ?? 'usd');
+
+        // Preview the upcoming invoice with the price swapped in.
+        // `create_prorations` matches what ChangeSubscriptionPlan actually
+        // applies, so the figure the modal shows is the figure Stripe bills.
+        $preview = $this->client->invoices->createPreview([
+            'subscription' => $subscriptionId,
+            'subscription_details' => [
+                'items' => [['id' => $itemId, 'price' => $newPriceId]],
+                'proration_behavior' => 'create_prorations',
+            ],
+        ]);
+
+        $lines = [];
+        foreach (($preview->lines->data ?? []) as $line) {
+            $amount = (int) ($line->amount ?? 0);
+            if ($amount === 0) {
+                continue;
+            }
+            $lines[] = [
+                'description' => (string) ($line->description ?? ''),
+                'amount_cents' => $amount,
+            ];
+        }
+
+        return new PlanChangePreview(
+            dueTodayCents: 0,
+            nextInvoiceTotalCents: (int) ($preview->total ?? 0),
+            nextInvoiceDateIso: $periodEndIso,
+            recurringAmountCents: $recurringCents,
+            currency: $currency,
+            lineItems: $lines,
+        );
     }
 
     public function constructWebhookEvent(string $payload, string $signature, string $webhookSecret): StripeWebhookEventData

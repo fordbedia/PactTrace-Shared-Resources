@@ -8,6 +8,7 @@ use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\InvalidStripeWeb
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSession;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSessionRequest;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CheckoutSessionStatus;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\PlanChangePreview;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\StripeWebhookEventData;
 
 /**
@@ -58,6 +59,15 @@ interface BillingProvider
      * itself initiated. See .claude/rules/plan.md.
      */
     public function updateSubscriptionPrice(string $subscriptionId, string $newPriceId, string $prorationBehavior): void;
+
+    /**
+     * A **non-mutating** estimate of what switching to `$newPriceId` would
+     * cost — Stripe's `invoices/create_preview` with `create_prorations`,
+     * i.e. the upcoming invoice including the proration charge/credit (the
+     * figure the Stripe portal shows as "next estimated payment"). Never
+     * changes the subscription.
+     */
+    public function previewPlanChange(string $subscriptionId, string $newPriceId): PlanChangePreview;
 
     /**
      * Verifies `$signature` against `$payload` using `$webhookSecret` and

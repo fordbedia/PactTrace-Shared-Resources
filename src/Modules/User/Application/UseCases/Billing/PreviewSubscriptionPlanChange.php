@@ -13,31 +13,21 @@ use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\StripePriceCatalog;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Services\PlanChangePolicy;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\BillingInterval;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan;
-use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\PlanChangeOutcome;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\PlanChangePreview;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 
 /**
- * `POST /billing/change-plan` — the only path (besides initial Checkout)
- * that ever changes a subscription's plan, upgrade or downgrade alike. Runs
- * the usage pre-flight {@see PlanChangePolicy} before ever calling Stripe;
- * on a pass it swaps the subscription's price **immediately** with
- * `create_prorations` (Stripe bills / credits the prorated difference on the
- * next invoice). A same-tier request is a no-op.
+ * `POST /billing/change-plan/preview` — the read-only companion to
+ * {@see ChangeSubscriptionPlan}. Runs the **same** {@see PlanChangePolicy}
+ * pre-flight (so the confirmation modal never opens on a change that would
+ * be blocked), resolves the target price the same way, then asks
+ * {@see BillingProvider::previewPlanChange()} for a non-mutating cost
+ * estimate. Changes nothing.
  *
- * The billing page shows a Stripe cost estimate in a confirmation modal
- * before this runs — see {@see PreviewSubscriptionPlanChange}.
- *
- * Never writes `subscriptions.plan` itself — the `customer.subscription.updated`
- * webhook (SyncSubscriptionFromStripe) remains the only writer of that
- * column. See .claude/rules/plan.md, "Downgrade / over-limit policy".
- * (A downgrade started in the Stripe Customer Portal is still deferred to the
- * period end by that Portal's own configuration → `pending_plan`; this
- * endpoint does not defer.)
+ * See .claude/rules/plan.md, "Portal configuration swap" / "Stripe status".
  */
-final class ChangeSubscriptionPlan
+final class PreviewSubscriptionPlanChange
 {
-    private const PRORATION_BEHAVIOR = 'create_prorations';
-
     public function __construct(
         private readonly SubscriptionRepository $subscriptions,
         private readonly StripePriceCatalog $prices,
@@ -49,13 +39,11 @@ final class ChangeSubscriptionPlan
 
     /**
      * @throws NoStripeCustomerException  when the tenant has no live Stripe
-     *                                    subscription to change yet (the
-     *                                    frontend should route them to
-     *                                    Checkout instead)
+     *                                    subscription to change yet
      * @throws PlanChangeBlockedException when current usage exceeds the
      *                                    target plan's limits
      */
-    public function handle(User $user, Plan $targetPlan): PlanChangeOutcome
+    public function handle(User $user, Plan $targetPlan): PlanChangePreview
     {
         $providerId = (int) $user->provider_id;
         $subscription = $this->subscriptions->findByProviderId($providerId);
@@ -72,25 +60,15 @@ final class ChangeSubscriptionPlan
             throw new PlanChangeBlockedException($result);
         }
 
-        $currentPlan = Plan::tryFrom((string) $subscription->plan) ?? Plan::default();
-
-        if ($targetPlan === $currentPlan) {
-            return PlanChangeOutcome::noChange($targetPlan);
-        }
-
-        // Preserve whichever billing interval the tenant is already on —
-        // this endpoint only ever carries a target plan, not an interval.
         $currentMapping = $subscription->stripe_price_id !== null
             ? $this->prices->resolve($subscription->stripe_price_id)
             : null;
         $interval = $currentMapping?->interval ?? BillingInterval::Monthly;
+        $targetPriceId = $this->prices->priceIdFor($targetPlan, $interval);
 
-        $this->billing->updateSubscriptionPrice(
+        return $this->billing->previewPlanChange(
             $subscription->stripe_subscription_id,
-            $this->prices->priceIdFor($targetPlan, $interval),
-            self::PRORATION_BEHAVIOR,
+            $targetPriceId,
         );
-
-        return PlanChangeOutcome::immediate($targetPlan);
     }
 }

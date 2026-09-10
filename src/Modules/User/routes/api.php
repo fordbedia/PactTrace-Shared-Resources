@@ -96,6 +96,7 @@ Route::prefix('v1')->group(function () {
 			Route::post('checkout', [BillingController::class, 'checkout'])->name('checkout');
 			Route::get('portal-session', [BillingController::class, 'portalSession'])->name('portal-session');
 			Route::post('change-plan', [BillingController::class, 'changePlan'])->name('change-plan');
+			Route::post('change-plan/preview', [BillingController::class, 'previewChangePlan'])->name('change-plan.preview');
 
 			// The `/checkout/success` landing page's reconciliation call —
 			// "did this checkout actually go through", answered from Stripe

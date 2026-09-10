@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Gate;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Billing\ChangeSubscriptionPlan;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Billing\CreateBillingPortalSession;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Billing\CreateCheckoutSession;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Billing\PreviewSubscriptionPlanChange;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Billing\ReconcileCheckoutSession;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\NoStripeCustomerException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\PlanChangeBlockedException;
@@ -34,6 +35,7 @@ class BillingController extends Controller
         private readonly CreateCheckoutSession $createCheckoutSession,
         private readonly CreateBillingPortalSession $createPortalSession,
         private readonly ChangeSubscriptionPlan $changePlan,
+        private readonly PreviewSubscriptionPlanChange $previewPlanChange,
         private readonly ReconcileCheckoutSession $reconcileCheckoutSession,
     ) {
     }
@@ -99,6 +101,14 @@ class BillingController extends Controller
 
     /**
      * POST /api/v1/billing/change-plan
+     *
+     * Applies the change immediately — upgrade and downgrade alike — with
+     * `create_prorations`, so Stripe bills/credits the prorated difference on
+     * the next invoice. A same-tier request is a no-op. The response body
+     * ({@see \PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\PlanChangeOutcome})
+     * carries `status` (`immediate` | `noop`) so the billing page's toast can
+     * word itself correctly. Only a downgrade started in the Stripe Customer
+     * Portal is deferred to period end (its own config → `pending_plan`).
      */
     public function changePlan(ChangePlanRequest $request): JsonResponse
     {
@@ -106,7 +116,7 @@ class BillingController extends Controller
         $targetPlan = Plan::from($request->string('target_plan')->toString());
 
         try {
-            $this->changePlan->handle($user, $targetPlan);
+            $outcome = $this->changePlan->handle($user, $targetPlan);
         } catch (PlanChangeBlockedException $e) {
             return response()->json([
                 'message' => "Your current usage exceeds the {$targetPlan->label()} plan's limits.",
@@ -116,7 +126,34 @@ class BillingController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['message' => 'Plan change requested.']);
+        return response()->json($outcome->toArray());
+    }
+
+    /**
+     * POST /api/v1/billing/change-plan/preview
+     *
+     * Read-only cost estimate for the confirmation modal — same
+     * `target_plan` body and same pre-flight as `change-plan`, but touches
+     * nothing at Stripe. A blocked change 422s with the identical blocker
+     * payload so the modal is never reached.
+     */
+    public function previewChangePlan(ChangePlanRequest $request): JsonResponse
+    {
+        $user = $this->gate($request);
+        $targetPlan = Plan::from($request->string('target_plan')->toString());
+
+        try {
+            $preview = $this->previewPlanChange->handle($user, $targetPlan);
+        } catch (PlanChangeBlockedException $e) {
+            return response()->json([
+                'message' => "Your current usage exceeds the {$targetPlan->label()} plan's limits.",
+                ...$e->result->toArray(),
+            ], 422);
+        } catch (NoStripeCustomerException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json($preview->toArray());
     }
 
     /**
