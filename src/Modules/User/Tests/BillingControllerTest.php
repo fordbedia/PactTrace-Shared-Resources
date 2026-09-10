@@ -297,10 +297,84 @@ class BillingControllerTest extends BaseTest
         $response = $this->postJson('/api/v1/billing/change-plan', ['target_plan' => 'starter']);
 
         $response->assertOk();
+        $response->assertJsonPath('status', 'immediate');
+        $response->assertJsonPath('target_plan', 'starter');
+
         $this->assertCount(1, $this->stripe->subscriptionUpdates);
         $this->assertSame('sub_change_plan', $this->stripe->subscriptionUpdates[0]['subscriptionId']);
         $this->assertSame('price_starter_monthly', $this->stripe->subscriptionUpdates[0]['newPriceId']);
         $this->assertSame('create_prorations', $this->stripe->subscriptionUpdates[0]['prorationBehavior']);
+    }
+
+    public function test_an_upgrade_is_applied_immediately(): void
+    {
+        Sanctum::actingAs($this->owner());
+        $this->givenAnActiveStripeSubscription('professional', 'price_professional_monthly');
+
+        config([
+            'services.stripe.prices.professional.monthly' => 'price_professional_monthly',
+            'services.stripe.prices.firm.monthly' => 'price_firm_monthly',
+        ]);
+
+        $response = $this->postJson('/api/v1/billing/change-plan', ['target_plan' => 'firm']);
+
+        $response->assertOk();
+        $response->assertJsonPath('status', 'immediate');
+
+        $this->assertCount(1, $this->stripe->subscriptionUpdates);
+        $this->assertSame('price_firm_monthly', $this->stripe->subscriptionUpdates[0]['newPriceId']);
+        $this->assertSame('create_prorations', $this->stripe->subscriptionUpdates[0]['prorationBehavior']);
+    }
+
+    public function test_selecting_the_current_plan_is_a_no_op(): void
+    {
+        Sanctum::actingAs($this->owner());
+        $this->givenAnActiveStripeSubscription('firm', 'price_firm_monthly');
+
+        $response = $this->postJson('/api/v1/billing/change-plan', ['target_plan' => 'firm']);
+
+        $response->assertOk();
+        $response->assertJsonPath('status', 'noop');
+        $this->assertCount(0, $this->stripe->subscriptionUpdates);
+    }
+
+    public function test_change_plan_preview_returns_an_estimate(): void
+    {
+        Sanctum::actingAs($this->owner());
+        $this->givenAnActiveStripeSubscription('professional', 'price_professional_monthly');
+
+        config([
+            'services.stripe.prices.professional.monthly' => 'price_professional_monthly',
+            'services.stripe.prices.firm.monthly' => 'price_firm_monthly',
+        ]);
+
+        $response = $this->postJson('/api/v1/billing/change-plan/preview', ['target_plan' => 'firm']);
+
+        $response->assertOk();
+        $response->assertJsonStructure([
+            'due_today_cents', 'next_invoice_total_cents', 'next_invoice_date',
+            'recurring_amount_cents', 'currency', 'line_items',
+        ]);
+
+        $this->assertCount(1, $this->stripe->planChangePreviews);
+        $this->assertSame('price_firm_monthly', $this->stripe->planChangePreviews[0]['newPriceId']);
+        // A preview never touches the subscription.
+        $this->assertCount(0, $this->stripe->subscriptionUpdates);
+    }
+
+    public function test_change_plan_preview_is_blocked_when_usage_exceeds_the_target_plan(): void
+    {
+        Sanctum::actingAs($this->owner());
+        $this->givenAnActiveStripeSubscription();
+
+        User::factory()->count(5)->create(['provider_id' => $this->tenant['provider']->id])
+            ->each(fn (User $u) => $u->assignRole('staff'));
+
+        $response = $this->postJson('/api/v1/billing/change-plan/preview', ['target_plan' => 'professional']);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('blockers.0.dimension', 'seats');
+        $this->assertCount(0, $this->stripe->planChangePreviews);
     }
 
     public function test_change_plan_requires_an_existing_stripe_subscription(): void
@@ -325,14 +399,15 @@ class BillingControllerTest extends BaseTest
         $this->tenant['staff']->forceFill(['status' => 'deactivated'])->save();
     }
 
-    private function givenAnActiveStripeSubscription(): void
+    private function givenAnActiveStripeSubscription(string $plan = 'firm', string $priceId = 'price_firm_monthly'): void
     {
-        config(['services.stripe.prices.firm.monthly' => 'price_firm_monthly']);
+        config(["services.stripe.prices.{$plan}.monthly" => $priceId]);
 
         Subscription::query()->where('provider_id', $this->tenant['provider']->id)->update([
             'stripe_customer_id' => 'cus_change_plan',
             'stripe_subscription_id' => 'sub_change_plan',
-            'stripe_price_id' => 'price_firm_monthly',
+            'stripe_price_id' => $priceId,
+            'plan' => $plan,
             'status' => 'active',
         ]);
     }
