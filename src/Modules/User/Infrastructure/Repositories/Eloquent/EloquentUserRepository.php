@@ -31,6 +31,16 @@ class EloquentUserRepository extends BaseRepository implements UserRepository
 		return $this->isExists('email', $email);
 	}
 
+	public function findByGoogleId(string $googleId): ?User
+	{
+		return $this->model->newQuery()->where('google_id', $googleId)->first();
+	}
+
+	public function findByMicrosoftId(string $microsoftId): ?User
+	{
+		return $this->model->newQuery()->where('microsoft_id', $microsoftId)->first();
+	}
+
 	public function assignProvider(User $user, int $providerId): User
 	{
 		$user->provider_id = $providerId;

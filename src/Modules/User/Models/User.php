@@ -18,7 +18,12 @@ use PactTrackSDK\SharedResources\Modules\User\Database\Factories\UserFactory;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'title', 'phone', 'avatar_path', 'password', 'provider_id', 'default_workspace_id'])]
+#[Fillable([
+    'name', 'email', 'title', 'phone', 'avatar_path', 'password', 'provider_id', 'default_workspace_id',
+    // Written only by AuthenticateViaOAuth (linking/creating via "Continue
+    // with Google/Microsoft") — never from raw request input.
+    'google_id', 'microsoft_id', 'email_verified_at',
+])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {

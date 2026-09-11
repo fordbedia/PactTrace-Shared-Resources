@@ -4,9 +4,12 @@ namespace PactTrackSDK\SharedResources\Modules\User;
 
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use SocialiteProviders\Manager\SocialiteWasCalled;
+use SocialiteProviders\Microsoft\Provider as MicrosoftSocialiteProvider;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\AccountDeletionSignalReader;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\CachedStorageUsageReader;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\DepartingStaffReassignment;
@@ -163,6 +166,15 @@ class UserProvider extends ServiceProvider
         foreach ($this->policies as $model => $policy) {
             Gate::policy($model, $policy);
         }
+
+        // laravel/socialite ships Google itself; Microsoft (Entra ID) has no
+        // built-in driver, so socialiteproviders/microsoft extends Socialite
+        // via this event instead — the package's own documented Laravel 11+
+        // registration (no EventServiceProvider exists to list it in). See
+        // OAuthController / AuthenticateViaOAuth.
+        Event::listen(function (SocialiteWasCalled $event): void {
+            $event->extendSocialite('microsoft', MicrosoftSocialiteProvider::class);
+        });
 
         // Per acting-user + invitation resend limiter (route:
         // POST team/invitations/{invitation}/resend). Keyed so one admin

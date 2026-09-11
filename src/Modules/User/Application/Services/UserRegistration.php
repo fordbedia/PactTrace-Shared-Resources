@@ -51,20 +51,27 @@ class UserRegistration
      * @param  string  $password  Plain text. The User model casts
      *                            `password => 'hashed'`; pre-hashing here would
      *                            hash it twice and lock the user out.
+     * @param  array<string, mixed>  $extraAttributes  Additional columns to set
+     *                            on create — used by AuthenticateViaOAuth to
+     *                            stamp `google_id`/`microsoft_id` and
+     *                            `email_verified_at` (an OAuth provider has
+     *                            already verified the address) in the same
+     *                            insert, rather than a second write. Every key
+     *                            must be in the model's `#[Fillable]` set.
      *
      * @throws RuntimeException when the email is already registered
      */
-    public function register(string $name, string $email, string $password, Role $role): User
+    public function register(string $name, string $email, string $password, Role $role, array $extraAttributes = []): User
     {
         $email = $this->normalizeEmail($email);
 
         $this->guardEmailIsAvailable($email);
 
-        $user = $this->users->create([
+        $user = $this->users->create(array_merge([
             'name' => trim($name),
             'email' => $email,
             'password' => $password,
-        ]);
+        ], $extraAttributes));
 
         $this->users->assignRole($user, $role);
 

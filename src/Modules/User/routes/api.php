@@ -5,6 +5,7 @@ use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\BillingController
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\BrandingController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\PlanController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\PlanUsageController;
+use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\OAuthController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\ProfileController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\RegistrationController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\SessionController;
@@ -156,4 +157,28 @@ Route::prefix('v1')->group(function () {
 	// `stripe listen --forward-to http://localhost/api/v1/stripe/webhook`
 	// comment in configs/.env.local.
 	Route::post('stripe/webhook', StripeWebhookController::class)->name('stripe.webhook');
+});
+
+// "Continue with Google" / "Continue with Microsoft" on /sign-in and
+// /sign-up. Deliberately OUTSIDE the `v1` prefix above and outside
+// auth:sanctum: these are the routes that *establish* a session (same
+// reasoning as `POST v1/auth/login`), and the path shape
+// (`/api/auth/{provider}/...`, no `v1`) is what's already registered as the
+// redirect URI in the Google Cloud Console / Azure App registration — see
+// GOOGLE_REDIRECT_URI / MICROSOFT_REDIRECT_URI in configs/.env.*. Changing
+// this path requires updating both consoles to match.
+//
+// `{provider}` is constrained here, not left to OAuthController, so an
+// arbitrary string can never reach Socialite::driver(). Applied per-route
+// rather than on the `prefix()` group: RouteRegistrar's `where()` (the group
+// builder returned by `prefix()`) only accepts a single array argument, not
+// the two-positional-argument form `Route::get(...)->where($name, $expr)`
+// gives on an individual route.
+Route::prefix('auth/{provider}')->name('oauth.')->group(function () {
+	Route::get('redirect', [OAuthController::class, 'redirect'])
+		->where('provider', 'google|microsoft')
+		->name('redirect');
+	Route::get('callback', [OAuthController::class, 'callback'])
+		->where('provider', 'google|microsoft')
+		->name('callback');
 });

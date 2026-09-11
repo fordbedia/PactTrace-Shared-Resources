@@ -66,6 +66,13 @@ class RegisterProvider
      *                                  invalid choice throws, because at that
      *                                  point it is a mistake worth reporting
      *                                  rather than something to silently fix.
+     * @param  array<string, mixed>  $ownerAttributes  Extra columns forwarded
+     *                                  to `UserRegistration::register()` for
+     *                                  the owner row — e.g. `google_id` /
+     *                                  `microsoft_id` / `email_verified_at`
+     *                                  from an OAuth sign-up
+     *                                  (AuthenticateViaOAuth). Empty for the
+     *                                  ordinary password sign-up path.
      *
      * @throws \RuntimeException         when the email is already registered
      * @throws \InvalidArgumentException when an explicitly chosen subdomain is
@@ -78,6 +85,7 @@ class RegisterProvider
         string $businessName,
         ?string $subdomain = null,
         string $plan = 'professional',
+        array $ownerAttributes = [],
     ): Provider {
         // Resolved before the transaction opens: this is pure computation, and
         // a malformed explicit subdomain should fail without having touched the
@@ -93,8 +101,9 @@ class RegisterProvider
             $businessName,
             $desired,
             $plan,
+            $ownerAttributes,
         ): Provider {
-            $owner = $this->registration->register($name, $email, $password, Role::Owner);
+            $owner = $this->registration->register($name, $email, $password, Role::Owner, $ownerAttributes);
 
             $trialEndsAt = now()->addDays(self::TRIAL_DAYS);
 

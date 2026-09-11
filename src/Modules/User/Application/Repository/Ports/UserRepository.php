@@ -30,6 +30,15 @@ interface UserRepository
     public function emailExists(string $email): bool;
 
     /**
+     * Look up a user by their linked Google/Microsoft account id
+     * (`users.google_id` / `users.microsoft_id`) — the fast path
+     * AuthenticateViaOAuth checks before falling back to `findByEmail()`.
+     */
+    public function findByGoogleId(string $googleId): ?User;
+
+    public function findByMicrosoftId(string $microsoftId): ?User;
+
+    /**
      * Back-fill the tenant on a user created before its Provider row existed.
      *
      * Named explicitly rather than a generic `update()` because BaseRepository
