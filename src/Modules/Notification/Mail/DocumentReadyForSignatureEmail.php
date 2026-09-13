@@ -4,6 +4,7 @@ namespace PactTrackSDK\SharedResources\Modules\Notification\Mail;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -33,10 +34,22 @@ class DocumentReadyForSignatureEmail extends Mailable
     ) {
     }
 
+    /**
+     * `from`/`replyTo` use the tenant's own Email Branding settings — see
+     * ClientInvitationEmail::envelope()'s docblock for the full rationale
+     * (ungated sender name/reply-to; FROM address stays the platform's own).
+     */
     public function envelope(): Envelope
     {
         return new Envelope(
             subject: 'A document is ready for your signature',
+            from: new Address(
+                (string) config('mail.from.address'),
+                $this->providerData->email_sender_name ?: $this->providerData->business_name,
+            ),
+            replyTo: $this->providerData->email_reply_to !== null
+                ? [new Address($this->providerData->email_reply_to)]
+                : [],
         );
     }
 
@@ -46,9 +59,10 @@ class DocumentReadyForSignatureEmail extends Mailable
             view: 'notification::emails.document-ready-for-signature',
             with: [
                 'brandingEnabled' => $this->providerData->allowsCustomBranding(),
+                'poweredByFooter' => $this->providerData->showsPoweredByFooter(),
                 'providerName' => $this->providerData->business_name,
                 'primaryColor' => $this->providerData->primary_color,
-                'logoUrl' => $this->providerData->logo_path,
+                'logoUrl' => $this->providerData->logo_url,
                 'clientName' => $this->clientName,
                 'documentName' => $this->documentName,
                 'portalUrl' => $this->portalUrl,

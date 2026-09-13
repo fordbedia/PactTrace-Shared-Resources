@@ -4,6 +4,8 @@ namespace PactTrackSDK\SharedResources\TestCase;
 
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Ports\ESignatureProvider;
 use PactTrackSDK\SharedResources\Modules\Signature\Infrastructure\Fake\FakeSignatureProvider;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\CustomHostnameProvisioner;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Provisioning\FakeCustomHostnameProvisioner;
 use PactTrackSDK\SharedResources\SharedResourceServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Spatie\Permission\PermissionServiceProvider;
@@ -38,6 +40,13 @@ abstract class BaseTest extends Orchestra
         // DocusignSignatureProviderTest) rebind this locally with
         // Http::fake() instead of relying on this default.
         $this->app->bind(ESignatureProvider::class, FakeSignatureProvider::class);
+
+        // Never let the test suite reach the real Cloudflare API — see
+        // .claude/rules/branding.md, "Custom Domain". singleton() (not
+        // bind(), unlike ESignatureProvider above) so a test can resolve the
+        // SAME instance the request used afterward and inspect its
+        // recorded `calls` — see CustomDomainControllerTest.
+        $this->app->singleton(CustomHostnameProvisioner::class, FakeCustomHostnameProvisioner::class);
     }
 
 	protected function getEnvironmentSetUp($app): void

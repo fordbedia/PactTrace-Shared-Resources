@@ -11,6 +11,11 @@ use PactTrackSDK\SharedResources\Modules\Notification\Application\DTO\AuditLogLi
 use PactTrackSDK\SharedResources\Modules\Notification\Application\Ports\Repository\AuditLogRepository;
 use PactTrackSDK\SharedResources\Modules\Notification\Infrastructure\Repositories\BaseRepository;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
+use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
+use PactTrackSDK\SharedResources\Modules\Workspace\Models\Scopes\WorkspaceScope;
 
 class EloquentAuditLogRepository extends BaseRepository implements AuditLogRepository
 {
@@ -77,6 +82,28 @@ class EloquentAuditLogRepository extends BaseRepository implements AuditLogRepos
             ->orderBy('action')
             ->pluck('action')
             ->all();
+    }
+
+
+    /**
+     * @see AuditLogRepository::recentForClient()
+     */
+    public function recentForClient(int $providerId, int $clientId, int $limit): Collection
+    {
+        return $this->baseQuery($providerId)
+            ->whereHasMorph(
+                'auditable',
+                [Matter::class, Document::class, Envelope::class, MessageThread::class],
+                // Drops WorkspaceScope, same as EloquentClientNotificationSignalReader:
+                // a client's activity spans every workspace they have matters in,
+                // not just whichever one is currently active.
+                fn (Builder $query) => $query->withoutGlobalScope(WorkspaceScope::class)->where('client_id', $clientId),
+            )
+            ->with('user')
+            ->latest()
+            ->latest('id')
+            ->limit($limit)
+            ->get();
     }
 
     /**

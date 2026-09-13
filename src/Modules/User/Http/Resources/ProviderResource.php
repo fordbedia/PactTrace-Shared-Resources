@@ -30,8 +30,26 @@ class ProviderResource extends JsonResource
         return [
             'id' => $this->id,
             'business_name' => $this->business_name,
+            // Firm Details card on /account-settings — see
+            // .claude/rules/account-settings.md. Distinct from the acting
+            // user's own `email`/`phone` (see .claude/rules/profile.md).
+            'firm_email' => $this->firm_email,
+            'firm_phone' => $this->firm_phone,
+            'address_line1' => $this->address_line1,
+            'address_line2' => $this->address_line2,
             'subdomain' => $this->subdomain,
             'custom_domain' => $this->custom_domain,
+            // Verification/provisioning lifecycle for the Custom Domain card
+            // — see .claude/rules/branding.md, "Custom Domain".
+            // `custom_domain_target` is the constant CNAME target every
+            // tenant's DNS points at (not tenant-specific), included here so
+            // the frontend never has to hardcode it separately.
+            'custom_domain_status' => $this->custom_domain_status,
+            'custom_domain_verification_token' => $this->custom_domain_verification_token,
+            'custom_domain_verified_at' => $this->custom_domain_verified_at?->toIso8601String(),
+            'custom_domain_ssl_status' => $this->custom_domain_ssl_status,
+            'custom_domain_target' => config('branding.custom_domain_target'),
+            'custom_domain_verification_prefix' => config('branding.custom_domain_verification_prefix'),
             'logo_path' => $this->logo_path,
             // Public URL of the uploaded portal logo, or null (the portal
             // renders the PactTrack mark then). Same Infrastructure-concern

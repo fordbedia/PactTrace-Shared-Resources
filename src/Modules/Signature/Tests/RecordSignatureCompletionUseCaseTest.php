@@ -6,6 +6,7 @@ namespace PactTrackSDK\SharedResources\Modules\Signature\Tests;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
@@ -71,6 +72,50 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
                 && str_ends_with($mail->portalUrl, "/portal/matter/{$this->tenant['matter']->public_id}")
                 && $mail->workspaceName === $this->tenant['workspace']->name
                 && str_contains($mail->render(), $this->tenant['workspace']->name),
+        );
+    }
+
+    /**
+     * Resolved bug, recorded so it doesn't regress: `DocumentReadyForSignatureEmail`
+     * / `GuestSigningInvitationEmail` used to be built with
+     * `providerData->logo_path` — the raw `providers.logo_path` storage key
+     * fed straight into the email's `<img src>` with no scheme or host, so
+     * the logo rendered broken wherever the message was previewed.
+     * `RecordSignatureCompletionUseCase::providerDataArray()` now resolves
+     * it through `ProviderLogoStorage::url()` (the same port
+     * `ProviderResource.logo_url` and `/dashboard/branding` use) before
+     * building the DTO. See .claude/rules/branding.md and
+     * .claude/rules/notification.md, "Client-facing vs. internal email
+     * branding".
+     */
+    public function test_sent_event_email_carries_a_real_absolute_logo_url_not_the_raw_storage_path(): void
+    {
+        Mail::fake();
+        // `Storage::fake('public')` alone drops the disk's real `url` config
+        // (Laravel's fake-disk builder doesn't carry it over) — pass it back
+        // explicitly so `.url()` here behaves like the real 'public' disk
+        // does (an absolute URL under APP_URL), which is exactly the
+        // production behaviour this test is guarding.
+        Storage::fake('public', ['url' => rtrim((string) config('app.url'), '/') . '/storage']);
+
+        $rawPath = 'provider-logos/' . $this->tenant['provider']->id . '/logo.png';
+        Storage::disk('public')->put($rawPath, 'fake-bytes');
+        $this->tenant['provider']->update(['logo_path' => $rawPath, 'disk' => 'public']);
+
+        $envelope = $this->envelope(EnvelopeStatus::Draft, DocumentStatus::Draft);
+
+        $this->useCase->handle($this->event('sent', $envelope));
+
+        Mail::assertQueued(
+            DocumentReadyForSignatureEmail::class,
+            function (DocumentReadyForSignatureEmail $mail) use ($rawPath) {
+                $logoUrl = $mail->providerData->logo_url;
+
+                return $logoUrl !== null
+                    && $logoUrl !== $rawPath
+                    && str_starts_with($logoUrl, 'http')
+                    && str_ends_with($logoUrl, $rawPath);
+            },
         );
     }
 

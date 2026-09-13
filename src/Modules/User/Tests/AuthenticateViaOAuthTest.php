@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace PactTrackSDK\SharedResources\Modules\User\Tests;
 
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Auth\AuthenticateViaOAuth;
-use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\OAuthAccountNotFoundException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\OAuthIdentity;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
@@ -15,7 +14,10 @@ use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 /**
  * The matching/linking/creation rule behind "Continue with Google/Microsoft"
  * — see AuthenticateViaOAuth's own docblock for the full decision table.
- * OAuthControllerTest covers the HTTP layer on top of this.
+ * Identical whichever page the click came from (/sign-in or /sign-up) —
+ * OAuthController only uses `?intent=` to pick a failure-redirect target,
+ * never passed into this class. OAuthControllerTest covers the HTTP layer
+ * on top of this.
  */
 class AuthenticateViaOAuthTest extends BaseTest
 {
@@ -35,7 +37,7 @@ class AuthenticateViaOAuthTest extends BaseTest
 
         $identity = new OAuthIdentity(OAuthIdentity::GOOGLE, 'g-123', 'jane@example.test', 'Jane Doe');
 
-        $result = $this->useCase->handle($identity, AuthenticateViaOAuth::INTENT_LOGIN);
+        $result = $this->useCase->handle($identity);
 
         $this->assertFalse($result->created);
         $this->assertSame($user->id, $result->user->id);
@@ -52,7 +54,7 @@ class AuthenticateViaOAuthTest extends BaseTest
         // way password sign-in normalises it.
         $identity = new OAuthIdentity(OAuthIdentity::GOOGLE, 'g-999', 'JANE@Example.Test', 'Jane Doe');
 
-        $result = $this->useCase->handle($identity, AuthenticateViaOAuth::INTENT_LOGIN);
+        $result = $this->useCase->handle($identity);
 
         $this->assertFalse($result->created);
         $this->assertSame('g-999', $user->fresh()->google_id);
@@ -64,7 +66,7 @@ class AuthenticateViaOAuthTest extends BaseTest
         $user->assignRole(Role::Owner->value);
 
         $identity = new OAuthIdentity(OAuthIdentity::MICROSOFT, 'm-456', 'jane@example.test', 'Jane Doe');
-        $this->useCase->handle($identity, AuthenticateViaOAuth::INTENT_LOGIN);
+        $this->useCase->handle($identity);
 
         $fresh = $user->fresh();
         $this->assertSame('g-123', $fresh->google_id);
@@ -83,31 +85,24 @@ class AuthenticateViaOAuthTest extends BaseTest
 
         $identity = new OAuthIdentity(OAuthIdentity::GOOGLE, 'g-different', 'jane@example.test', 'Jane Doe');
 
-        $result = $this->useCase->handle($identity, AuthenticateViaOAuth::INTENT_LOGIN);
+        $result = $this->useCase->handle($identity);
 
         $this->assertFalse($result->created);
         $this->assertSame($user->id, $result->user->id);
         $this->assertSame('g-original', $user->fresh()->google_id);
     }
 
-    public function test_sign_in_never_creates_an_account_for_an_unregistered_email(): void
-    {
-        $identity = new OAuthIdentity(OAuthIdentity::GOOGLE, 'g-1', 'nobody@example.test', 'Nobody');
-
-        $this->expectException(OAuthAccountNotFoundException::class);
-
-        try {
-            $this->useCase->handle($identity, AuthenticateViaOAuth::INTENT_LOGIN);
-        } finally {
-            $this->assertNull(User::query()->where('email', 'nobody@example.test')->first());
-        }
-    }
-
-    public function test_sign_up_creates_a_full_provider_account_for_an_unregistered_email(): void
+    /**
+     * Decided by Ed 2026-09-12: an earlier version refused to create an
+     * account from a plain "Continue with Google" (no `?intent=register`)
+     * and told the user to use /sign-up instead. That extra step was
+     * dropped — both pages link-or-create identically now.
+     */
+    public function test_it_creates_a_full_provider_account_for_an_unregistered_email(): void
     {
         $identity = new OAuthIdentity(OAuthIdentity::GOOGLE, 'g-1', 'new@example.test', 'New Person');
 
-        $result = $this->useCase->handle($identity, AuthenticateViaOAuth::INTENT_REGISTER);
+        $result = $this->useCase->handle($identity);
 
         $this->assertTrue($result->created);
         $this->assertSame(Role::Owner, $result->user->primaryRole());
@@ -119,16 +114,25 @@ class AuthenticateViaOAuthTest extends BaseTest
         // one owner, wired both ways (see RegisterProvider / .claude/rules/user.md).
         $provider = Provider::query()->where('owner_user_id', $result->user->id)->sole();
         $this->assertSame((int) $provider->getKey(), (int) $result->user->fresh()->provider_id);
+
+        // No real practice name to give the workspace — see
+        // deriveBusinessName() — so it's marked as needing setup, forcing the
+        // owner through /dashboard/create-workspace with no skip (frontend
+        // ProtectedRoute; see .claude/rules/workspace.md).
+        $workspace = \PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace::query()
+            ->where('provider_id', $provider->getKey())
+            ->sole();
+        $this->assertTrue($workspace->needs_setup);
     }
 
-    public function test_sign_up_reuses_an_existing_account_instead_of_creating_a_duplicate(): void
+    public function test_it_reuses_an_existing_account_instead_of_creating_a_duplicate(): void
     {
         $user = User::factory()->create(['email' => 'jane@example.test']);
         $user->assignRole(Role::Owner->value);
         $usersBefore = User::count();
 
         $identity = new OAuthIdentity(OAuthIdentity::GOOGLE, 'g-1', 'jane@example.test', 'Jane Doe');
-        $result = $this->useCase->handle($identity, AuthenticateViaOAuth::INTENT_REGISTER);
+        $result = $this->useCase->handle($identity);
 
         $this->assertFalse($result->created);
         $this->assertSame($user->id, $result->user->id);

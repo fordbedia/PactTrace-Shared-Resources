@@ -96,15 +96,24 @@ class OAuthControllerTest extends BaseTest
         $response->assertRedirect('https://portal.example.test/portal');
     }
 
-    public function test_sign_in_for_an_unregistered_email_does_not_create_an_account(): void
+    /**
+     * Decided by Ed 2026-09-12: a plain "Continue with Google" click on
+     * /sign-in (no `?intent=register`) now creates an account too, same as
+     * /sign-up — see AuthenticateViaOAuth's own docblock for why the earlier
+     * refuse-and-point-at-sign-up behaviour was dropped.
+     */
+    public function test_sign_in_without_intent_also_creates_an_account_for_an_unregistered_email(): void
     {
-        Socialite::fake('google', $this->fakeGoogleUser('g-new', 'nobody@example.test'));
+        Socialite::fake('google', $this->fakeGoogleUser('g-new', 'nobody@example.test', 'Nobody'));
 
         $response = $this->get('/api/auth/google/callback');
 
-        $response->assertRedirect('https://portal.example.test/sign-in?oauth_error=no_account');
-        $this->assertNull(User::query()->where('email', 'nobody@example.test')->first());
-        $this->assertGuest();
+        $response->assertRedirect('https://portal.example.test/dashboard/create-workspace?onboarding=1');
+
+        $user = User::query()->where('email', 'nobody@example.test')->sole();
+        $this->assertSame(Role::Owner, $user->primaryRole());
+        $this->assertSame('g-new', $user->google_id);
+        $this->assertSame($user->id, auth()->id());
     }
 
     public function test_sign_up_intent_creates_a_new_provider_account_for_an_unregistered_email(): void

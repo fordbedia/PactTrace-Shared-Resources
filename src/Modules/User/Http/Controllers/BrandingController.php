@@ -13,10 +13,13 @@ use InvalidArgumentException;
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
 use PactTrackSDK\SharedResources\Modules\User\Application\Services\UserHintCookie;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Branding\RemoveProviderLogo;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Branding\SaveCustomDomain;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Branding\UpdateProviderBranding;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Branding\UpdateProviderLogo;
+use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Branding\VerifyCustomDomain;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
+use PactTrackSDK\SharedResources\Modules\User\Http\Requests\SaveCustomDomainRequest;
 use PactTrackSDK\SharedResources\Modules\User\Http\Requests\UpdateBrandingRequest;
 use PactTrackSDK\SharedResources\Modules\User\Http\Requests\UpdateProviderLogoRequest;
 use PactTrackSDK\SharedResources\Modules\User\Http\Resources\UserResource;
@@ -46,6 +49,8 @@ class BrandingController extends Controller
         private readonly RemoveProviderLogo $removeLogo,
         private readonly ProviderRepository $providers,
         private readonly UserHintCookie $hintCookie,
+        private readonly SaveCustomDomain $saveCustomDomain,
+        private readonly VerifyCustomDomain $verifyCustomDomain,
     ) {
     }
 
@@ -122,6 +127,50 @@ class BrandingController extends Controller
             'available' => ! $taken,
             'reason' => $taken ? 'That subdomain is already taken.' : null,
         ]);
+    }
+
+    /**
+     * PUT /api/v1/branding/custom-domain — the Custom Domain card's own save
+     * action. Generates a fresh verification token and resets the domain to
+     * `pending` whenever the domain string actually changes (see
+     * SaveCustomDomain / Domain\Services\CustomDomainAssignment).
+     */
+    public function saveCustomDomain(SaveCustomDomainRequest $request): JsonResponse
+    {
+        [$user, $provider] = $this->gate($request);
+        $this->assertPlan($provider, 'allowsCustomDomain');
+
+        try {
+            $this->saveCustomDomain->handle($user, $provider, $request->validated('custom_domain'));
+        } catch (InvalidArgumentException $e) {
+            throw ValidationException::withMessages(['custom_domain' => [$e->getMessage()]]);
+        }
+
+        return $this->freshUser($request);
+    }
+
+    /**
+     * POST /api/v1/branding/custom-domain/verify — the "Verify" button.
+     * Returns the fresh user payload plus a `verification` block reporting
+     * exactly which record (TXT and/or CNAME) is still missing, so the
+     * frontend can show the specific gap rather than a generic failure.
+     */
+    public function verifyCustomDomain(Request $request): JsonResponse
+    {
+        [, $provider] = $this->gate($request);
+        $this->assertPlan($provider, 'allowsCustomDomain');
+
+        try {
+            $result = $this->verifyCustomDomain->handle($provider);
+        } catch (InvalidArgumentException $e) {
+            throw ValidationException::withMessages(['custom_domain' => [$e->getMessage()]]);
+        }
+
+        $response = $this->freshUser($request);
+        $payload = $response->getData(true);
+        $payload['verification'] = $result['verification']->toArray();
+
+        return response()->json($payload);
     }
 
     /**

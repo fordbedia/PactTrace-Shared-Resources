@@ -126,6 +126,11 @@ class UserRegistrationTest extends BaseTest
         // deactivated. RegisterProvider is the only place this flag is set.
         $this->assertTrue($workspace->is_primary);
 
+        // A password sign-up collects a real practice name up front, so
+        // there's nothing to force the owner back to finish — see
+        // test_an_oauth_signup_marks_its_workspace_as_needing_setup below.
+        $this->assertFalse($workspace->needs_setup);
+
         // The Subscription row is the authoritative billing record; provider.plan
         // above is only its denormalized cache — assert both agree.
         $subscription = Subscription::where('provider_id', $provider->getKey())->sole();
@@ -133,6 +138,33 @@ class UserRegistrationTest extends BaseTest
         $this->assertSame('trialing', $subscription->status);
         $this->assertNotNull($subscription->trial_ends_at);
         $this->assertTrue($subscription->trial_ends_at->isFuture());
+    }
+
+    /**
+     * The OAuth sign-up path (AuthenticateViaOAuth) has no real practice name
+     * to give the workspace — `$businessName` there is a placeholder derived
+     * from the OAuth profile — so it passes `workspaceNeedsSetup: true` to
+     * force the owner through /dashboard/create-workspace before anything
+     * else, with no skip. See RegisterProvider's own docblock.
+     */
+    public function test_an_oauth_signup_marks_its_workspace_as_needing_setup(): void
+    {
+        $provider = $this->app->make(RegisterProvider::class)->handle(
+            'Jane Doe',
+            'jane@example.test',
+            'secret-password',
+            "Jane Doe's Workspace",
+            workspaceNeedsSetup: true,
+        );
+
+        $workspace = \PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace::query()
+            ->where('provider_id', $provider->getKey())
+            ->sole();
+
+        $this->assertTrue($workspace->needs_setup);
+        // Still the tenant's sole, primary workspace — the flag only changes
+        // whether it's finished, not any of its other properties.
+        $this->assertTrue($workspace->is_primary);
     }
 
     public function test_signup_honors_an_explicitly_chosen_plan(): void

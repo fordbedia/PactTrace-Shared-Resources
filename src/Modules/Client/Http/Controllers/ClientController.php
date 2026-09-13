@@ -8,10 +8,12 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use PactTrackSDK\SharedResources\Modules\Client\Application\Action\ListClientsHandler;
 use PactTrackSDK\SharedResources\Modules\Client\Application\Action\SearchClientsHandler;
+use PactTrackSDK\SharedResources\Modules\Client\Application\UseCases\GetClientOverview;
 use PactTrackSDK\SharedResources\Modules\Client\Application\UseCases\InviteClient;
 use PactTrackSDK\SharedResources\Modules\Client\Application\DTO\ClientData;
 use PactTrackSDK\SharedResources\Modules\Client\Application\DTO\ClientListData;
 use PactTrackSDK\SharedResources\Modules\Client\Application\DTO\ClientSearchData;
+use PactTrackSDK\SharedResources\Modules\Client\Http\Resources\ClientOverviewResource;
 use PactTrackSDK\SharedResources\Modules\Client\Http\Resources\ClientResource;
 use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 use Illuminate\Http\Request;
@@ -19,7 +21,9 @@ use PactTrackSDK\SharedResources\Modules\Client\Http\Requests\ClientFormRequest;
 use PactTrackSDK\SharedResources\Modules\Notification\Application\DTO\ClientInvitationData;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\ClientInvitationEmail;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\DTO\ProviderData;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\ProviderLogoStorage;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\GatedAction;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 
 class ClientController extends Controller
 {
@@ -69,7 +73,7 @@ class ClientController extends Controller
 
 		$resource = new ClientResource($client);
 
-		$provider = auth()->user()->provider?->toArray();
+		$provider = $this->providerDataArray(auth()->user()->provider);
 
 		// Email client that they've been invited, with a link carrying the
 		// token AcceptClientInvitation will need to let them set a password.
@@ -100,12 +104,56 @@ class ClientController extends Controller
 
         [$client, $invitation] = $handler->handle($data, auth()->id());
 
-        $provider = auth()->user()->provider?->toArray();
+        $provider = $this->providerDataArray(auth()->user()->provider);
 
         $invitationData = ClientInvitationData::fromClientData($data, auth()->user()->name, $invitation->token);
         Mail::to($data->email)->send(new ClientInvitationEmail(ProviderData::fromArray($provider), $invitationData));
 
         return new ClientResource($client);
+    }
+
+    /**
+     * `auth()->user()->provider->toArray()` alone leaves `logo_path` as a
+     * bare storage key (e.g. `provider-logos/13/uuid-name.png`) — no
+     * scheme, no host. `ClientInvitationEmail`'s `<img src="{{ $logoUrl }}">`
+     * needs a real, publicly-reachable URL, so this resolves it through the
+     * same `ProviderLogoStorage` port `ProviderResource.logo_url` and
+     * `/dashboard/branding` already use, and folds it into the array as
+     * `logo_url` for `ProviderData::fromArray()` to pick up. See
+     * .claude/rules/branding.md and .claude/rules/notification.md, "Client-
+     * facing vs. internal email branding".
+     *
+     * @return array<string, mixed>
+     */
+    private function providerDataArray(?Provider $provider): array
+    {
+        if ($provider === null) {
+            return [];
+        }
+
+        $data = $provider->toArray();
+        $data['logo_url'] = $provider->logo_path !== null
+            ? app(ProviderLogoStorage::class)->url($provider->logo_path)
+            : null;
+
+        return $data;
+    }
+
+    /**
+     * The Client Detail page's Overview tab
+     * (`/dashboard/clients`, see .claude/rules/client.md) — Matters/
+     * Documents/Envelopes/Messages stat cards, the "Open Matters" panel,
+     * and the "Recent Activity" feed, composed by GetClientOverview. Same
+     * `view` gate as a plain show() would use; route-model-bound so a
+     * client belonging to another tenant 404s before the handler ever runs.
+     */
+    public function overview(Client $client, GetClientOverview $handler)
+    {
+        Gate::authorize('view', $client);
+
+        $summary = $handler->handle($client->provider_id, $client->id, auth()->id());
+
+        return new ClientOverviewResource($summary);
     }
 
     /**

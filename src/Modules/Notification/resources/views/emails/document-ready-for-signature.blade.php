@@ -65,6 +65,7 @@
         @include('notification::emails.partials.client-email-footer', [
             'providerName' => $providerName ?? 'PactTrack',
             'brandingEnabled' => $brandingEnabled,
+            'poweredByFooter' => $poweredByFooter ?? true,
         ])
 
     </div>

@@ -9,7 +9,6 @@ use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\UserR
 use PactTrackSDK\SharedResources\Modules\User\Application\Services\UserAuthentication;
 use PactTrackSDK\SharedResources\Modules\User\Application\Services\UserHintCookie;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\RegisterProvider;
-use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\OAuthAccountNotFoundException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\OAuthAuthenticationResult;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\OAuthIdentity;
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
@@ -19,7 +18,12 @@ use PactTrackSDK\SharedResources\Modules\User\Models\User;
  * OAuthController is a thin inbound adapter that only translates a Socialite
  * user into an OAuthIdentity and calls this.
  *
- * Matching/creation rule (see the sign-in/sign-up feature's build prompt):
+ * Matching/creation rule — identical whichever page the click came from
+ * (decided by Ed 2026-09-12: an earlier version refused to create an account
+ * from /sign-in and asked the user to use /sign-up instead; that extra step
+ * added no real protection — Google/Microsoft only ever hand back a
+ * provider-verified email, so there's no "impersonating someone else's
+ * address" risk either page could guard against that the other can't):
  *
  *   1. An account already linked to this exact external identity
  *      (`users.google_id`/`microsoft_id`) — sign it in. The common case on a
@@ -27,18 +31,16 @@ use PactTrackSDK\SharedResources\Modules\User\Models\User;
  *   2. No linked account, but an account already exists with this email —
  *      link the identity onto it and sign it in. Handles the person who
  *      signed up with a password (or a different provider) and later clicks
- *      "Continue with Google" using the same address. Google and Microsoft
- *      both only hand back a *verified* email, so trusting the match here is
- *      no weaker than trusting a password-reset email link.
- *   3. No account at all:
- *        - `$intent === 'register'` (came from /sign-up) — create one
- *          through RegisterProvider, the same use case the password sign-up
- *          form uses, so every side effect (default workspace, trial,
- *          `default_workspace_id`) happens in exactly one place.
- *        - otherwise (came from /sign-in) — throw
- *          OAuthAccountNotFoundException. /sign-in never silently creates an
- *          account; the frontend routes this to an inline "sign up instead"
- *          error.
+ *      "Continue with Google" using the same address.
+ *   3. No account at all — create one through RegisterProvider, the same use
+ *      case the password sign-up form uses, so every side effect (default
+ *      workspace, trial, `default_workspace_id`) happens in exactly one
+ *      place. This now happens from either page.
+ *
+ * `OAuthController` still reads `?intent=` off the request, but only to pick
+ * which of its own pages a *failure* (`oauth_failed`/`no_email`) bounces
+ * back to — it's no longer passed down here, since this class no longer has
+ * a decision that depends on it.
  *
  * Multiple linked providers on one account are allowed, not blocked: Google
  * and Microsoft each get their own column, so a user who first linked Google
@@ -51,10 +53,6 @@ use PactTrackSDK\SharedResources\Modules\User\Models\User;
  */
 class AuthenticateViaOAuth
 {
-    public const INTENT_REGISTER = 'register';
-
-    public const INTENT_LOGIN = 'login';
-
     public function __construct(
         private readonly UserRepository $users,
         private readonly RegisterProvider $registerProvider,
@@ -64,13 +62,8 @@ class AuthenticateViaOAuth
     ) {
     }
 
-    /**
-     * @throws OAuthAccountNotFoundException when $intent is not 'register'
-     *                                        and no account matches
-     */
     public function handle(
         OAuthIdentity $identity,
-        string $intent,
         ?string $ipAddress = null,
         ?string $userAgent = null,
     ): OAuthAuthenticationResult {
@@ -91,12 +84,6 @@ class AuthenticateViaOAuth
             return OAuthAuthenticationResult::signedIn($existing);
         }
 
-        if ($intent !== self::INTENT_REGISTER) {
-            throw new OAuthAccountNotFoundException(
-                "No PactTrack account is registered for [{$identity->email}]."
-            );
-        }
-
         $provider = $this->registerProvider->handle(
             name: $identity->name,
             email: $identity->email,
@@ -113,6 +100,13 @@ class AuthenticateViaOAuth
                 // see OAuthIdentity's own docblock.
                 'email_verified_at' => now(),
             ],
+            // The OAuth button collects no form input, so `businessName`
+            // above is a placeholder, not a real practice name — the
+            // workspace it seeds is marked accordingly, forcing the owner
+            // through /dashboard/create-workspace before anything else (see
+            // RegisterProvider's own docblock, and ProtectedRoute on the
+            // frontend).
+            workspaceNeedsSetup: true,
         );
 
         $this->authentication->login($provider->owner);

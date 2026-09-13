@@ -10,7 +10,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Laravel\Socialite\Facades\Socialite;
 use PactTrackSDK\SharedResources\Modules\User\Application\UseCases\Auth\AuthenticateViaOAuth;
-use PactTrackSDK\SharedResources\Modules\User\Domain\Exceptions\OAuthAccountNotFoundException;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\OAuthAuthenticationResult;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\OAuthIdentity;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
@@ -38,6 +37,17 @@ use Throwable;
  */
 class OAuthController extends Controller
 {
+    /**
+     * `?intent=register`, sent only by /sign-up's buttons — the ONLY thing
+     * this still governs is which of our own pages a failure
+     * (`oauth_failed`/`no_email`) bounces back to. AuthenticateViaOAuth no
+     * longer branches on it: both /sign-in and /sign-up link-or-create the
+     * account the same way (decided by Ed 2026-09-12 — see that class's own
+     * docblock for why the earlier /sign-in-never-creates behaviour was
+     * dropped).
+     */
+    private const INTENT_REGISTER = 'register';
+
     public function __construct(
         private readonly AuthenticateViaOAuth $authenticateViaOAuth,
     ) {
@@ -53,18 +63,10 @@ class OAuthController extends Controller
 
     /**
      * GET /api/auth/{provider}/callback
-     *
-     * `?intent=register` (sent only by /sign-up's buttons) is what tells
-     * AuthenticateViaOAuth it's allowed to create a brand-new provider
-     * account when no match is found; its absence (the /sign-in buttons)
-     * means "sign in only, never create."
      */
     public function callback(Request $request, string $provider): RedirectResponse
     {
-        $intent = $request->query('intent') === AuthenticateViaOAuth::INTENT_REGISTER
-            ? AuthenticateViaOAuth::INTENT_REGISTER
-            : AuthenticateViaOAuth::INTENT_LOGIN;
-        $originPage = $intent === AuthenticateViaOAuth::INTENT_REGISTER ? '/sign-up' : '/sign-in';
+        $originPage = $request->query('intent') === self::INTENT_REGISTER ? '/sign-up' : '/sign-in';
 
         try {
             $socialiteUser = Socialite::driver($provider)->user();
@@ -92,16 +94,7 @@ class OAuthController extends Controller
         );
 
         try {
-            $result = $this->authenticateViaOAuth->handle(
-                $identity,
-                $intent,
-                $request->ip(),
-                $request->userAgent(),
-            );
-        } catch (OAuthAccountNotFoundException $e) {
-            Log::info("OAuthController: [{$provider}] sign-in attempted for an unregistered email.");
-
-            return $this->redirectWithError('/sign-in', 'no_account');
+            $result = $this->authenticateViaOAuth->handle($identity, $request->ip(), $request->userAgent());
         } catch (Throwable $e) {
             report($e);
 

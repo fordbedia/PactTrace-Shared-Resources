@@ -80,4 +80,35 @@ class UpdateWorkspaceTest extends BaseTest
 
         $this->assertSame(WorkspaceType::General, $updated->workspace_type);
     }
+
+    /**
+     * `needs_setup` is only ever true for an OAuth sign-up's placeholder
+     * workspace (see RegisterProvider) — the onboarding screen's submit is
+     * what clears it, on every successful save, not just the first one.
+     */
+    public function test_a_successful_update_clears_needs_setup(): void
+    {
+        $workspace = Workspace::factory()->forProvider($this->tenant['provider'])
+            ->ofType(WorkspaceType::General)
+            ->create(['needs_setup' => true]);
+
+        $updated = $this->useCase()->handle($workspace, 'Doe Law', 'legal', null, null);
+
+        $this->assertFalse($updated->needs_setup);
+    }
+
+    public function test_updating_an_already_configured_workspace_leaves_needs_setup_false(): void
+    {
+        // A freshly `create()`d model's un-passed attributes read as null
+        // in-memory until refetched, even though the column default already
+        // applied in the database — `fresh()` is what a route-model-bound
+        // controller argument would actually see.
+        $workspace = Workspace::factory()->forProvider($this->tenant['provider'])
+            ->ofType(WorkspaceType::Legal)->create()->fresh();
+        $this->assertFalse($workspace->needs_setup);
+
+        $updated = $this->useCase()->handle($workspace, 'Renamed', null, null, null);
+
+        $this->assertFalse($updated->needs_setup);
+    }
 }

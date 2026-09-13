@@ -41,6 +41,7 @@ class Workspace extends Model
         'name',
         'workspace_type',
         'is_primary',
+        'needs_setup',
         'client_label',
         'engagement_label',
     ];
@@ -51,6 +52,10 @@ class Workspace extends Model
         // workspace — see the add_is_primary migration. No other surface sets
         // it; a primary workspace can never be deactivated.
         'is_primary' => 'boolean',
+        // True only for the OAuth sign-up placeholder workspace — see the
+        // add_needs_setup migration. Cleared by UpdateWorkspace::handle() on
+        // every successful save.
+        'needs_setup' => 'boolean',
     ];
 
     protected static function newFactory(): WorkspaceFactory

@@ -139,7 +139,13 @@ class GuestSigningInvitationEmailTest extends BaseTest
             business_name: 'Doe Law',
             subdomain: 'doelaw',
             plan: $plan,
-            logo_path: $logo,
+            // `$logo` here is already the resolved, publicly-reachable URL a
+            // real dispatch site would compute via `ProviderLogoStorage::url()`
+            // — see .claude/rules/branding.md and each `RecordSignatureCompletionUseCase`/
+            // `ClientController` call site's own `providerDataArray()` helper.
+            // The Mailable reads `logo_url`, never the raw `logo_path` storage
+            // key, so that's what this fixture sets.
+            logo_url: $logo,
             primary_color: $color,
         );
     }

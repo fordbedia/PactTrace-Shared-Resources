@@ -27,4 +27,28 @@ interface ProviderRepository
      * where the tenant's own current subdomain must not report as taken.
      */
     public function subdomainTakenByAnother(string $subdomain, int $exceptProviderId): bool;
+
+    /**
+     * Whether `$domain` is already claimed as a `custom_domain` by a
+     * provider OTHER than `$exceptProviderId` — same shape as
+     * {@see self::subdomainTakenByAnother()}, for the Custom Domain save
+     * endpoint. `custom_domain` is DB-unique, but this lets the use case
+     * report a friendly 422 instead of a raw constraint-violation 500.
+     */
+    public function customDomainTakenByAnother(string $domain, int $exceptProviderId): bool;
+
+    /**
+     * Every provider currently mid-verification — the hourly reconciliation
+     * job's input set (see Application\UseCases\Branding\ReconcilePendingCustomDomains).
+     *
+     * @return iterable<Provider>
+     */
+    public function withPendingCustomDomainVerification(): iterable;
+
+    /**
+     * The provider (if any) whose `custom_domain` equals `$host` and whose
+     * verification has actually succeeded — the request-time host-resolution
+     * middleware's one query (see Http\Middleware\ResolveProviderFromCustomHost).
+     */
+    public function findByVerifiedCustomDomain(string $host): ?Provider;
 }

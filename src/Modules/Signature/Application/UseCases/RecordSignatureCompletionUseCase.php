@@ -24,6 +24,8 @@ use PactTrackSDK\SharedResources\Modules\Signature\Domain\Exceptions\EnvelopeCan
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\WebhookEvent;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Signer;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\ProviderLogoStorage;
+use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 use Throwable;
 
 /**
@@ -88,7 +90,32 @@ class RecordSignatureCompletionUseCase
         private readonly GuestSigningTokenService $guestSigningTokenService,
         private readonly MilestoneProgressionService $milestoneProgression,
         private readonly MatterNotificationRecipientResolver $matterRecipients,
+        private readonly ProviderLogoStorage $providerLogoStorage,
     ) {
+    }
+
+    /**
+     * `$provider->toArray()` alone leaves `logo_path` as a bare storage key
+     * (e.g. `provider-logos/13/uuid-name.png`) — no scheme, no host.
+     * `DocumentReadyForSignatureEmail`/`GuestSigningInvitationEmail`'s
+     * `<img src="{{ $logoUrl }}">` needs a real, publicly-reachable URL, so
+     * this resolves it through the same `ProviderLogoStorage` port
+     * `ProviderResource.logo_url` and `/dashboard/branding` already use, and
+     * folds it into the array as `logo_url` for `ProviderData::fromArray()`
+     * to pick up. See .claude/rules/branding.md and
+     * .claude/rules/notification.md, "Client-facing vs. internal email
+     * branding".
+     *
+     * @return array<string, mixed>
+     */
+    private function providerDataArray(Provider $provider): array
+    {
+        $data = $provider->toArray();
+        $data['logo_url'] = $provider->logo_path !== null
+            ? $this->providerLogoStorage->url($provider->logo_path)
+            : null;
+
+        return $data;
     }
 
     public function handle(WebhookEvent $event): void
@@ -374,7 +401,7 @@ class RecordSignatureCompletionUseCase
             }
 
             Mail::to($client->email)->queue(new DocumentReadyForSignatureEmail(
-                providerData: ProviderData::fromArray($provider->toArray()),
+                providerData: ProviderData::fromArray($this->providerDataArray($provider)),
                 clientName: $client->name,
                 documentName: $document?->name ?? 'A document',
                 portalUrl: $this->buildPortalUrl($document),
@@ -446,7 +473,7 @@ class RecordSignatureCompletionUseCase
                     . '/portal/sign?signingLinkToken=' . $rawToken . '&envelope=' . $envelope->public_id;
 
                 Mail::to($coSigner->email)->queue(new GuestSigningInvitationEmail(
-                    providerData: ProviderData::fromArray($provider->toArray()),
+                    providerData: ProviderData::fromArray($this->providerDataArray($provider)),
                     signerName: $coSigner->name,
                     documentName: $document?->name ?? 'A document',
                     clientName: $client?->name ?? 'the client',

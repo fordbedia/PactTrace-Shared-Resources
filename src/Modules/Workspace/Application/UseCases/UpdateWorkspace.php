@@ -34,6 +34,12 @@ use PactTrackSDK\SharedResources\Modules\Workspace\Models\Workspace;
  * hook does not fire on update, so this does the equivalent by hand: a label
  * that arrives blank is refilled from the effective type's preset rather than
  * persisted as an empty string.
+ *
+ * Also unconditionally clears `needs_setup` — set only for an OAuth sign-up's
+ * placeholder workspace (see RegisterProvider) — on every successful save,
+ * onboarding or not. Writing `false` onto a workspace that was already
+ * `false` (every other caller) is a harmless no-op; there is no separate
+ * "mark onboarding complete" endpoint to keep in sync.
  */
 final class UpdateWorkspace
 {
@@ -58,6 +64,7 @@ final class UpdateWorkspace
             'workspace_type' => $type->value,
             'client_label' => $this->blankToNull($clientLabel) ?? $preset->client,
             'engagement_label' => $this->blankToNull($engagementLabel) ?? $preset->engagement,
+            'needs_setup' => false,
         ]);
     }
 

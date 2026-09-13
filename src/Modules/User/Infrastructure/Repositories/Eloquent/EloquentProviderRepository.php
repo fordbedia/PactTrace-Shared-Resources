@@ -6,6 +6,7 @@ namespace PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\
 
 use PactTrackSDK\SharedResources\Modules\User\Application\Repository\Ports\ProviderRepository;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\CustomDomainStatus;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Subdomain;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\BaseRepository;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
@@ -45,5 +46,29 @@ class EloquentProviderRepository extends BaseRepository implements ProviderRepos
 	public function isTaken(Subdomain $subdomain): bool
 	{
 		return $this->isExists('subdomain', $subdomain->value);
+	}
+
+	public function customDomainTakenByAnother(string $domain, int $exceptProviderId): bool
+	{
+		return $this->model->newQuery()
+			->where('custom_domain', $domain)
+			->whereKeyNot($exceptProviderId)
+			->exists();
+	}
+
+	public function withPendingCustomDomainVerification(): iterable
+	{
+		return $this->model->newQuery()
+			->where('custom_domain_status', CustomDomainStatus::Pending->value)
+			->whereNotNull('custom_domain')
+			->cursor();
+	}
+
+	public function findByVerifiedCustomDomain(string $host): ?Provider
+	{
+		return $this->model->newQuery()
+			->where('custom_domain', $host)
+			->where('custom_domain_status', CustomDomainStatus::Verified->value)
+			->first();
 	}
 }

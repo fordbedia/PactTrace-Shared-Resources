@@ -58,4 +58,20 @@ interface AuditLogRepository
      * @return Collection<int, AuditLog>
      */
     public function recentForProvider(int $providerId, int $limit): Collection;
+
+    /**
+     * The newest `$limit` audit rows touching one client — the Client Detail
+     * page's ("`/dashboard/clients`, see .claude/rules/client.md") Overview
+     * "Recent Activity" panel and Activity tab. `audit_logs` has no
+     * `client_id` column of its own (only the generic `auditable_type`/
+     * `auditable_id` pair — see .claude/rules/notification.md), so this
+     * matches any row whose auditable is a Matter, Document, Envelope or
+     * MessageThread belonging to `$clientId`, via `whereHasMorph` rather than
+     * a join this table has no column to support. Same tenant scoping and
+     * eager-loading as `recentForProvider()`, deliberately not a second
+     * activity-feed implementation.
+     *
+     * @return Collection<int, AuditLog>
+     */
+    public function recentForClient(int $providerId, int $clientId, int $limit): Collection;
 }

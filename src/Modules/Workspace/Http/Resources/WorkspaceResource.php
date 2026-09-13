@@ -39,6 +39,11 @@ class WorkspaceResource extends JsonResource
             // shows the right reason without a second request. Written once by
             // RegisterProvider; no surface can change it.
             'is_primary' => (bool) $this->is_primary,
+            // True only for an OAuth sign-up's placeholder workspace — the
+            // frontend's ProtectedRoute forces this workspace's owner/admin
+            // through /dashboard/create-workspace, no skip, until
+            // UpdateWorkspace clears it. See the add_needs_setup migration.
+            'needs_setup' => (bool) $this->needs_setup,
             'client_label' => $this->client_label,
             'engagement_label' => $this->engagement_label,
             'created_at' => $this->created_at?->toIso8601String(),

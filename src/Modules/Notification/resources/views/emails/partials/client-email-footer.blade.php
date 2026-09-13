@@ -2,13 +2,20 @@
     Client-facing email footer.
 
     Params:
-      $providerName    — the tenant's business name
-      $brandingEnabled — Plan::info()->allowsCustomBranding for this tenant
+      $providerName     — the tenant's business name
+      $brandingEnabled  — Plan::info()->allowsCustomBranding for this tenant
+      $poweredByFooter  — ProviderData::showsPoweredByFooter() (optional,
+                          defaults true) — only meaningful when
+                          $brandingEnabled is true; see that method's own
+                          docblock.
 
     White-labeled (Professional/Firm) tenants get ONLY their own copyright
-    line — no PactTrack mark, name, or tagline anywhere in the email. Every
-    other tenant gets the standard PactTrack footer. See
-    .claude/rules/notification.md, "Client-facing vs. internal email branding".
+    line, plus an optional small "Powered by PactTrack" line controlled by
+    the tenant's Email Branding toggle ($poweredByFooter) — no other
+    PactTrack mark, name, or tagline. Every other tenant (Starter) gets the
+    full standard PactTrack footer unconditionally; the toggle has no effect
+    there — see .claude/rules/notification.md, "Client-facing vs. internal
+    email branding", and ProviderData::showsPoweredByFooter().
 --}}
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#F0F2F5;">
     <tr>
@@ -18,6 +25,9 @@
                     <td style="text-align:center; padding:20px 16px; border-top:1px solid #E2E8F0;">
                         @if($brandingEnabled)
                             <p style="font-size:11px; color:#94A3B8; margin:0; line-height:1.6;">&copy; {{ date('Y') }} {{ $providerName }}. All rights reserved.</p>
+                            @if($poweredByFooter ?? true)
+                                <p style="font-size:10px; color:#B8C2D0; margin:6px 0 0; line-height:1.5;">Powered by PactTrack</p>
+                            @endif
                         @else
                             <p style="font-size:13px; font-weight:700; color:#64748B; letter-spacing:-0.01em; margin:0 0 6px;">PactTrack</p>
                             <p style="font-size:11px; color:#94A3B8; margin:0; line-height:1.6;">Secure client portal for solo service professionals &middot; &copy; {{ date('Y') }} PactTrack, Inc.</p>

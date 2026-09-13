@@ -646,7 +646,7 @@ CREATE TABLE `migrations` (
   `migration` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `batch` int NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=64 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=68 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -719,7 +719,11 @@ INSERT INTO `migrations` VALUES
 (60,'2026_09_07_120000_remove_workspace_id_from_clients_table',1),
 (61,'2026_09_09_120000_add_pending_plan_and_period_start_to_subscriptions_table',1),
 (62,'2026_09_10_120000_add_storage_used_bytes_to_providers_table',1),
-(63,'2026_09_11_120000_add_oauth_ids_to_users_table',1);
+(63,'2026_09_11_120000_add_oauth_ids_to_users_table',1),
+(64,'2026_09_12_120000_add_needs_setup_to_workspaces_table',1),
+(65,'2026_09_13_120000_add_custom_domain_verification_to_providers_table',1),
+(66,'2026_09_13_140000_default_email_powered_by_footer_to_false',1),
+(67,'2026_09_13_150000_add_firm_details_to_providers_table',1);
 /*!40000 ALTER TABLE `migrations` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -854,15 +858,15 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `notification_types` WRITE;
 /*!40000 ALTER TABLE `notification_types` DISABLE KEYS */;
 INSERT INTO `notification_types` VALUES
-(1,'new_doc_uploaded','New document uploaded','When a client or teammate uploads a new file.','Matters & Documents',1,1,1,0,0,0,0,'2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(2,'document_ready_for_signature','Document ready for signature','When an envelope is sent out for e-signature.','Matters & Documents',2,1,1,0,0,0,0,'2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(3,'signature_completed','Signature completed','When all parties have signed a document.','Matters & Documents',3,1,1,1,0,0,0,'2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(4,'milestone_updated','Milestone updated','When a matter\'s status or milestone changes.','Matters & Documents',4,0,1,0,0,0,0,'2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(5,'new_message_from_client','New message from a client','When a client sends you a direct message.','Messages',1,1,1,1,0,0,0,'2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(6,'unread_message_reminder','Unread message reminder','A daily nudge if a message sits unread past 24h.','Messages',2,1,0,0,0,0,0,'2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(7,'payment_received','Payment received','Confirmation when a client payment clears.','Account & Billing',1,1,1,0,0,0,0,'2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(8,'invoice_overdue','Invoice overdue','When a sent invoice passes its due date.','Account & Billing',2,1,1,0,0,0,0,'2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(9,'security_alerts','Security alerts','New sign-ins, password changes, and 2FA events.','Account & Billing',3,1,1,0,1,1,1,'2026-09-11 15:47:32','2026-09-11 15:47:32');
+(1,'new_doc_uploaded','New document uploaded','When a client or teammate uploads a new file.','Matters & Documents',1,1,1,0,0,0,0,'2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(2,'document_ready_for_signature','Document ready for signature','When an envelope is sent out for e-signature.','Matters & Documents',2,1,1,0,0,0,0,'2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(3,'signature_completed','Signature completed','When all parties have signed a document.','Matters & Documents',3,1,1,1,0,0,0,'2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(4,'milestone_updated','Milestone updated','When a matter\'s status or milestone changes.','Matters & Documents',4,0,1,0,0,0,0,'2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(5,'new_message_from_client','New message from a client','When a client sends you a direct message.','Messages',1,1,1,1,0,0,0,'2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(6,'unread_message_reminder','Unread message reminder','A daily nudge if a message sits unread past 24h.','Messages',2,1,0,0,0,0,0,'2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(7,'payment_received','Payment received','Confirmation when a client payment clears.','Account & Billing',1,1,1,0,0,0,0,'2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(8,'invoice_overdue','Invoice overdue','When a sent invoice passes its due date.','Account & Billing',2,1,1,0,0,0,0,'2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(9,'security_alerts','Security alerts','New sign-ins, password changes, and 2FA events.','Account & Billing',3,1,1,0,1,1,1,'2026-09-13 04:52:32','2026-09-13 04:52:32');
 /*!40000 ALTER TABLE `notification_types` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -954,48 +958,48 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `permissions` WRITE;
 /*!40000 ALTER TABLE `permissions` DISABLE KEYS */;
 INSERT INTO `permissions` VALUES
-(1,'provider.view','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(2,'provider.update','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(3,'provider.manage-branding','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(4,'provider.manage-billing','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(5,'user.view','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(6,'user.invite','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(7,'user.update','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(8,'user.delete','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(9,'client.view','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(10,'client.create','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(11,'client.update','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(12,'client.delete','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(13,'client.invite','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(14,'workspace.view','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(15,'workspace.create','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(16,'workspace.update','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(17,'workspace.delete','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(18,'matter.view','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(19,'matter.create','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(20,'matter.update','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(21,'matter.delete','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(22,'milestone.view','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(23,'milestone.create','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(24,'milestone.update','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(25,'milestone.delete','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(26,'document.view','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(27,'document.upload','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(28,'document.download','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(29,'document.update','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(30,'document.delete','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(31,'folder.view','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(32,'folder.create','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(33,'folder.update','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(34,'folder.delete','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(35,'envelope.view','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(36,'envelope.create','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(37,'envelope.send','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(38,'envelope.sign','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(39,'envelope.void','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(40,'message.view','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(41,'message.send','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(42,'audit-log.view','web','2026-09-11 15:47:32','2026-09-11 15:47:32');
+(1,'provider.view','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(2,'provider.update','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(3,'provider.manage-branding','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(4,'provider.manage-billing','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(5,'user.view','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(6,'user.invite','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(7,'user.update','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(8,'user.delete','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(9,'client.view','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(10,'client.create','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(11,'client.update','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(12,'client.delete','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(13,'client.invite','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(14,'workspace.view','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(15,'workspace.create','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(16,'workspace.update','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(17,'workspace.delete','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(18,'matter.view','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(19,'matter.create','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(20,'matter.update','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(21,'matter.delete','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(22,'milestone.view','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(23,'milestone.create','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(24,'milestone.update','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(25,'milestone.delete','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(26,'document.view','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(27,'document.upload','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(28,'document.download','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(29,'document.update','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(30,'document.delete','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(31,'folder.view','web','2026-09-13 04:52:31','2026-09-13 04:52:31'),
+(32,'folder.create','web','2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(33,'folder.update','web','2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(34,'folder.delete','web','2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(35,'envelope.view','web','2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(36,'envelope.create','web','2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(37,'envelope.send','web','2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(38,'envelope.sign','web','2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(39,'envelope.void','web','2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(40,'message.view','web','2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(41,'message.send','web','2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(42,'audit-log.view','web','2026-09-13 04:52:32','2026-09-13 04:52:32');
 /*!40000 ALTER TABLE `permissions` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -1049,8 +1053,17 @@ CREATE TABLE `providers` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `owner_user_id` bigint unsigned NOT NULL,
   `business_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `firm_email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `firm_phone` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `address_line1` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `address_line2` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `subdomain` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `custom_domain` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `custom_domain_status` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'unverified',
+  `custom_domain_verification_token` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `custom_domain_verified_at` timestamp NULL DEFAULT NULL,
+  `cloudflare_custom_hostname_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `custom_domain_ssl_status` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `logo_path` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `disk` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'local',
   `primary_color` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -1059,7 +1072,7 @@ CREATE TABLE `providers` (
   `locale` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `email_sender_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `email_reply_to` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `email_powered_by_footer` tinyint(1) NOT NULL DEFAULT '1',
+  `email_powered_by_footer` tinyint(1) NOT NULL DEFAULT '0',
   `plan` enum('starter','professional','firm') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'starter',
   `storage_used_bytes` bigint unsigned NOT NULL DEFAULT '0',
   `storage_recalculated_at` timestamp NULL DEFAULT NULL,
@@ -1256,10 +1269,10 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `roles` WRITE;
 /*!40000 ALTER TABLE `roles` DISABLE KEYS */;
 INSERT INTO `roles` VALUES
-(1,'owner','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(2,'admin','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(3,'staff','web','2026-09-11 15:47:32','2026-09-11 15:47:32'),
-(4,'client','web','2026-09-11 15:47:32','2026-09-11 15:47:32');
+(1,'owner','web','2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(2,'admin','web','2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(3,'staff','web','2026-09-13 04:52:32','2026-09-13 04:52:32'),
+(4,'client','web','2026-09-13 04:52:32','2026-09-13 04:52:32');
 /*!40000 ALTER TABLE `roles` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -1627,6 +1640,7 @@ CREATE TABLE `workspaces` (
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `workspace_type` enum('legal','accounting','consulting','general') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'general',
   `is_primary` tinyint(1) NOT NULL DEFAULT '0',
+  `needs_setup` tinyint(1) NOT NULL DEFAULT '0',
   `client_label` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `engagement_label` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
@@ -1669,4 +1683,4 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
 
--- Dump completed on 2026-09-11 15:47:35
+-- Dump completed on 2026-09-13  4:52:32

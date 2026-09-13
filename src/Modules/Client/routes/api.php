@@ -23,6 +23,7 @@ Route::prefix('v1')->group(function () {
 
 		Route::get('/clients/search', [ClientController::class, 'search']);
 		Route::get('/clients', [ClientController::class, 'index']);
+		Route::get('/clients/{client}/overview', [ClientController::class, 'overview']);
 		Route::post('/clients/{client}/invitations/resend', [ClientController::class, 'resendInvitation'])
 			->name('clients.invitations.resend');
 	});

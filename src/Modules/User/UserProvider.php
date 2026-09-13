@@ -25,14 +25,21 @@ use PactTrackSDK\SharedResources\Modules\User\Application\Services\StorageUsageA
 use PactTrackSDK\SharedResources\Modules\User\Console\Commands\NotifyTrialEnding;
 use PactTrackSDK\SharedResources\Modules\User\Console\Commands\ReconcileProviderStorage;
 use PactTrackSDK\SharedResources\Modules\User\Console\Commands\SyncStripePortalConfigurations;
+use PactTrackSDK\SharedResources\Modules\User\Console\Commands\ReconcilePendingCustomDomains;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\AccessTokenIssuer;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\AvatarStorage;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\BillingPortalConfigurator;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\BillingProvider;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\CustomDomainVerifier;
+use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\CustomHostnameProvisioner;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\ProviderLogoStorage;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\StripePriceCatalog;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\SubdomainAvailability;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Auth\SanctumTokenIssuer;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Dns\DnsCustomDomainVerifier;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Dns\NativeDnsRecordReader;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Provisioning\CloudflareCustomHostnameProvisioner;
+use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Provisioning\FakeCustomHostnameProvisioner;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentAccountDeletionSignals;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentCachedStorageUsageReader;
 use PactTrackSDK\SharedResources\Modules\User\Infrastructure\Repositories\Eloquent\EloquentDepartingStaffReassignment;
@@ -159,6 +166,39 @@ class UserProvider extends ServiceProvider
         $this->app->bind(BillingPortalConfigurator::class, fn ($app) => new StripeBillingPortalConfigurator(
             client: new StripeClient((string) $app['config']->get('services.stripe.secret')),
         ));
+
+        // The real DNS-lookup adapter — config values read once at
+        // resolution time (see config/branding.php, this module's own
+        // config/ directory, auto-merged by SharedResourceServiceProvider).
+        // TestCase\BaseTest does NOT rebind this to a fake — the real
+        // NativeDnsRecordReader is cheap to unit-test against a fake
+        // DnsRecordReader collaborator (see CustomDomainVerifierTest), so
+        // there's no need for a second "fake" implementation of the port
+        // itself the way ESignatureProvider/BillingProvider have one.
+        $this->app->bind(CustomDomainVerifier::class, fn ($app) => new DnsCustomDomainVerifier(
+            reader: new NativeDnsRecordReader(),
+            target: (string) $app['config']->get('branding.custom_domain_target', 'custom.pacttrack.com'),
+            verificationPrefix: (string) $app['config']->get('branding.custom_domain_verification_prefix', '_pacttrack-verify'),
+        ));
+
+        // Bind the TLS-provisioning port to the Cloudflare adapter (or the
+        // Fake, via CUSTOM_HOSTNAME_PROVISIONER=fake — the default until a
+        // real Cloudflare zone/token exist, see config/services.php). Same
+        // driver-switch shape as SignatureProvider's ESignatureProvider
+        // binding. TestCase\BaseTest rebinds this to FakeCustomHostnameProvisioner
+        // app-wide regardless of this value, same as ESignatureProvider.
+        $this->app->bind(CustomHostnameProvisioner::class, function ($app) {
+            $config = (array) $app['config']->get('services.cloudflare', []);
+
+            if (($config['driver'] ?? 'fake') === 'fake') {
+                return new FakeCustomHostnameProvisioner();
+            }
+
+            return new CloudflareCustomHostnameProvisioner(
+                apiToken: (string) ($config['api_token'] ?? ''),
+                zoneId: (string) ($config['zone_id'] ?? ''),
+            );
+        });
     }
 
     public function boot(): void
@@ -194,6 +234,7 @@ class UserProvider extends ServiceProvider
             $this->commands([
                 NotifyTrialEnding::class,
                 ReconcileProviderStorage::class,
+                ReconcilePendingCustomDomains::class,
                 SyncStripePortalConfigurations::class,
             ]);
         }

@@ -73,6 +73,18 @@ class RegisterProvider
      *                                  from an OAuth sign-up
      *                                  (AuthenticateViaOAuth). Empty for the
      *                                  ordinary password sign-up path.
+     * @param  bool  $workspaceNeedsSetup  True only for an OAuth sign-up,
+     *                                  which has no real practice name to
+     *                                  give the workspace (`$businessName` is
+     *                                  a placeholder derived from the OAuth
+     *                                  profile — see
+     *                                  `AuthenticateViaOAuth::deriveBusinessName()`).
+     *                                  Marks the created `Workspace` row so
+     *                                  the frontend can force the owner
+     *                                  through `/dashboard/create-workspace`
+     *                                  before anything else, with no skip.
+     *                                  The password sign-up path leaves this
+     *                                  `false` — its pre-filled name is real.
      *
      * @throws \RuntimeException         when the email is already registered
      * @throws \InvalidArgumentException when an explicitly chosen subdomain is
@@ -86,6 +98,7 @@ class RegisterProvider
         ?string $subdomain = null,
         string $plan = 'professional',
         array $ownerAttributes = [],
+        bool $workspaceNeedsSetup = false,
     ): Provider {
         // Resolved before the transaction opens: this is pure computation, and
         // a malformed explicit subdomain should fail without having touched the
@@ -102,6 +115,7 @@ class RegisterProvider
             $desired,
             $plan,
             $ownerAttributes,
+            $workspaceNeedsSetup,
         ): Provider {
             $owner = $this->registration->register($name, $email, $password, Role::Owner, $ownerAttributes);
 
@@ -150,6 +164,7 @@ class RegisterProvider
                 // ever set; CreateWorkspace (an additional workspace) never
                 // does. See the add_is_primary_to_workspaces migration.
                 'is_primary' => true,
+                'needs_setup' => $workspaceNeedsSetup,
             ]);
 
             // Land the owner in this workspace on their first (and every

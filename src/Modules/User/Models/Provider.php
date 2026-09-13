@@ -23,8 +23,17 @@ class Provider extends Model
     protected $fillable = [
         'owner_user_id',
         'business_name',
+        'firm_email',
+        'firm_phone',
+        'address_line1',
+        'address_line2',
         'subdomain',
         'custom_domain',
+        'custom_domain_status',
+        'custom_domain_verification_token',
+        'custom_domain_verified_at',
+        'cloudflare_custom_hostname_id',
+        'custom_domain_ssl_status',
         'logo_path',
         'disk',
         'primary_color',
@@ -44,6 +53,7 @@ class Provider extends Model
     protected $casts = [
         'trial_ends_at' => 'datetime',
         'email_powered_by_footer' => 'boolean',
+        'custom_domain_verified_at' => 'datetime',
         // Cached provider-wide stored-bytes total — maintained by
         // User\Application\Services\ProviderStorageLedger at write time,
         // corrected nightly by `storage:reconcile`. See the

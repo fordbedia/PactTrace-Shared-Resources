@@ -13,6 +13,7 @@ use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\StripeWebhookCont
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\TeamController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\TeamInvitationController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\UserController;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 /*
 | Loaded by SharedResourceServiceProvider under the `api` prefix and the `api`
@@ -85,6 +86,10 @@ Route::prefix('v1')->group(function () {
 			Route::delete('logo', [BrandingController::class, 'destroyLogo'])->name('logo.destroy');
 			Route::get('subdomain-available', [BrandingController::class, 'subdomainAvailable'])
 				->name('subdomain-available');
+			Route::put('custom-domain', [BrandingController::class, 'saveCustomDomain'])
+				->name('custom-domain.save');
+			Route::post('custom-domain/verify', [BrandingController::class, 'verifyCustomDomain'])
+				->name('custom-domain.verify');
 		});
 
 		// ------------------------------------------------------------------
@@ -174,11 +179,56 @@ Route::prefix('v1')->group(function () {
 // builder returned by `prefix()`) only accepts a single array argument, not
 // the two-positional-argument form `Route::get(...)->where($name, $expr)`
 // gives on an individual route.
-Route::prefix('auth/{provider}')->name('oauth.')->group(function () {
-	Route::get('redirect', [OAuthController::class, 'redirect'])
-		->where('provider', 'google|microsoft')
-		->name('redirect');
-	Route::get('callback', [OAuthController::class, 'callback'])
-		->where('provider', 'google|microsoft')
-		->name('callback');
-});
+//
+// `web` middleware, PLUS `withoutMiddleware(EnsureFrontendRequestsAreStateful)`
+// to opt these two routes out of Sanctum's own session handling entirely —
+// both are needed, and mixing them up breaks the flow two different ways:
+//
+//   - `web` alone, still layered under Sanctum's stateful middleware: on
+//     `/redirect`, the request's Referer IS our own origin, so
+//     EnsureFrontendRequestsAreStateful decides it's "from the frontend" and
+//     wraps the rest of the request in its OWN nested [EncryptCookies,
+//     StartSession, ...] pipeline before ever reaching `web`'s copy of the
+//     same middlewares. That's TWO separate StartSession passes in one
+//     request — the second one can't see the cookie the first hasn't sent
+//     back yet, so it mints a second, different session id. Socialite's
+//     `redirect()` writes `state` into whichever session is bound *last*
+//     (web's), but the *first* (Sanctum's, empty) session is the one whose
+//     Set-Cookie header survives to the response (both share the same
+//     cookie name, so the later `addCookieToResponse()` call — Sanctum's,
+//     since it wraps `web` and therefore finishes unwinding last — wins).
+//     The browser is handed a cookie for the empty session. `/callback`
+//     then finds no `state` in it and Socialite throws `InvalidStateException`
+//     (an empty-message exception — surfaced as the generic "We could not
+//     complete that sign-in" error), even though a session store now
+//     technically exists.
+//   - No `web` and no exclusion (the original attempt): `/redirect`'s
+//     same-origin request still gets a session from Sanctum's stateful
+//     pipeline, but `/callback` is a top-level navigation FROM Google's/
+//     Microsoft's domain — its Referer is theirs, not ours, so
+//     EnsureFrontendRequestsAreStateful decides it's NOT "from the frontend"
+//     and skips its whole nested pipeline, meaning no session starts at
+//     all. Socialite's `user()` then throws "Session store not set on
+//     request." trying to read back its own `state`.
+//
+// Excluding EnsureFrontendRequestsAreStateful removes the Referer-dependent,
+// sometimes-nested pipeline altogether, so `web`'s single StartSession is
+// the only one that ever runs on either route — consistent on both legs of
+// the redirect, regardless of which domain the browser was on a moment
+// before. It's still the SAME session store/cookie
+// (`SESSION_DRIVER=database`, `session.cookie` name) Sanctum's stateful
+// requests use, so `UserAuthentication::login()` here is visible to every
+// subsequent `auth:sanctum` request exactly as if the login had happened
+// through `POST v1/auth/login`.
+Route::prefix('auth/{provider}')
+	->withoutMiddleware(EnsureFrontendRequestsAreStateful::class)
+	->middleware('web')
+	->name('oauth.')
+	->group(function () {
+		Route::get('redirect', [OAuthController::class, 'redirect'])
+			->where('provider', 'google|microsoft')
+			->name('redirect');
+		Route::get('callback', [OAuthController::class, 'callback'])
+			->where('provider', 'google|microsoft')
+			->name('callback');
+	});

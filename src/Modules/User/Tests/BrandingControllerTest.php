@@ -122,6 +122,56 @@ class BrandingControllerTest extends BaseTest
         ]);
     }
 
+    public function test_owner_updates_firm_details_fields(): void
+    {
+        // /account-settings' Firm Details card reuses this same endpoint —
+        // see .claude/rules/account-settings.md. Ungated by plan, unlike
+        // primary_color/custom_domain.
+        $this->actAsOwnerOnPlan('starter');
+
+        $this->patchJson('/api/v1/branding', [
+            'business_name' => 'Mitchell Law',
+            'firm_email' => 'contact@mitchelllaw.example',
+            'firm_phone' => '555-0100',
+            'address_line1' => '100 Main St',
+            'address_line2' => 'Suite 200, Springfield, IL 62704',
+        ])->assertOk()
+            ->assertJsonPath('data.provider.business_name', 'Mitchell Law')
+            ->assertJsonPath('data.provider.firm_email', 'contact@mitchelllaw.example')
+            ->assertJsonPath('data.provider.firm_phone', '555-0100')
+            ->assertJsonPath('data.provider.address_line1', '100 Main St')
+            ->assertJsonPath('data.provider.address_line2', 'Suite 200, Springfield, IL 62704');
+
+        $this->assertSame('contact@mitchelllaw.example', $this->provider()->refresh()->firm_email);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'provider_id' => $this->provider()->id,
+            'user_id' => $this->owner()->id,
+            'action' => 'branding.updated',
+        ]);
+    }
+
+    public function test_firm_details_fields_can_be_cleared_back_to_null(): void
+    {
+        $this->actAsOwnerOnPlan('professional');
+        $this->provider()->forceFill(['firm_email' => 'old@example.com'])->save();
+
+        $this->patchJson('/api/v1/branding', ['firm_email' => null])
+            ->assertOk()
+            ->assertJsonPath('data.provider.firm_email', null);
+
+        $this->assertNull($this->provider()->refresh()->firm_email);
+    }
+
+    public function test_a_staff_user_cannot_update_firm_details(): void
+    {
+        $this->setPlan('professional');
+        Sanctum::actingAs($this->tenant['staff']);
+
+        $this->patchJson('/api/v1/branding', ['firm_email' => 'staff@example.com'])
+            ->assertStatus(403);
+    }
+
     public function test_accent_colour_is_normalised_and_persisted_on_a_branding_plan(): void
     {
         $this->actAsOwnerOnPlan('professional');
