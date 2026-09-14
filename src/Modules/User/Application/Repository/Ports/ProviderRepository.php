@@ -47,8 +47,22 @@ interface ProviderRepository
 
     /**
      * The provider (if any) whose `custom_domain` equals `$host` and whose
-     * verification has actually succeeded — the request-time host-resolution
-     * middleware's one query (see Http\Middleware\ResolveProviderFromCustomHost).
+     * verification has actually succeeded — one of the two host-resolution
+     * strategies the request-time middleware tries (see
+     * Http\Middleware\ResolveProviderFromHost).
      */
     public function findByVerifiedCustomDomain(string $host): ?Provider;
+
+    /**
+     * The provider (if any) registered under `$subdomain` — the platform's
+     * own `{subdomain}.pacttrack.com` host-resolution strategy, the sibling
+     * of {@see self::findByVerifiedCustomDomain()}. `$subdomain` is a bare
+     * DNS label (e.g. `contislawfirm`), already validated by the caller
+     * (Http\Middleware\ResolveProviderFromHost only calls this for a label
+     * that passed Domain\ValueObjects\Subdomain::isValidLabel()) — no
+     * verification lifecycle applies here the way it does for a custom
+     * domain, since a subdomain is provisioned by the platform itself, not
+     * pointed at it by the tenant's own DNS.
+     */
+    public function findBySubdomain(string $subdomain): ?Provider;
 }

@@ -57,6 +57,38 @@ class SessionController extends Controller
             ]);
         }
 
+        // Tenancy cross-check (Part 3 of subdomain-based portal host
+        // resolution) — `resolved_provider` is only ever set by
+        // Http\Middleware\ResolveProviderFromHost for a request that arrived
+        // on a TENANT's own subdomain or verified custom domain, never on
+        // the platform's own host (see that middleware's docblock) — so this
+        // is a pure no-op for every /sign-in login, exactly as before.
+        //
+        // On a tenant host, the account that just authenticated must belong
+        // to THAT tenant. Real threat this closes: Provider A's client
+        // entering their own, genuinely correct credentials on Provider B's
+        // `/portal/login` (a mistyped/bookmarked/malicious link) would
+        // otherwise establish a normal session under Provider B's host with
+        // no error at all — see .claude/rules/client.md, "Subdomain-based
+        // portal host resolution" for why the browser's own per-host cookie
+        // scoping (SESSION_DOMAIN=null) rules out the OTHER failure mode
+        // (an already-authenticated session leaking across subdomains).
+        //
+        // The session this call just started is torn back down completely —
+        // never left half-authenticated — and the response is
+        // indistinguishable from a wrong password, on purpose: this must
+        // never let a caller probe "does this email exist, just on a
+        // different tenant" by trying it against every subdomain.
+        $resolvedProvider = $request->attributes->get('resolved_provider');
+
+        if ($resolvedProvider !== null && (int) $request->user()->provider_id !== (int) $resolvedProvider->id) {
+            $this->authentication->logout();
+
+            throw ValidationException::withMessages([
+                'email' => ['These credentials do not match our records.'],
+            ]);
+        }
+
         $this->hintCookie->attach($request->user());
 
         // Audit + personal "new sign-in" security alert — in the Application

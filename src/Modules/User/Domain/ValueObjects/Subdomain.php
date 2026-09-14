@@ -30,13 +30,21 @@ final class Subdomain
      * site and dashboard, `api` is the backend, and the mail names affect
      * deliverability records.
      *
+     * `int` and `dev-tunnel` were added alongside subdomain-based portal host
+     * resolution (Http\Middleware\ResolveProviderFromHost): `int` is the
+     * literal label of `APP_URL`/`FRONTEND_URL` (int.pacttrack.com — the
+     * fixed host both the provider dashboard and, today, the client portal
+     * are served from), and `dev-tunnel` is the public tunnel host used for
+     * local DocuSign webhook testing (see configs/.env.local). Neither must
+     * ever be handed to a tenant as their own portal subdomain.
+     *
      * @var list<string>
      */
     private const RESERVED = [
         'www', 'api', 'app', 'admin', 'dashboard', 'portal', 'auth', 'login',
         'signup', 'register', 'billing', 'support', 'help', 'status', 'docs',
         'mail', 'smtp', 'imap', 'ftp', 'cdn', 'static', 'assets', 'blog',
-        'test', 'staging', 'dev', 'demo', 'pacttrack',
+        'test', 'staging', 'dev', 'demo', 'pacttrack', 'int', 'dev-tunnel',
     ];
 
     private function __construct(
@@ -131,6 +139,26 @@ final class Subdomain
     public function equals(self $other): bool
     {
         return $this->value === $other->value;
+    }
+
+    /**
+     * Whether `$value` is a syntactically valid, non-reserved DNS label —
+     * i.e. whether {@see self::fromString()} would succeed — without
+     * constructing the object or throwing. Used by request-time host
+     * resolution (Http\Middleware\ResolveProviderFromHost) to tell "this
+     * looks like a real tenant subdomain, worth a lookup" apart from a
+     * reserved/malformed label under the platform's own domain, which
+     * should never reach a database query.
+     */
+    public static function isValidLabel(string $value): bool
+    {
+        try {
+            self::fromString($value);
+
+            return true;
+        } catch (InvalidArgumentException) {
+            return false;
+        }
     }
 
     public function __toString(): string

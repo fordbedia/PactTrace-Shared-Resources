@@ -5,6 +5,7 @@ use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\BillingController
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\BrandingController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\PlanController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\PlanUsageController;
+use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\PortalBrandingController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\OAuthController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\ProfileController;
 use PactTrackSDK\SharedResources\Modules\User\Http\Controllers\RegistrationController;
@@ -39,6 +40,16 @@ Route::prefix('v1')->group(function () {
 	// this so they can't drift from the enforced matrix, and that page has no
 	// signed-in user. Also feeds /dashboard/billing's comparison grid.
 	Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
+
+	// Pre-auth branding for /portal/login — see PortalBrandingController and
+	// .claude/rules/client.md, "Subdomain-based portal host resolution".
+	// Deliberately OUTSIDE auth:sanctum: the whole point is a visitor who
+	// hasn't signed in yet. Reads the `resolved_provider` attribute
+	// Http\Middleware\ResolveProviderFromHost already set for this request
+	// (prepended to the whole `api` group in backend/bootstrap/app.php) —
+	// this route needs no host-parsing/lookup logic of its own.
+	Route::get('portal/login-brand', [PortalBrandingController::class, 'loginBrand'])
+		->name('portal.login-brand');
 
 	Route::prefix('auth')->name('auth.')->group(function () {
 		Route::post('login', [SessionController::class, 'store'])

@@ -71,4 +71,11 @@ class EloquentProviderRepository extends BaseRepository implements ProviderRepos
 			->where('custom_domain_status', CustomDomainStatus::Verified->value)
 			->first();
 	}
+
+	public function findBySubdomain(string $subdomain): ?Provider
+	{
+		return $this->model->newQuery()
+			->where('subdomain', $subdomain)
+			->first();
+	}
 }
