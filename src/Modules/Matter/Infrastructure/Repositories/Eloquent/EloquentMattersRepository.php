@@ -91,32 +91,32 @@ class EloquentMattersRepository extends BaseRepository implements MattersReposit
 		return $query->orderBy('name')->limit($limit)->get();
 	}
 
-	public function paginateAll(int $providerId, int $perPage, ?int $page): LengthAwarePaginator
+	public function paginateAll(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator
 	{
-		return $this->paginateByStatus($providerId, null, $perPage, $page);
+		return $this->paginateByStatus($providerId, null, $perPage, $page, $clientId);
 	}
 
-	public function paginateActive(int $providerId, int $perPage, ?int $page): LengthAwarePaginator
+	public function paginateActive(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator
 	{
-		return $this->paginateByStatus($providerId, 'active', $perPage, $page);
+		return $this->paginateByStatus($providerId, 'active', $perPage, $page, $clientId);
 	}
 
-	public function paginateOnHold(int $providerId, int $perPage, ?int $page): LengthAwarePaginator
+	public function paginateOnHold(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator
 	{
-		return $this->paginateByStatus($providerId, 'on_hold', $perPage, $page);
+		return $this->paginateByStatus($providerId, 'on_hold', $perPage, $page, $clientId);
 	}
 
-	public function paginateCompleted(int $providerId, int $perPage, ?int $page): LengthAwarePaginator
+	public function paginateCompleted(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator
 	{
-		return $this->paginateByStatus($providerId, 'completed', $perPage, $page);
+		return $this->paginateByStatus($providerId, 'completed', $perPage, $page, $clientId);
 	}
 
-	public function paginateCancelled(int $providerId, int $perPage, ?int $page): LengthAwarePaginator
+	public function paginateCancelled(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator
 	{
-		return $this->paginateByStatus($providerId, 'cancelled', $perPage, $page);
+		return $this->paginateByStatus($providerId, 'cancelled', $perPage, $page, $clientId);
 	}
 
-	private function paginateByStatus(int $providerId, ?string $status, int $perPage, ?int $page): LengthAwarePaginator
+	private function paginateByStatus(int $providerId, ?string $status, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator
 	{
 		$query = $this->model->newQuery()
 			->with(['client', 'milestones'])
@@ -125,6 +125,10 @@ class EloquentMattersRepository extends BaseRepository implements MattersReposit
 
 		if ($status !== null) {
 			$query->where('status', $status);
+		}
+
+		if ($clientId !== null) {
+			$query->where('client_id', $clientId);
 		}
 
 		return $this->paginate($query, $perPage, ['*'], 'page', $page);

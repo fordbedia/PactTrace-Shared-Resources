@@ -17,6 +17,12 @@ use Illuminate\Http\Request;
  * back to `all`. `per_page` is clamped to 1..100 rather than trusted — an
  * unbounded `?per_page=100000` would defeat the point of paginating an
  * inbox that grows without limit, same rule as DocumentListData.
+ *
+ * `client_id`, when given, additionally narrows to one client's own
+ * threads — this backs the Client Detail page's Messages tab (see
+ * .claude/rules/client.md), the same `?client_id=` filter added to the
+ * Matter/Document modules' own listings. A plain query filter, not a new
+ * authorization concern — the query stays `provider_id`-scoped regardless.
  */
 final readonly class ThreadListData
 {
@@ -34,6 +40,7 @@ final readonly class ThreadListData
         public string $filter,
         public int $per_page,
         public ?int $page,
+        public ?int $client_id = null,
     ) {
     }
 
@@ -47,6 +54,7 @@ final readonly class ThreadListData
             filter: $filter === self::FILTER_UNREAD ? self::FILTER_UNREAD : self::FILTER_ALL,
             per_page: max(1, min(self::PER_PAGE_MAX, (int) $request->query('per_page', self::PER_PAGE_DEFAULT))),
             page: $request->filled('page') ? (int) $request->query('page') : null,
+            client_id: $request->filled('client_id') ? (int) $request->query('client_id') : null,
         );
     }
 

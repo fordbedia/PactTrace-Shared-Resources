@@ -48,16 +48,24 @@ interface MattersRepository
 	 * cancelled`) — same shape as `ClientRepository::paginateAll/Active/...`
 	 * (see .claude/rules/client.md). `provider_id` is the tenancy barrier;
 	 * `BelongsToWorkspace` narrows further via its own global scope.
+	 *
+	 * `$clientId`, when given, additionally narrows to one client's own
+	 * matters — this is what backs the Client Detail page's Matters tab
+	 * (see .claude/rules/client.md), reusing this same paginated listing
+	 * rather than a second "matters for a client" query. It is a plain
+	 * query filter, not a distinct authorization concern: a `client_id`
+	 * belonging to another tenant matches no row of this `provider_id`'s
+	 * matters regardless, so no extra tenant check is needed here.
 	 */
-	public function paginateAll(int $providerId, int $perPage, ?int $page): LengthAwarePaginator;
+	public function paginateAll(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator;
 
-	public function paginateActive(int $providerId, int $perPage, ?int $page): LengthAwarePaginator;
+	public function paginateActive(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator;
 
-	public function paginateOnHold(int $providerId, int $perPage, ?int $page): LengthAwarePaginator;
+	public function paginateOnHold(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator;
 
-	public function paginateCompleted(int $providerId, int $perPage, ?int $page): LengthAwarePaginator;
+	public function paginateCompleted(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator;
 
-	public function paginateCancelled(int $providerId, int $perPage, ?int $page): LengthAwarePaginator;
+	public function paginateCancelled(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator;
 
 	/**
 	 * Backs the "Total Matters"/"Active"/"On Hold"/"Completed" stat cards on

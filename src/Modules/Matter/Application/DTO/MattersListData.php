@@ -10,7 +10,8 @@ final readonly class MattersListData
 		public int $provider_id,
 		public string $filter,
 		public int $per_page,
-		public ?int $page
+		public ?int $page,
+		public ?int $client_id = null
 	)
 	{}
 
@@ -20,7 +21,8 @@ final readonly class MattersListData
 			$provider_id,
 			(string) $request->query('filter', 'all'),
 			(int) $request->query('per_page', 15),
-			$request->filled('page') ? (int) $request->query('page') : null
+			$request->filled('page') ? (int) $request->query('page') : null,
+			$request->filled('client_id') ? (int) $request->query('client_id') : null
 		);
 	}
 }

@@ -26,6 +26,14 @@ use PactTrackSDK\SharedResources\Modules\User\Models\User;
  * /dashboard/matters (see .claude/rules/matter.md), which has no folder
  * context at all. The two are never sent together by the frontend today.
  *
+ * `client_id` backs the Client Detail page's Documents tab
+ * (/dashboard/clients, see .claude/rules/client.md) — but only for a
+ * provider-side caller. A client-portal user's own `client_id` (derived
+ * below from the acting user, never from the request) always wins instead:
+ * the request field simply doesn't apply to them, the same "derive from the
+ * resolved actor, don't trust the request for it" rule the rest of this
+ * module already applies elsewhere.
+ *
  * Returns a LengthAwarePaginator, not a Collection: a provider's library
  * grows without bound, so the table pages server-side — same shape as
  * ListMattersHandler (see .claude/rules/matter.md). Note the folder tree
@@ -47,7 +55,7 @@ class ListDocumentsAction
     public function handle(User $user, DocumentListData $data): LengthAwarePaginator
     {
         $providerId = (int) $user->provider_id;
-        $clientId = $user->isClientUser() ? $user->client?->id : null;
+        $clientId = $user->isClientUser() ? $user->client?->id : $data->client_id;
 
         if ($data->matter_id !== null) {
             return $this->documents->forMatter($providerId, $data->matter_id, $clientId, $data->per_page, $data->page, $data->archived);

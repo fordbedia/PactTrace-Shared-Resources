@@ -36,6 +36,7 @@ class ListProviderThreadsAction
                 $data->current_user_id,
                 $data->per_page,
                 $data->page,
+                $data->client_id,
             );
         }
 
@@ -44,6 +45,7 @@ class ListProviderThreadsAction
             $data->current_user_id,
             $data->per_page,
             $data->page,
+            $data->client_id,
         );
     }
 }

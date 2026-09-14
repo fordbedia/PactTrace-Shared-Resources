@@ -11,14 +11,14 @@ class MattersListingService implements MattersListingServiceContract
 	public function __construct(private MattersRepository $repository)
 	{}
 
-	public function paginate(int $providerId, string $filter, int $perPage, ?int $page): LengthAwarePaginator
+	public function paginate(int $providerId, string $filter, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator
 	{
 		return match ($filter) {
-			'active' => $this->repository->paginateActive($providerId, $perPage, $page),
-			'on_hold' => $this->repository->paginateOnHold($providerId, $perPage, $page),
-			'completed' => $this->repository->paginateCompleted($providerId, $perPage, $page),
-			'cancelled' => $this->repository->paginateCancelled($providerId, $perPage, $page),
-			default => $this->repository->paginateAll($providerId, $perPage, $page),
+			'active' => $this->repository->paginateActive($providerId, $perPage, $page, $clientId),
+			'on_hold' => $this->repository->paginateOnHold($providerId, $perPage, $page, $clientId),
+			'completed' => $this->repository->paginateCompleted($providerId, $perPage, $page, $clientId),
+			'cancelled' => $this->repository->paginateCancelled($providerId, $perPage, $page, $clientId),
+			default => $this->repository->paginateAll($providerId, $perPage, $page, $clientId),
 		};
 	}
 }

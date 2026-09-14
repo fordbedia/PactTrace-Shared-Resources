@@ -29,6 +29,7 @@ final readonly class DocumentListData
 		public ?int $page,
 		public bool $archived = false,
 		public ?int $matter_id = null,
+		public ?int $client_id = null,
 	)
 	{}
 
@@ -40,6 +41,7 @@ final readonly class DocumentListData
 			page: $request->filled('page') ? max(1, (int) $request->query('page')) : null,
 			archived: $request->boolean('archived'),
 			matter_id: $request->integer('matter_id') ?: null,
+			client_id: $request->integer('client_id') ?: null,
 		);
 	}
 }

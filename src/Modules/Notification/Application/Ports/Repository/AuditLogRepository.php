@@ -38,6 +38,22 @@ interface AuditLogRepository
     public function paginateFiltered(AuditLogListData $data, ?string $retentionCutoff = null): LengthAwarePaginator;
 
     /**
+     * As {@see paginateFiltered()} — same retention cutoff, action/date/
+     * search filters, ordering and pagination — narrowed to one client's
+     * own audit trail. Backs the Client Detail page's Activity tab (see
+     * .claude/rules/client.md). Shares its client-scoping (`whereHasMorph`
+     * across Matter/Document/Envelope/MessageThread) with
+     * {@see recentForClient()}'s smaller Overview-tab preview, so the two
+     * can never disagree about what counts as "this client's activity".
+     */
+    public function paginateForClient(
+        int $providerId,
+        int $clientId,
+        AuditLogListData $data,
+        ?string $retentionCutoff = null,
+    ): LengthAwarePaginator;
+
+    /**
      * The distinct `action` strings present for this tenant, ascending — backs
      * the frontend's "Action Type" filter, which has no fixed catalogue to
      * draw from (see .claude/rules/notification.md).

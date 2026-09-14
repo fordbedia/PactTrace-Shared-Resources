@@ -17,6 +17,13 @@ use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan;
  * module has (that split exists there for stat counts + several filter
  * variants; neither applies here).
  *
+ * `$data->client_id`, when present, routes to `paginateForClient()` instead
+ * of `paginateFiltered()` — the Client Detail page's Activity tab (see
+ * .claude/rules/client.md), same optional-`client_id` pattern already
+ * applied to the Matter/Document/Messaging modules' own listings. Every
+ * other filter (actions/date range/search) and the retention cutoff below
+ * apply identically either way.
+ *
  * The one piece of logic it owns: turning the requesting tenant's `Plan` into
  * an audit-log retention cutoff. This is the only place `Plan`/`PlanInfo` is
  * consulted for this feature — the controller just resolves the enum, the
@@ -31,7 +38,13 @@ class ListAuditLogsHandler
 
     public function handle(AuditLogListData $data, Plan $plan): LengthAwarePaginator
     {
-        return $this->repository->paginateFiltered($data, $this->retentionCutoff($plan));
+        $retentionCutoff = $this->retentionCutoff($plan);
+
+        if ($data->client_id !== null) {
+            return $this->repository->paginateForClient($data->provider_id, $data->client_id, $data, $retentionCutoff);
+        }
+
+        return $this->repository->paginateFiltered($data, $retentionCutoff);
     }
 
     /**

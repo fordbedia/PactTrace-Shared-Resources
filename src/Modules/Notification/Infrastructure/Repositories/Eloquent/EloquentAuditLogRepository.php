@@ -26,11 +26,38 @@ class EloquentAuditLogRepository extends BaseRepository implements AuditLogRepos
 
     public function paginateFiltered(AuditLogListData $data, ?string $retentionCutoff = null): LengthAwarePaginator
     {
-        $query = $this->baseQuery($data->provider_id)
-            ->with('user')
-            ->latest()
-            ->latest('id');
+        $query = $this->applyListFilters(
+            $this->baseQuery($data->provider_id)->with('user')->latest()->latest('id'),
+            $data,
+            $retentionCutoff,
+        );
 
+        return $query->paginate($data->per_page, ['*'], 'page', $data->page);
+    }
+
+    /**
+     * @see AuditLogRepository::paginateForClient()
+     */
+    public function paginateForClient(int $providerId, int $clientId, AuditLogListData $data, ?string $retentionCutoff = null): LengthAwarePaginator
+    {
+        $query = $this->applyListFilters(
+            $this->clientScopedQuery($providerId, $clientId)->with('user')->latest()->latest('id'),
+            $data,
+            $retentionCutoff,
+        );
+
+        return $query->paginate($data->per_page, ['*'], 'page', $data->page);
+    }
+
+    /**
+     * Every filter `paginateFiltered()`/`paginateForClient()` accept —
+     * retention cutoff, action types, date range, search — applied
+     * identically regardless of which base query (provider-wide or
+     * client-scoped) they start from, so the two paginated listings can
+     * never drift on what a given filter means.
+     */
+    private function applyListFilters(Builder $query, AuditLogListData $data, ?string $retentionCutoff): Builder
+    {
         if ($retentionCutoff !== null) {
             // Plan-enforced retention window (Starter = 90 days; unlimited
             // for Professional/Firm, in which case the handler passes null).
@@ -61,7 +88,7 @@ class EloquentAuditLogRepository extends BaseRepository implements AuditLogRepos
             });
         }
 
-        return $query->paginate($data->per_page, ['*'], 'page', $data->page);
+        return $query;
     }
 
     public function recentForProvider(int $providerId, int $limit): Collection
@@ -90,15 +117,7 @@ class EloquentAuditLogRepository extends BaseRepository implements AuditLogRepos
      */
     public function recentForClient(int $providerId, int $clientId, int $limit): Collection
     {
-        return $this->baseQuery($providerId)
-            ->whereHasMorph(
-                'auditable',
-                [Matter::class, Document::class, Envelope::class, MessageThread::class],
-                // Drops WorkspaceScope, same as EloquentClientNotificationSignalReader:
-                // a client's activity spans every workspace they have matters in,
-                // not just whichever one is currently active.
-                fn (Builder $query) => $query->withoutGlobalScope(WorkspaceScope::class)->where('client_id', $clientId),
-            )
+        return $this->clientScopedQuery($providerId, $clientId)
             ->with('user')
             ->latest()
             ->latest('id')
@@ -115,5 +134,28 @@ class EloquentAuditLogRepository extends BaseRepository implements AuditLogRepos
     private function baseQuery(int $providerId): Builder
     {
         return $this->model->newQuery()->where('provider_id', $providerId);
+    }
+
+    /**
+     * The tenant-scoped base query, additionally narrowed to one client —
+     * shared by `recentForClient()` (the Overview tab's small preview) and
+     * `paginateForClient()` (the full, filterable Activity tab), so the two
+     * can never disagree about what "this client's audit trail" means.
+     * `audit_logs` has no `client_id` column of its own, so this matches any
+     * row whose auditable is a Matter, Document, Envelope or MessageThread
+     * belonging to `$clientId`, via `whereHasMorph` rather than a join this
+     * table has no column to support. Drops `WorkspaceScope`, same as
+     * `EloquentClientNotificationSignalReader`: a client's activity spans
+     * every workspace they have matters in, not just whichever one is
+     * currently active.
+     */
+    private function clientScopedQuery(int $providerId, int $clientId): Builder
+    {
+        return $this->baseQuery($providerId)
+            ->whereHasMorph(
+                'auditable',
+                [Matter::class, Document::class, Envelope::class, MessageThread::class],
+                fn (Builder $query) => $query->withoutGlobalScope(WorkspaceScope::class)->where('client_id', $clientId),
+            );
     }
 }

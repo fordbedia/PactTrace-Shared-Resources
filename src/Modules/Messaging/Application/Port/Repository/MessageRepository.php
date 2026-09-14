@@ -29,6 +29,10 @@ interface MessageRepository
      * withCount alias (messages the given user has not read). Archived
      * (soft-deleted) threads are excluded by the model's SoftDeletes trait.
      *
+     * `$clientId`, when given, additionally narrows to one client's own
+     * threads — backs the Client Detail page's Messages tab (see
+     * .claude/rules/client.md).
+     *
      * @return LengthAwarePaginator<int, MessageThread>
      */
     public function paginateThreadsForProvider(
@@ -36,6 +40,7 @@ interface MessageRepository
         int $currentUserId,
         int $perPage,
         ?int $page,
+        ?int $clientId = null,
     ): LengthAwarePaginator;
 
     /**
@@ -49,6 +54,7 @@ interface MessageRepository
         int $currentUserId,
         int $perPage,
         ?int $page,
+        ?int $clientId = null,
     ): LengthAwarePaginator;
 
     /**

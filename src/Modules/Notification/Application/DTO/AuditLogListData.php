@@ -26,11 +26,19 @@ use Illuminate\Http\Request;
  *    widened to end-of-day so the last day is included.
  *  - `search` — a LIKE over `action` and the actor's name.
  *
- * A client filter and a matter filter are deliberately absent: `audit_logs`
- * has no `client_id`/`matter_id` column, `auditable_type` is never `Matter`,
- * and no consistent metadata convention links a row to either — a filter that
- * looked like it worked but quietly under-filtered would be worse than none
- * on a compliance surface.
+ * A matter filter is deliberately absent: `audit_logs` has no `matter_id`
+ * column, and no single `whereHasMorph` target list (unlike client scoping
+ * below) would honestly capture "every row about this matter" — a filter
+ * that looked like it worked but quietly under-filtered would be worse than
+ * none on a compliance surface.
+ *
+ * `client_id` is the one exception, added for the Client Detail page's
+ * Activity tab (see .claude/rules/client.md) — `audit_logs` still has no
+ * `client_id` column, but `AuditLogRepository::paginateForClient()` resolves
+ * it correctly via the same `whereHasMorph` scoping (across Matter,
+ * Document, Envelope and MessageThread) that `recentForClient()` already
+ * uses for that page's Overview tab, so this one filter is honest against
+ * the schema despite the column not existing directly.
  */
 final readonly class AuditLogListData
 {
@@ -45,6 +53,7 @@ final readonly class AuditLogListData
         public ?string $search,
         public int $per_page,
         public ?int $page,
+        public ?int $client_id = null,
     ) {
     }
 
@@ -73,6 +82,7 @@ final readonly class AuditLogListData
             $search,
             $perPage,
             $request->filled('page') ? (int) $request->query('page') : null,
+            $request->filled('client_id') ? (int) $request->query('client_id') : null,
         );
     }
 

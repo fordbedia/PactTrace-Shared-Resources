@@ -83,9 +83,10 @@ class EloquentMessageRepository extends BaseRepository implements MessageReposit
         int $currentUserId,
         int $perPage,
         ?int $page,
+        ?int $clientId = null,
     ): LengthAwarePaginator {
         return $this->paginate(
-            $this->inboxQuery($providerId, $currentUserId),
+            $this->inboxQuery($providerId, $currentUserId, $clientId),
             $perPage,
             ['*'],
             'page',
@@ -98,9 +99,10 @@ class EloquentMessageRepository extends BaseRepository implements MessageReposit
         int $currentUserId,
         int $perPage,
         ?int $page,
+        ?int $clientId = null,
     ): LengthAwarePaginator {
         return $this->paginate(
-            $this->inboxQuery($providerId, $currentUserId)->withUnreadFor($currentUserId),
+            $this->inboxQuery($providerId, $currentUserId, $clientId)->withUnreadFor($currentUserId),
             $perPage,
             ['*'],
             'page',
@@ -133,11 +135,15 @@ class EloquentMessageRepository extends BaseRepository implements MessageReposit
      * non-archived threads, newest activity first, with everything the
      * inbox row renders eager-loaded and the per-row unread flag as a
      * withCount alias.
+     *
+     * `$clientId`, when given, additionally narrows to one client's own
+     * threads — see {@see MessageRepository::paginateThreadsForProvider()}.
      */
-    private function inboxQuery(int $providerId, int $currentUserId): Builder
+    private function inboxQuery(int $providerId, int $currentUserId, ?int $clientId = null): Builder
     {
         return $this->model->newQuery()
             ->forProvider($providerId)
+            ->when($clientId !== null, fn (Builder $query) => $query->where('client_id', $clientId))
             ->with(['client', 'matter', 'staffMember', 'latestMessage'])
             ->withCount($this->unreadCountAlias($currentUserId))
             ->orderByDesc('last_message_at')
