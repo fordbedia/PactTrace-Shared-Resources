@@ -94,6 +94,28 @@ class SubdomainTest extends BaseTest
         $this->assertSame('doe-law', Subdomain::fromString('  Doe-Law  ')->value);
     }
 
+    /**
+     * Used by Http\Middleware\ResolveProviderFromHost to tell a real tenant
+     * subdomain candidate apart from a reserved/malformed label without
+     * catching an exception at the call site.
+     */
+    #[DataProvider('invalidExplicitValues')]
+    public function test_is_valid_label_is_false_for_everything_from_string_rejects(string $value): void
+    {
+        $this->assertFalse(Subdomain::isValidLabel($value));
+    }
+
+    public function test_is_valid_label_is_true_for_a_real_subdomain(): void
+    {
+        $this->assertTrue(Subdomain::isValidLabel('contislawfirm'));
+    }
+
+    public function test_int_and_dev_tunnel_are_reserved(): void
+    {
+        $this->assertFalse(Subdomain::isValidLabel('int'));
+        $this->assertFalse(Subdomain::isValidLabel('dev-tunnel'));
+    }
+
     public function test_it_allocates_the_desired_subdomain_when_free(): void
     {
         $allocator = new SubdomainAllocator($this->availability());
