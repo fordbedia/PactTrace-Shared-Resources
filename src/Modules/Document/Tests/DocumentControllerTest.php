@@ -236,6 +236,51 @@ class DocumentControllerTest extends BaseTest
             ->assertJsonPath('meta.total', 0);
     }
 
+    /* ── client_id (Client Detail's Documents tab) ────────────────────────
+     * See .claude/rules/document.md and .claude/rules/client.md. */
+
+    public function test_filtering_by_client_id_returns_only_that_clients_documents(): void
+    {
+        $otherClientDocument = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'client_id' => $this->tenant['otherClient']->id,
+        ]);
+
+        $ids = $this->actingAs($this->tenant['owner'])
+            ->getJson("/api/documents?client_id={$this->tenant['client']->id}")
+            ->assertOk()
+            ->json('data.*.id');
+
+        $this->assertContains($this->tenant['document']->id, $ids);
+        $this->assertNotContains($otherClientDocument->id, $ids);
+    }
+
+    public function test_another_tenants_client_id_returns_nothing(): void
+    {
+        $this->actingAs($this->tenant['owner'])
+            ->getJson("/api/documents?client_id={$this->otherTenant['client']->id}")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+    }
+
+    /**
+     * A client-portal user's own identity always wins over a submitted
+     * `client_id` — the same "derive from the resolved actor, don't trust
+     * the request for it" rule this module applies everywhere else. Without
+     * this a client could pass `?client_id=<someone else's id>` and read
+     * another client's documents.
+     */
+    public function test_a_client_users_own_scoping_is_not_overridable_via_the_query_string(): void
+    {
+        $response = $this->actingAs($this->tenant['clientUser'])
+            ->getJson("/api/documents?client_id={$this->tenant['otherClient']->id}");
+
+        $response->assertOk();
+        $this->assertSame([$this->tenant['document']->id], $response->json('data.*.id'));
+    }
+
     public function test_a_document_with_an_envelope_exposes_its_public_id(): void
     {
         $document = Document::factory()->create([

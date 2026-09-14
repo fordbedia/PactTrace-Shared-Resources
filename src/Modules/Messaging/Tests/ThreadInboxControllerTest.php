@@ -131,6 +131,41 @@ class ThreadInboxControllerTest extends BaseTest
             ->assertJsonCount(1, 'data');
     }
 
+    /* ── client_id (Client Detail's Messages tab) ─────────────────────────
+     * See .claude/rules/client.md and .claude/rules/messaging.md. */
+
+    public function test_client_id_narrows_the_inbox_to_one_clients_own_threads(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $forClient = $this->threadWith($this->tenant, inbound: 1);
+
+        $otherClientThread = MessageThread::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'client_id' => $this->tenant['otherClient']->id,
+        ]);
+
+        $response = $this->getJson("/api/v1/messages/threads?client_id={$this->tenant['client']->id}");
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $forClient->id);
+
+        $ids = collect($response->json('data'))->pluck('id');
+        $this->assertNotContains($otherClientThread->id, $ids);
+    }
+
+    public function test_another_tenants_client_id_returns_nothing(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $this->threadWith($this->tenant, inbound: 1);
+
+        $this->getJson("/api/v1/messages/threads?client_id={$this->otherTenant['client']->id}")
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
     /* ── Unread tab ────────────────────────────────────────────────────── */
 
     public function test_unread_tab_returns_only_threads_with_unread_and_drops_after_read(): void

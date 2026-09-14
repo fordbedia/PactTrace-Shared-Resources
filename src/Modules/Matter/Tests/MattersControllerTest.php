@@ -92,4 +92,24 @@ class MattersControllerTest extends BaseTest
 
         $response->assertStatus(401);
     }
+
+    /**
+     * `?client_id=` backs the Client Detail page's Matters tab (see
+     * .claude/rules/client.md) — the same paginated `/matters` listing,
+     * additionally narrowed to one client. It must never surface another
+     * of the tenant's own clients' matters, even though both belong to the
+     * same `provider_id`.
+     */
+    public function test_index_can_be_filtered_to_one_clients_own_matters(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $response = $this->getJson("/api/v1/matters?client_id={$this->tenant['client']->id}");
+
+        $response->assertOk();
+        $ids = collect($response->json('data'))->pluck('id');
+
+        $this->assertContains($this->tenant['matter']->id, $ids);
+        $this->assertNotContains($this->tenant['otherMatter']->id, $ids);
+    }
 }

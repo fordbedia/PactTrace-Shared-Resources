@@ -7,6 +7,7 @@ namespace PactTrackSDK\SharedResources\Modules\Notification\Tests;
 use Illuminate\Foundation\Testing\WithFaker;
 use Laravel\Sanctum\Sanctum;
 use Laravel\Sanctum\SanctumServiceProvider;
+use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTrackSDK\SharedResources\TestCase\Extras\LoadsModuleApiRoutes;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
@@ -293,5 +294,81 @@ class AuditLogControllerTest extends BaseTest
         Sanctum::actingAs($this->tenant['clientUser']);
 
         $this->getJson('/api/v1/audit-logs/action-types')->assertStatus(403);
+    }
+
+    /* ── client_id (Client Detail's Activity tab) ─────────────────────────
+     * See .claude/rules/client.md and .claude/rules/notification.md. */
+
+    public function test_client_id_narrows_to_that_clients_own_activity(): void
+    {
+        $forClient = $this->log([
+            'action' => 'matter.created',
+            'auditable_type' => Matter::class,
+            'auditable_id' => $this->tenant['matter']->id,
+        ]);
+
+        // Another client of the SAME provider — must not leak into this one's feed.
+        $this->log([
+            'action' => 'matter.created',
+            'auditable_type' => Matter::class,
+            'auditable_id' => $this->tenant['otherMatter']->id,
+        ]);
+
+        // A row with no auditable at all — must never appear here either.
+        $this->log(['action' => 'auth.signed_in']);
+
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $response = $this->getJson("/api/v1/audit-logs?client_id={$this->tenant['client']->id}")->assertOk();
+
+        $response->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $forClient->id);
+    }
+
+    public function test_client_id_still_applies_the_action_filter_and_retention_cutoff(): void
+    {
+        $this->tenant['provider']->forceFill(['plan' => 'starter'])->save();
+
+        $this->log([
+            'action' => 'matter.created',
+            'auditable_type' => Matter::class,
+            'auditable_id' => $this->tenant['matter']->id,
+            'created_at' => now()->subDays(5),
+        ]);
+        $this->log([
+            'action' => 'matter.updated',
+            'auditable_type' => Matter::class,
+            'auditable_id' => $this->tenant['matter']->id,
+            'created_at' => now()->subDays(5),
+        ]);
+        // Past the Starter 90-day retention window — must stay hidden even
+        // though it belongs to this client.
+        $this->log([
+            'action' => 'matter.created',
+            'auditable_type' => Matter::class,
+            'auditable_id' => $this->tenant['matter']->id,
+            'created_at' => now()->subDays(120),
+        ]);
+
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $response = $this->getJson(
+            "/api/v1/audit-logs?client_id={$this->tenant['client']->id}&actions=matter.created"
+        )->assertOk();
+
+        $response->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.action', 'matter.created');
+    }
+
+    public function test_another_tenants_client_id_returns_nothing(): void
+    {
+        $this->log(['action' => 'document.archived']);
+        $other = ProviderTenantScenario::make('audit-log-client-id-other');
+
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $this->getJson("/api/v1/audit-logs?client_id={$other['client']->id}")
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
     }
 }
