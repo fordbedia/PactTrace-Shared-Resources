@@ -7,6 +7,7 @@ namespace PactTrackSDK\SharedResources\Modules\Document\Application\Action;
 use Illuminate\Support\Facades\Mail;
 use PactTrackSDK\SharedResources\Modules\Document\Application\DTO\DocumentData;
 use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Services\DocumentFileType;
 use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Upload\DocumentUploadService;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\Services\MatterNotificationRecipientResolver;
@@ -51,6 +52,7 @@ class UploadDocumentAction
             'name' => $data->file->getClientOriginalName(),
             's3_path' => $path,
             'mime_type' => $data->file->getClientMimeType(),
+            'file_type' => DocumentFileType::fromFileName($data->file->getClientOriginalName()),
             'size' => $data->file->getSize(),
             'version' => 1,
         ]);

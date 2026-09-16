@@ -18,6 +18,15 @@ class DocumentResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'mime_type' => $this->mime_type,
+            /**
+             * The 8-bucket File Type classification (see
+             * Domain\Services\DocumentFileType and .claude/rules/document.md,
+             * "File Type filter") — set once at upload time, never
+             * recomputed. Nullable only for the theoretical case of a row
+             * predating the backfill migration on an environment that never
+             * ran it; the frontend's own extToType(name) is the fallback.
+             */
+            'file_type' => $this->file_type,
             'size' => $this->size,
             'version' => $this->version,
             'status' => $this->status?->value,

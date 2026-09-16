@@ -11,6 +11,11 @@ Route::prefix('v1')->group(function () {
 		Route::get('/matters/search', [MattersController::class, 'search']);
 		Route::get('/matters/stats', [MattersController::class, 'stats']);
 		Route::apiResource('/matters', MattersController::class);
+		// See .claude/rules/matter.md, "Matter Archive / Restore" — the
+		// controller only authorizes and delegates; the actual writes live in
+		// ArchiveMatterHandler / UnarchiveMatterHandler.
+		Route::post('/matters/{matter}/archive', [MattersController::class, 'archive']);
+		Route::post('/matters/{matter}/unarchive', [MattersController::class, 'unarchive']);
 	});
 
 	// Client portal — see .claude/rules/matter.md and

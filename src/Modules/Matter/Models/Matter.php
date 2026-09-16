@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Matter\Domain\Enums\MatterType;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
 use PactTrackSDK\SharedResources\Modules\Matter\Database\Factories\MatterFactory;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
@@ -27,13 +28,17 @@ class Matter extends Model
         'name',
         'description',
         'status',
+        'matter_type',
         'start_date',
         'due_date',
+        'archived_at',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'due_date' => 'date',
+        'archived_at' => 'datetime',
+        'matter_type' => MatterType::class,
     ];
 
     protected static function newFactory(): MatterFactory

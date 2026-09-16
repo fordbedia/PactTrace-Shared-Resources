@@ -4,7 +4,9 @@ namespace PactTrackSDK\SharedResources\Modules\Matter\Http\Requests;
 
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rules\Enum;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Query\AssignableMatterStaff;
+use PactTrackSDK\SharedResources\Modules\Matter\Domain\Enums\MatterType;
 
 class MattersRequest extends FormRequest
 {
@@ -43,6 +45,10 @@ class MattersRequest extends FormRequest
 			'name' => [$required, 'string'],
 			'description' => 'nullable|string',
 			'status' => [$required],
+			// See .claude/rules/matter.md, "Matter Type and Edit Matter" —
+			// a per-matter classification (Agreement/Letter/Contract/Other),
+			// optional on both create and update.
+			'matter_type' => ['nullable', new Enum(MatterType::class)],
 			'start_date' => 'nullable|date_format:Y-m-d',
 			'due_date' => 'nullable|date_format:Y-m-d',
 			// Assign/reassign the matter's point of contact. `exists` alone

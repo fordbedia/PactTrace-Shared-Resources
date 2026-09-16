@@ -91,6 +91,24 @@ class EloquentAuditLogRepository extends BaseRepository implements AuditLogRepos
         return $query;
     }
 
+    /**
+     * @see AuditLogRepository::paginateUnreadForUser()
+     */
+    public function paginateUnreadForUser(int $providerId, int $userId, int $perPage, ?int $page): LengthAwarePaginator
+    {
+        return $this->baseQuery($providerId)
+            ->whereNotExists(function ($query) use ($userId): void {
+                $query->selectRaw('1')
+                    ->from('notification_reads')
+                    ->whereColumn('notification_reads.audit_log_id', 'audit_logs.id')
+                    ->where('notification_reads.user_id', $userId);
+            })
+            ->with('user')
+            ->latest()
+            ->latest('id')
+            ->paginate($perPage, ['*'], 'page', $page);
+    }
+
     public function recentForProvider(int $providerId, int $limit): Collection
     {
         return $this->baseQuery($providerId)

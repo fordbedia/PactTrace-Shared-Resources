@@ -39,4 +39,20 @@ class S3DocumentStorage implements DocumentStorage
     {
         return Storage::disk($this->disk)->get($path);
     }
+
+    /**
+     * S3 supports pre-signed temporary URLs natively; the `local` driver
+     * (dev) does not unless a `temporaryUrlCallback` is configured, which
+     * this app doesn't do — Laravel's FilesystemAdapter throws a
+     * RuntimeException in that case, caught here so the caller can fall back
+     * to streaming instead. See DocumentStorage's own docblock.
+     */
+    public function temporaryUrl(string $path, \DateTimeInterface $expiresAt): ?string
+    {
+        try {
+            return Storage::disk($this->disk)->temporaryUrl($path, $expiresAt);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
 }

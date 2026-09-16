@@ -4,6 +4,7 @@ namespace PactTrackSDK\SharedResources\Modules\Document\Application\Port\Reposit
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use PactTrackSDK\SharedResources\Modules\Document\Application\DTO\DocumentFilters;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 
@@ -50,9 +51,14 @@ interface DocumentRepository
      * interact. See .claude/rules/document.md, "Document Deletion &
      * Archival Rules".
      *
+     * `$filters` narrows further — matter, client, file type, date range,
+     * and free-text name search (the toolbar's filter chips + the top-bar
+     * search box, both folder/tab-aware). See DocumentFilters and
+     * .claude/rules/document.md, "File Type filter".
+     *
      * @return LengthAwarePaginator<int, Document>
      */
-    public function forProvider(int $providerId, ?int $clientId, int $perPage, ?int $page, bool $archived = false): LengthAwarePaginator;
+    public function forProvider(int $providerId, DocumentFilters $filters, int $perPage, ?int $page, bool $archived = false): LengthAwarePaginator;
 
     /**
      * One page of the documents filed directly under any of the given folder
@@ -61,12 +67,12 @@ interface DocumentRepository
      * at any depth, same as the folder tree itself.
      *
      * `$archived` — see forProvider() above; same independent archived/soft-delete
-     * split applies here.
+     * split applies here. `$filters` — see forProvider() above.
      *
      * @param array<int, int> $folderIds
      * @return LengthAwarePaginator<int, Document>
      */
-    public function forFolders(int $providerId, array $folderIds, ?int $clientId, int $perPage, ?int $page, bool $archived = false): LengthAwarePaginator;
+    public function forFolders(int $providerId, array $folderIds, DocumentFilters $filters, int $perPage, ?int $page, bool $archived = false): LengthAwarePaginator;
 
     /**
      * One page of every document filed against a single matter — backs the

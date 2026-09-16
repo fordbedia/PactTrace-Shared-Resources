@@ -25,6 +25,7 @@ class EloquentMattersRepository extends BaseRepository implements MattersReposit
 			'name' => $data->name,
 			'description' => $data->description,
 			'status' => $data->status,
+			'matter_type' => $data->matter_type,
 			'start_date' => $data->start_date,
 			'due_date' => $data->due_date,
 			'assigned_staff_id' => $data->assigned_staff_id,
@@ -37,6 +38,7 @@ class EloquentMattersRepository extends BaseRepository implements MattersReposit
 			'name' => $data->name,
 			'description' => $data->description,
 			'status' => $data->status,
+			'matter_type' => $data->matter_type,
 			'start_date' => $data->start_date,
 			'due_date' => $data->due_date,
 			'assigned_staff_id' => $data->assigned_staff_id,
@@ -91,37 +93,54 @@ class EloquentMattersRepository extends BaseRepository implements MattersReposit
 		return $query->orderBy('name')->limit($limit)->get();
 	}
 
-	public function paginateAll(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator
+	public function paginateAll(int $providerId, int $perPage, ?int $page, ?int $clientId = null, bool $archived = false, ?string $sort = null, string $direction = 'asc'): LengthAwarePaginator
 	{
-		return $this->paginateByStatus($providerId, null, $perPage, $page, $clientId);
+		return $this->paginateByStatus($providerId, null, $perPage, $page, $clientId, $archived, $sort, $direction);
 	}
 
-	public function paginateActive(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator
+	public function paginateActive(int $providerId, int $perPage, ?int $page, ?int $clientId = null, bool $archived = false, ?string $sort = null, string $direction = 'asc'): LengthAwarePaginator
 	{
-		return $this->paginateByStatus($providerId, 'active', $perPage, $page, $clientId);
+		return $this->paginateByStatus($providerId, 'active', $perPage, $page, $clientId, $archived, $sort, $direction);
 	}
 
-	public function paginateOnHold(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator
+	public function paginateOnHold(int $providerId, int $perPage, ?int $page, ?int $clientId = null, bool $archived = false, ?string $sort = null, string $direction = 'asc'): LengthAwarePaginator
 	{
-		return $this->paginateByStatus($providerId, 'on_hold', $perPage, $page, $clientId);
+		return $this->paginateByStatus($providerId, 'on_hold', $perPage, $page, $clientId, $archived, $sort, $direction);
 	}
 
-	public function paginateCompleted(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator
+	public function paginateCompleted(int $providerId, int $perPage, ?int $page, ?int $clientId = null, bool $archived = false, ?string $sort = null, string $direction = 'asc'): LengthAwarePaginator
 	{
-		return $this->paginateByStatus($providerId, 'completed', $perPage, $page, $clientId);
+		return $this->paginateByStatus($providerId, 'completed', $perPage, $page, $clientId, $archived, $sort, $direction);
 	}
 
-	public function paginateCancelled(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator
+	public function paginateCancelled(int $providerId, int $perPage, ?int $page, ?int $clientId = null, bool $archived = false, ?string $sort = null, string $direction = 'asc'): LengthAwarePaginator
 	{
-		return $this->paginateByStatus($providerId, 'cancelled', $perPage, $page, $clientId);
+		return $this->paginateByStatus($providerId, 'cancelled', $perPage, $page, $clientId, $archived, $sort, $direction);
 	}
 
-	private function paginateByStatus(int $providerId, ?string $status, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator
+	/**
+	 * `$sort` is expected to already be validated against
+	 * `MattersListData::ALLOWED_SORTS` by the caller — re-checked here via
+	 * an explicit `match` anyway (defaults to the pre-existing `latest()`
+	 * order for anything unrecognised) so this method can never be made to
+	 * interpolate an arbitrary column/direction into `orderBy()`.
+	 */
+	private function paginateByStatus(int $providerId, ?string $status, int $perPage, ?int $page, ?int $clientId = null, bool $archived = false, ?string $sort = null, string $direction = 'asc'): LengthAwarePaginator
 	{
+		$direction = $direction === 'desc' ? 'desc' : 'asc';
+
 		$query = $this->model->newQuery()
 			->with(['client', 'milestones'])
 			->where('provider_id', $providerId)
-			->latest();
+			->when($archived, fn ($q) => $q->whereNotNull('archived_at'), fn ($q) => $q->whereNull('archived_at'));
+
+		match ($sort) {
+			'name' => $query->orderBy('name', $direction),
+			'due_date' => $query->orderByRaw('due_date IS NULL, due_date ' . $direction),
+			'status' => $query->orderBy('status', $direction),
+			'updated_at' => $query->orderBy('updated_at', $direction),
+			default => $query->latest(),
+		};
 
 		if ($status !== null) {
 			$query->where('status', $status);
@@ -164,9 +183,18 @@ class EloquentMattersRepository extends BaseRepository implements MattersReposit
 		return $this->countByStatus($providerId, 'completed');
 	}
 
+	/**
+	 * Excludes archived matters — an archived matter shouldn't inflate the
+	 * "Total"/"Active"/"On Hold"/"Completed" stat cards on
+	 * /dashboard/matters, same as the Document module's own storage-usage
+	 * figures deliberately not counting archived files. See
+	 * .claude/rules/matter.md, "Matter Archive / Restore".
+	 */
 	private function countByStatus(int $providerId, ?string $status): int
 	{
-		$query = $this->model->newQuery()->where('provider_id', $providerId);
+		$query = $this->model->newQuery()
+			->where('provider_id', $providerId)
+			->whereNull('archived_at');
 
 		if ($status !== null) {
 			$query->where('status', $status);

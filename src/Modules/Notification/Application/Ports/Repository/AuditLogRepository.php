@@ -54,6 +54,17 @@ interface AuditLogRepository
     ): LengthAwarePaginator;
 
     /**
+     * Unread notification-bell feed for one user — every `audit_logs` row
+     * this tenant can see (same provider + current-workspace scoping as
+     * {@see paginateFiltered()}) that this user has not yet read or cleared
+     * (see {@see \PactTrackSDK\SharedResources\Modules\Notification\Application\Ports\Repository\NotificationReadRepository}),
+     * newest first, paginated for infinite scroll. Once a row is marked
+     * read it stops appearing here — the bell's "remove from the list" rule
+     * is enforced by this query, not by the frontend hiding rows client-side.
+     */
+    public function paginateUnreadForUser(int $providerId, int $userId, int $perPage, ?int $page): LengthAwarePaginator;
+
+    /**
      * The distinct `action` strings present for this tenant, ascending — backs
      * the frontend's "Action Type" filter, which has no fixed catalogue to
      * draw from (see .claude/rules/notification.md).

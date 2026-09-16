@@ -3,7 +3,9 @@
 namespace PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use PactTrackSDK\SharedResources\Modules\Document\Application\DTO\DocumentFilters;
 use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Repositories\BaseRepository;
@@ -16,29 +18,50 @@ class EloquentDocumentRepository extends BaseRepository implements DocumentRepos
 		return $this->model->create($data);
 	}
 
-	public function forProvider(int $providerId, ?int $clientId, int $perPage, ?int $page, bool $archived = false): LengthAwarePaginator
+	public function forProvider(int $providerId, DocumentFilters $filters, int $perPage, ?int $page, bool $archived = false): LengthAwarePaginator
 	{
 		$query = $this->model->newQuery()
 			->where('provider_id', $providerId)
-			->when($clientId !== null, fn ($query) => $query->where('client_id', $clientId))
 			->when($archived, fn ($query) => $query->whereNotNull('archived_at'), fn ($query) => $query->whereNull('archived_at'))
 			->with(['uploader', 'matter', 'client'])
 			->latest();
+
+		$this->applyFilters($query, $filters);
 
 		return $this->paginate($query, $perPage, ['*'], 'page', $page);
 	}
 
-	public function forFolders(int $providerId, array $folderIds, ?int $clientId, int $perPage, ?int $page, bool $archived = false): LengthAwarePaginator
+	public function forFolders(int $providerId, array $folderIds, DocumentFilters $filters, int $perPage, ?int $page, bool $archived = false): LengthAwarePaginator
 	{
 		$query = $this->model->newQuery()
 			->where('provider_id', $providerId)
 			->whereIn('folder_id', $folderIds)
-			->when($clientId !== null, fn ($query) => $query->where('client_id', $clientId))
 			->when($archived, fn ($query) => $query->whereNotNull('archived_at'), fn ($query) => $query->whereNull('archived_at'))
 			->with(['uploader', 'matter', 'client'])
 			->latest();
 
+		$this->applyFilters($query, $filters);
+
 		return $this->paginate($query, $perPage, ['*'], 'page', $page);
+	}
+
+	/**
+	 * The Matter/Client/File Type/Date Range/search narrowing shared by
+	 * forProvider() and forFolders() — see DocumentFilters and
+	 * .claude/rules/document.md, "File Type filter".
+	 */
+	private function applyFilters(Builder $query, DocumentFilters $filters): void
+	{
+		$query
+			->when($filters->clientId !== null, fn ($q) => $q->where('client_id', $filters->clientId))
+			->when($filters->matterId !== null, fn ($q) => $q->where('matter_id', $filters->matterId))
+			->when($filters->fileTypes !== [], fn ($q) => $q->whereIn('file_type', $filters->fileTypes))
+			->when($filters->dateFrom !== null, fn ($q) => $q->whereDate('created_at', '>=', $filters->dateFrom))
+			->when($filters->dateTo !== null, fn ($q) => $q->whereDate('created_at', '<=', $filters->dateTo))
+			->when(
+				$filters->search !== null && $filters->search !== '',
+				fn ($q) => $q->where('name', 'like', '%' . $filters->search . '%'),
+			);
 	}
 
 	public function forMatter(int $providerId, int $matterId, ?int $clientId, int $perPage, ?int $page, bool $archived = false): LengthAwarePaginator

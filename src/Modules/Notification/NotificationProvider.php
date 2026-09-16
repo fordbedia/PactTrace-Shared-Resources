@@ -6,9 +6,11 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use PactTrackSDK\SharedResources\Modules\Notification\Application\Ports\Repository\AuditLogRepository;
 use PactTrackSDK\SharedResources\Modules\Notification\Application\Ports\Repository\NotificationPreferenceRepository;
+use PactTrackSDK\SharedResources\Modules\Notification\Application\Ports\Repository\NotificationReadRepository;
 use PactTrackSDK\SharedResources\Modules\Notification\Application\Preferences\NotificationPreferenceResolver;
 use PactTrackSDK\SharedResources\Modules\Notification\Infrastructure\Repositories\Eloquent\EloquentAuditLogRepository;
 use PactTrackSDK\SharedResources\Modules\Notification\Infrastructure\Repositories\Eloquent\EloquentNotificationPreferenceRepository;
+use PactTrackSDK\SharedResources\Modules\Notification\Infrastructure\Repositories\Eloquent\EloquentNotificationReadRepository;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTrackSDK\SharedResources\Modules\Notification\Policies\AuditLogPolicy;
 
@@ -34,6 +36,7 @@ class NotificationProvider extends ServiceProvider
         require_once __DIR__.'/Support/helpers.php';
 
         $this->app->singleton(AuditLogRepository::class, EloquentAuditLogRepository::class);
+        $this->app->singleton(NotificationReadRepository::class, EloquentNotificationReadRepository::class);
 
         $this->app->bind(
             NotificationPreferenceRepository::class,

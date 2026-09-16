@@ -15,6 +15,8 @@ use PactTrackSDK\SharedResources\Modules\Document\Http\Controllers\FolderControl
 |     GET    /api/documents
 |     GET    /api/documents/storage
 |     POST   /api/documents
+|     GET    /api/documents/{document}
+|     GET    /api/documents/{document}/download
 |     DELETE /api/documents/{document}
 |     POST   /api/documents/{document}/archive
 |     POST   /api/documents/{document}/unarchive
@@ -30,9 +32,20 @@ use PactTrackSDK\SharedResources\Modules\Document\Http\Controllers\FolderControl
 
 Route::get('documents', [DocumentController::class, 'index']);
 // Before any future `documents/{document}` route, so "storage" is never
-// swallowed as a document id.
+// swallowed as a document id. Same reasoning for the three bulk routes
+// below (move-many/archive-many/zip) — none of them is a numeric id, but
+// they still need to come first for the same "never swallowed by
+// {document}" reason.
 Route::get('documents/storage', [DocumentController::class, 'storage']);
+Route::post('documents/move-many', [DocumentController::class, 'moveMany']);
+Route::post('documents/archive-many', [DocumentController::class, 'archiveMany']);
+Route::post('documents/zip', [DocumentController::class, 'zip']);
 Route::post('documents', [DocumentController::class, 'store']);
+// The Document Detail page's fetch — see .claude/rules/document.md,
+// "Document Detail is a real route". Must come after `documents/storage`
+// above for the same reason that route's own comment gives.
+Route::get('documents/{document}', [DocumentController::class, 'show']);
+Route::get('documents/{document}/download', [DocumentController::class, 'download']);
 // See .claude/rules/document.md, "Document Deletion & Archival Rules" — the
 // controller only authorizes and translates domain exceptions to HTTP
 // status; the actual policy checks live in DeleteDocumentHandler /

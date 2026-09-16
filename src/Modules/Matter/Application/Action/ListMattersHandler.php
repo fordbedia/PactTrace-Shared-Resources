@@ -13,6 +13,6 @@ class ListMattersHandler
 
 	public function handle(MattersListData $data): LengthAwarePaginator
 	{
-		return $this->service->paginate($data->provider_id, $data->filter, $data->per_page, $data->page, $data->client_id);
+		return $this->service->paginate($data->provider_id, $data->filter, $data->per_page, $data->page, $data->client_id, $data->archived, $data->sort, $data->direction);
 	}
 }

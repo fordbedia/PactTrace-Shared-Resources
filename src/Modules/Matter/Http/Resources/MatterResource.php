@@ -30,8 +30,10 @@ class MatterResource extends JsonResource
             'name' => $this->name,
             'description' => $this->description,
             'status' => $this->status,
+            'matter_type' => $this->matter_type?->value,
             'start_date' => $this->start_date?->toDateString(),
             'due_date' => $this->due_date?->toDateString(),
+            'archived_at' => $this->archived_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
             /** @see MatterProgressCalculator */

@@ -31,6 +31,7 @@ class Document extends Model
         'name',
         's3_path',
         'mime_type',
+        'file_type',
         'size',
         'version',
         'status',

@@ -23,4 +23,15 @@ interface DocumentStorage
     public function exists(string $path): bool;
 
     public function get(string $path): string;
+
+    /**
+     * A time-limited, directly-fetchable URL for `$path`, or `null` when the
+     * underlying disk doesn't support one (e.g. the `local` driver in dev —
+     * see S3DocumentStorage). Backs document download: production (S3) gets
+     * a real pre-signed URL with no PactTrack app server in the request
+     * path; a disk that can't produce one falls back to streaming `get()`'s
+     * bytes through the app instead. See .claude/rules/document.md,
+     * "Document download".
+     */
+    public function temporaryUrl(string $path, \DateTimeInterface $expiresAt): ?string;
 }

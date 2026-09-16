@@ -7,15 +7,21 @@ namespace PactTrackSDK\SharedResources\Modules\Document\Http\Controllers;
 use App\Http\Concerns\EnforcesPlanGate;
 use App\Http\Concerns\ResolvesActingUser;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Action\BuildDocumentsZipAction;
+use PactTrackSDK\SharedResources\Modules\Document\Application\Action\DownloadDocumentAction;
 use PactTrackSDK\SharedResources\Modules\Document\Application\Action\GetStorageUsageAction;
 use PactTrackSDK\SharedResources\Modules\Document\Application\Action\ListDocumentsAction;
 use PactTrackSDK\SharedResources\Modules\Document\Application\Action\UploadDocumentAction;
 use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\ArchiveDocumentHandler;
+use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\BulkArchiveDocumentsHandler;
 use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\DeleteDocumentHandler;
+use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\MoveDocumentsHandler;
 use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\UnarchiveDocumentHandler;
 use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\VoidDocumentHandler;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Exceptions\DocumentCannotBeDeletedException;
@@ -23,12 +29,16 @@ use PactTrackSDK\SharedResources\Modules\Document\Domain\Exceptions\DocumentCann
 use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Services\ByteFormatter;
 use PactTrackSDK\SharedResources\Modules\Document\Application\DTO\DocumentData;
 use PactTrackSDK\SharedResources\Modules\Document\Application\DTO\DocumentListData;
+use PactTrackSDK\SharedResources\Modules\Document\Http\Requests\BulkDocumentIdsRequest;
+use PactTrackSDK\SharedResources\Modules\Document\Http\Requests\MoveDocumentsRequest;
 use PactTrackSDK\SharedResources\Modules\Document\Http\Requests\StoreDocumentRequest;
 use PactTrackSDK\SharedResources\Modules\Document\Http\Resources\DocumentResource;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Document\Models\Folder;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\GatedAction;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Inbound adapter for the Document Center on /dashboard/documents. Thin by
@@ -60,7 +70,33 @@ class DocumentController extends Controller
         private readonly ArchiveDocumentHandler $archiveDocument,
         private readonly UnarchiveDocumentHandler $unarchiveDocument,
         private readonly VoidDocumentHandler $voidDocument,
+        private readonly DownloadDocumentAction $downloadDocument,
+        private readonly MoveDocumentsHandler $moveDocuments,
+        private readonly BulkArchiveDocumentsHandler $bulkArchiveDocuments,
+        private readonly BuildDocumentsZipAction $buildDocumentsZip,
     ) {
+    }
+
+    /**
+     * Loads `$ids` scoped to the acting user's own tenant and authorizes
+     * every one against `$ability` (same gate its single-row action already
+     * requires) before any bulk action touches them — one unauthorized or
+     * cross-tenant id in the batch fails the whole request rather than
+     * silently skipping it. Shared by moveMany()/archiveMany()/zip() so the
+     * three bulk actions can never disagree on this check.
+     *
+     * @param list<int> $ids
+     */
+    private function authorizedDocuments(Request $request, array $ids, string $ability): Collection
+    {
+        $user = $this->resolveActingUser($request);
+        $documents = Document::query()->whereIn('id', $ids)->get();
+
+        foreach ($documents as $document) {
+            Gate::forUser($user)->authorize($ability, $document);
+        }
+
+        return $documents;
     }
 
     /**
@@ -194,6 +230,69 @@ class DocumentController extends Controller
     }
 
     /**
+     * GET /api/documents/{document}
+     *
+     * The Document Detail page's fetch (`/dashboard/documents/{document}` —
+     * see .claude/rules/document.md, "Document Detail is a real route").
+     * Mirrors MattersController::show(): a plain `view` gate, eager-loading
+     * everything the resource can expose so a direct load/refresh needs only
+     * this one request. `envelopes` is loaded (not just `matter`/`client`/
+     * `uploader`) specifically so `envelope_public_id`/`envelope_status` are
+     * populated — the single-document detail view is exactly where those two
+     * fields matter most.
+     */
+    public function show(Request $request, Document $document): DocumentResource|Response
+    {
+        $user = $this->resolveActingUser($request);
+
+        if ($user === null || $user->provider_id === null) {
+            return response()->json([
+                'message' => 'You must be signed in to a provider account to view this document.',
+            ], 401);
+        }
+
+        Gate::forUser($user)->authorize('view', $document);
+
+        return DocumentResource::make($document->load(['matter', 'client', 'uploader', 'envelopes']));
+    }
+
+    /**
+     * GET /api/documents/{document}/download
+     *
+     * `download` is a distinct permission/gate from `view` — see
+     * DocumentPolicy::download's own docblock and
+     * .claude/rules/document.md, "Document download". No status
+     * restriction: a completed/signed document is exactly the case this is
+     * for.
+     */
+    public function download(Request $request, Document $document): RedirectResponse|StreamedResponse|Response
+    {
+        $user = $this->resolveActingUser($request);
+
+        if ($user === null || $user->provider_id === null) {
+            return response()->json([
+                'message' => 'You must be signed in to a provider account to download documents.',
+            ], 401);
+        }
+
+        Gate::forUser($user)->authorize('download', $document);
+
+        $download = $this->downloadDocument->handle($document, $user);
+
+        if ($download->isRedirect()) {
+            return redirect()->away($download->url);
+        }
+
+        return response()->streamDownload(
+            function () use ($download): void {
+                echo $download->content ?? '';
+            },
+            $download->fileName,
+            array_filter(['Content-Type' => $download->mimeType]),
+        );
+    }
+
+    /**
      * DELETE /api/documents/{document}
      *
      * Only a `draft` document may ever be deleted — DocumentDeletionPolicy
@@ -292,5 +391,88 @@ class DocumentController extends Controller
         } catch (DocumentCannotBeVoidedException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * POST /api/documents/move-many
+     *
+     * The Documents page's bulk bar "Move" action (Move modal — see
+     * .claude/rules/document.md). Reuses the same `update` gate the
+     * single-row Archive/Unarchive actions already require.
+     */
+    public function moveMany(MoveDocumentsRequest $request): AnonymousResourceCollection|Response
+    {
+        $user = $this->resolveActingUser($request);
+
+        if ($user === null || $user->provider_id === null) {
+            return response()->json([
+                'message' => 'You must be signed in to a provider account to move documents.',
+            ], 401);
+        }
+
+        $folder = Folder::query()
+            ->where('provider_id', $user->provider_id)
+            ->find($request->integer('folder_id'));
+
+        if ($folder === null) {
+            return response()->json(['message' => 'That folder could not be found.'], 422);
+        }
+
+        $documents = $this->authorizedDocuments($request, $request->input('document_ids'), 'update');
+
+        return DocumentResource::collection($this->moveDocuments->handle($documents, $folder->id, $user));
+    }
+
+    /**
+     * POST /api/documents/archive-many
+     *
+     * The Documents page's bulk bar "Archive" action (renamed from the old
+     * decorative "Delete" button — Archive is the only user-facing bulk
+     * removal action, see .claude/rules/document.md).
+     */
+    public function archiveMany(BulkDocumentIdsRequest $request): AnonymousResourceCollection|Response
+    {
+        $user = $this->resolveActingUser($request);
+
+        if ($user === null || $user->provider_id === null) {
+            return response()->json([
+                'message' => 'You must be signed in to a provider account to archive documents.',
+            ], 401);
+        }
+
+        $documents = $this->authorizedDocuments($request, $request->input('document_ids'), 'update');
+
+        return DocumentResource::collection($this->bulkArchiveDocuments->handle($documents, $user));
+    }
+
+    /**
+     * POST /api/documents/zip
+     *
+     * The Documents page's bulk bar "Zip" action — streams a .zip of every
+     * selected document back and deletes the temp file once the response
+     * finishes sending (register_shutdown_function/`deleteFileAfterSend`
+     * would be swallowed by StreamedResponse's own callback, so this uses
+     * that directly).
+     */
+    public function zip(BulkDocumentIdsRequest $request): Response
+    {
+        $user = $this->resolveActingUser($request);
+
+        if ($user === null || $user->provider_id === null) {
+            return response()->json([
+                'message' => 'You must be signed in to a provider account to download documents.',
+            ], 401);
+        }
+
+        $documents = $this->authorizedDocuments($request, $request->input('document_ids'), 'download');
+
+        $zipPath = $this->buildDocumentsZip->handle($documents, $user);
+
+        // A real file response (not streamDownload's closure form) so
+        // `deleteFileAfterSend` can clean up the temp zip once it's fully
+        // sent, success or client-abort alike.
+        return response()
+            ->download($zipPath, 'documents.zip', ['Content-Type' => 'application/zip'])
+            ->deleteFileAfterSend(true);
     }
 }

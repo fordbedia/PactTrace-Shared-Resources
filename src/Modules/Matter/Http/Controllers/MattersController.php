@@ -15,6 +15,8 @@ use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\ListMattersHa
 use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\SearchMatterClientsHandler;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\SearchMattersHandler;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\Action\UpdateMattersHandler;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\UseCases\ArchiveMatterHandler;
+use PactTrackSDK\SharedResources\Modules\Matter\Application\UseCases\UnarchiveMatterHandler;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\ClientSearchData;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\MatterSearchData;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\DTO\MattersData;
@@ -181,5 +183,35 @@ class MattersController extends Controller
     public function destroy(string $id)
     {
         //
+    }
+
+    /**
+     * POST /matters/{matter}/archive
+     *
+     * No status restriction — a matter of any status may be archived
+     * (ArchiveMatterHandler). Reuses the `update` gate/permission rather than
+     * a dedicated one: archiving only flips `archived_at`, the same class of
+     * change `matter.update` already covers. See .claude/rules/matter.md,
+     * "Matter Archive / Restore".
+     */
+    public function archive(Matter $matter, ArchiveMatterHandler $handler)
+    {
+        Gate::authorize('update', $matter);
+
+        $matter = $handler->handle($matter, auth()->user());
+
+        return new MatterResource($matter->load(['client', 'assignedStaff', 'milestones']));
+    }
+
+    /**
+     * POST /matters/{matter}/unarchive
+     */
+    public function unarchive(Matter $matter, UnarchiveMatterHandler $handler)
+    {
+        Gate::authorize('update', $matter);
+
+        $matter = $handler->handle($matter, auth()->user());
+
+        return new MatterResource($matter->load(['client', 'assignedStaff', 'milestones']));
     }
 }

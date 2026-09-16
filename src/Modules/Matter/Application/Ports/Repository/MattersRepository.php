@@ -56,16 +56,29 @@ interface MattersRepository
 	 * query filter, not a distinct authorization concern: a `client_id`
 	 * belonging to another tenant matches no row of this `provider_id`'s
 	 * matters regardless, so no extra tenant check is needed here.
+	 *
+	 * `$archived` selects which of the two disjoint views to return —
+	 * `false` (default) excludes every archived matter, `true` returns only
+	 * archived ones. Independent of the status filter, same as the Document
+	 * module's own `archived` param (see .claude/rules/document.md) — never
+	 * a status value, never mixed with the non-archived view.
+	 *
+	 * `$sort`/`$direction` back the "Sort" filter chip — `$sort` is one of
+	 * `MattersListData::ALLOWED_SORTS` (already validated against that
+	 * allow-list before it reaches here) or `null` for the default
+	 * newest-first order; `$direction` is `'asc'`/`'desc'`, never trusted
+	 * for raw interpolation without being re-checked at the call site. See
+	 * .claude/rules/matter.md, "Sort".
 	 */
-	public function paginateAll(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator;
+	public function paginateAll(int $providerId, int $perPage, ?int $page, ?int $clientId = null, bool $archived = false, ?string $sort = null, string $direction = 'asc'): LengthAwarePaginator;
 
-	public function paginateActive(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator;
+	public function paginateActive(int $providerId, int $perPage, ?int $page, ?int $clientId = null, bool $archived = false, ?string $sort = null, string $direction = 'asc'): LengthAwarePaginator;
 
-	public function paginateOnHold(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator;
+	public function paginateOnHold(int $providerId, int $perPage, ?int $page, ?int $clientId = null, bool $archived = false, ?string $sort = null, string $direction = 'asc'): LengthAwarePaginator;
 
-	public function paginateCompleted(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator;
+	public function paginateCompleted(int $providerId, int $perPage, ?int $page, ?int $clientId = null, bool $archived = false, ?string $sort = null, string $direction = 'asc'): LengthAwarePaginator;
 
-	public function paginateCancelled(int $providerId, int $perPage, ?int $page, ?int $clientId = null): LengthAwarePaginator;
+	public function paginateCancelled(int $providerId, int $perPage, ?int $page, ?int $clientId = null, bool $archived = false, ?string $sort = null, string $direction = 'asc'): LengthAwarePaginator;
 
 	/**
 	 * Backs the "Total Matters"/"Active"/"On Hold"/"Completed" stat cards on

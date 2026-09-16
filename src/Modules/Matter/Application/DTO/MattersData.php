@@ -22,6 +22,7 @@ class MattersData
 		public ?string $start_date,
 		public ?string $due_date,
 		public ?int $assigned_staff_id = null,
+		public ?string $matter_type = null,
 	)
 	{}
 
@@ -40,6 +41,7 @@ class MattersData
 			start_date: $data['start_date'],
 			due_date: $data['due_date'],
 			assigned_staff_id: $data['assigned_staff_id'] ?? null,
+			matter_type: $data['matter_type'] ?? null,
 		);
 	}
 
@@ -77,6 +79,7 @@ class MattersData
 			assigned_staff_id: $has('assigned_staff_id')
 				? ($overrides['assigned_staff_id'] !== null ? (int) $overrides['assigned_staff_id'] : null)
 				: ($matter->assigned_staff_id !== null ? (int) $matter->assigned_staff_id : null),
+			matter_type: $has('matter_type') ? $overrides['matter_type'] : $matter->matter_type?->value,
 		);
 	}
 }
