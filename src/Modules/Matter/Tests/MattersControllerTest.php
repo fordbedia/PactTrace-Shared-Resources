@@ -112,4 +112,41 @@ class MattersControllerTest extends BaseTest
         $this->assertContains($this->tenant['matter']->id, $ids);
         $this->assertNotContains($this->tenant['otherMatter']->id, $ids);
     }
+
+    /**
+     * `?sort=name&direction=` backs the "Sort" filter chip on
+     * /dashboard/matters — see .claude/rules/matter.md, "Sort".
+     */
+    public function test_index_can_be_sorted_by_name(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        \PactTrackSDK\SharedResources\Modules\Matter\Models\Matter::query()
+            ->whereKey($this->tenant['matter']->id)
+            ->update(['name' => 'Zeta Matter']);
+        \PactTrackSDK\SharedResources\Modules\Matter\Models\Matter::query()
+            ->whereKey($this->tenant['otherMatter']->id)
+            ->update(['name' => 'Alpha Matter']);
+
+        $response = $this->getJson('/api/v1/matters?sort=name&direction=asc');
+
+        $response->assertOk();
+        $names = collect($response->json('data'))->pluck('name')->all();
+
+        $this->assertSame(['Alpha Matter', 'Zeta Matter'], $names);
+    }
+
+    /**
+     * An unrecognised sort key must never reach raw SQL — it's dropped by
+     * `MattersListData::fromRequest()`'s allow-list, so the request behaves
+     * as if no sort was requested at all rather than erroring.
+     */
+    public function test_an_unknown_sort_key_is_ignored_rather_than_erroring(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $response = $this->getJson('/api/v1/matters?sort=' . urlencode('id; DROP TABLE matters'));
+
+        $response->assertOk();
+    }
 }

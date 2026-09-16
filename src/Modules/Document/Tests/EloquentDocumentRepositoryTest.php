@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PactTrackSDK\SharedResources\Modules\Document\Tests;
 
+use PactTrackSDK\SharedResources\Modules\Document\Application\DTO\DocumentFilters;
 use PactTrackSDK\SharedResources\Modules\Document\Application\Port\Repository\DocumentRepository;
 use PactTrackSDK\SharedResources\Modules\Document\Infrastructure\Repositories\Eloquent\EloquentDocumentRepository;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
@@ -66,7 +67,7 @@ class EloquentDocumentRepositoryTest extends BaseTest
 
     public function test_for_provider_returns_only_that_providers_documents(): void
     {
-        $page = $this->repository->forProvider($this->tenant['provider']->id, null, 15, 1);
+        $page = $this->repository->forProvider($this->tenant['provider']->id, new DocumentFilters(), 15, 1);
 
         $providerIds = $page->getCollection()->pluck('provider_id')->unique()->all();
 
@@ -80,7 +81,7 @@ class EloquentDocumentRepositoryTest extends BaseTest
         $older = $this->documentFor($this->tenant, ['created_at' => now()->subDays(3)]);
         $newer = $this->documentFor($this->tenant, ['created_at' => now()->addDay()]);
 
-        $ids = $this->repository->forProvider($this->tenant['provider']->id, null, 15, 1)
+        $ids = $this->repository->forProvider($this->tenant['provider']->id, new DocumentFilters(), 15, 1)
             ->getCollection()
             ->pluck('id')
             ->all();
@@ -96,8 +97,8 @@ class EloquentDocumentRepositoryTest extends BaseTest
             $this->documentFor($this->tenant);
         }
 
-        $firstPage = $this->repository->forProvider($this->tenant['provider']->id, null, 2, 1);
-        $lastPage = $this->repository->forProvider($this->tenant['provider']->id, null, 2, 3);
+        $firstPage = $this->repository->forProvider($this->tenant['provider']->id, new DocumentFilters(), 2, 1);
+        $lastPage = $this->repository->forProvider($this->tenant['provider']->id, new DocumentFilters(), 2, 3);
 
         $this->assertSame(5, $firstPage->total());
         $this->assertSame(3, $firstPage->lastPage());
@@ -120,7 +121,7 @@ class EloquentDocumentRepositoryTest extends BaseTest
     {
         $page = $this->repository->forProvider(
             $this->tenant['provider']->id,
-            $this->tenant['client']->id,
+            new DocumentFilters(clientId: $this->tenant['client']->id),
             15,
             1,
         );
@@ -136,7 +137,7 @@ class EloquentDocumentRepositoryTest extends BaseTest
 
     public function test_for_provider_eager_loads_the_uploader_and_matter(): void
     {
-        $document = $this->repository->forProvider($this->tenant['provider']->id, null, 15, 1)
+        $document = $this->repository->forProvider($this->tenant['provider']->id, new DocumentFilters(), 15, 1)
             ->getCollection()
             ->first();
 
@@ -149,7 +150,7 @@ class EloquentDocumentRepositoryTest extends BaseTest
     {
         $archived = $this->documentFor($this->tenant, ['archived_at' => now()]);
 
-        $ids = $this->repository->forProvider($this->tenant['provider']->id, null, 15, 1)
+        $ids = $this->repository->forProvider($this->tenant['provider']->id, new DocumentFilters(), 15, 1)
             ->getCollection()
             ->pluck('id')
             ->all();
@@ -161,7 +162,7 @@ class EloquentDocumentRepositoryTest extends BaseTest
     {
         $archived = $this->documentFor($this->tenant, ['archived_at' => now()]);
 
-        $page = $this->repository->forProvider($this->tenant['provider']->id, null, 15, 1, archived: true);
+        $page = $this->repository->forProvider($this->tenant['provider']->id, new DocumentFilters(), 15, 1, archived: true);
 
         $this->assertSame([$archived->id], $page->getCollection()->pluck('id')->all());
     }
@@ -174,7 +175,7 @@ class EloquentDocumentRepositoryTest extends BaseTest
         $inWanted = $this->documentFor($this->tenant, ['folder_id' => $wanted->id]);
         $this->documentFor($this->tenant, ['folder_id' => $unwanted->id]);
 
-        $page = $this->repository->forFolders($this->tenant['provider']->id, [$wanted->id], null, 15, 1);
+        $page = $this->repository->forFolders($this->tenant['provider']->id, [$wanted->id], new DocumentFilters(), 15, 1);
 
         $this->assertSame(1, $page->total());
         $this->assertSame($inWanted->id, $page->getCollection()->first()->id);
@@ -190,7 +191,7 @@ class EloquentDocumentRepositoryTest extends BaseTest
         $this->documentFor($this->tenant, ['folder_id' => $parent->id]);
         $this->documentFor($this->tenant, ['folder_id' => $child->id]);
 
-        $page = $this->repository->forFolders($this->tenant['provider']->id, [$parent->id, $child->id], null, 15, 1);
+        $page = $this->repository->forFolders($this->tenant['provider']->id, [$parent->id, $child->id], new DocumentFilters(), 15, 1);
 
         $this->assertSame(2, $page->total());
     }
@@ -202,7 +203,7 @@ class EloquentDocumentRepositoryTest extends BaseTest
         $foreignFolder = $this->folderFor($this->otherTenant);
         $this->documentFor($this->otherTenant, ['folder_id' => $foreignFolder->id]);
 
-        $page = $this->repository->forFolders($this->tenant['provider']->id, [$foreignFolder->id], null, 15, 1);
+        $page = $this->repository->forFolders($this->tenant['provider']->id, [$foreignFolder->id], new DocumentFilters(), 15, 1);
 
         $this->assertSame(0, $page->total());
     }
@@ -223,7 +224,7 @@ class EloquentDocumentRepositoryTest extends BaseTest
         $page = $this->repository->forFolders(
             $this->tenant['provider']->id,
             [$folder->id],
-            $this->tenant['client']->id,
+            new DocumentFilters(clientId: $this->tenant['client']->id),
             15,
             1,
         );
@@ -237,12 +238,152 @@ class EloquentDocumentRepositoryTest extends BaseTest
         $folder = $this->folderFor($this->tenant);
         $this->documentFor($this->tenant, ['folder_id' => $folder->id]);
 
-        $document = $this->repository->forFolders($this->tenant['provider']->id, [$folder->id], null, 15, 1)
+        $document = $this->repository->forFolders($this->tenant['provider']->id, [$folder->id], new DocumentFilters(), 15, 1)
             ->getCollection()
             ->first();
 
         $this->assertTrue($document->relationLoaded('uploader'));
         $this->assertTrue($document->relationLoaded('matter'));
+    }
+
+    public function test_for_provider_narrows_by_matter_id(): void
+    {
+        $matter = \PactTrackSDK\SharedResources\Modules\Matter\Models\Matter::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+        ]);
+        $inMatter = $this->documentFor($this->tenant, ['matter_id' => $matter->id]);
+        $this->documentFor($this->tenant);
+
+        $page = $this->repository->forProvider(
+            $this->tenant['provider']->id,
+            new DocumentFilters(matterId: $matter->id),
+            15,
+            1,
+        );
+
+        $this->assertSame([$inMatter->id], $page->getCollection()->pluck('id')->all());
+    }
+
+    public function test_for_provider_narrows_by_file_type(): void
+    {
+        // The scenario's own tenant document also defaults to 'pdf' (the
+        // factory's default file_type) — narrow this assertion to
+        // "the txt document is excluded" rather than an exact id list, so it
+        // doesn't depend on the scenario's own unrelated fixture rows.
+        $txt = $this->documentFor($this->tenant, ['name' => 'notes.txt', 'file_type' => 'txt']);
+
+        $page = $this->repository->forProvider(
+            $this->tenant['provider']->id,
+            new DocumentFilters(fileTypes: ['pdf']),
+            15,
+            1,
+        );
+
+        $ids = $page->getCollection()->pluck('id')->all();
+        $this->assertNotContains($txt->id, $ids);
+    }
+
+    public function test_for_provider_narrows_by_multiple_file_types(): void
+    {
+        $doc = $this->documentFor($this->tenant, ['name' => 'letter.docx', 'file_type' => 'doc']);
+        $txt = $this->documentFor($this->tenant, ['name' => 'notes.txt', 'file_type' => 'txt']);
+
+        $page = $this->repository->forProvider(
+            $this->tenant['provider']->id,
+            new DocumentFilters(fileTypes: ['pdf', 'doc']),
+            15,
+            1,
+        );
+
+        $ids = $page->getCollection()->pluck('id')->all();
+        $this->assertContains($doc->id, $ids);
+        $this->assertNotContains($txt->id, $ids);
+    }
+
+    public function test_for_provider_narrows_by_date_range(): void
+    {
+        $inRange = $this->documentFor($this->tenant, ['created_at' => '2026-08-15 12:00:00']);
+        $this->documentFor($this->tenant, ['created_at' => '2026-07-01 12:00:00']);
+        $this->documentFor($this->tenant, ['created_at' => '2026-09-01 12:00:00']);
+
+        $page = $this->repository->forProvider(
+            $this->tenant['provider']->id,
+            new DocumentFilters(dateFrom: '2026-08-01', dateTo: '2026-08-31'),
+            15,
+            1,
+        );
+
+        $this->assertSame([$inRange->id], $page->getCollection()->pluck('id')->all());
+    }
+
+    public function test_for_provider_narrows_by_name_search(): void
+    {
+        $wanted = $this->documentFor($this->tenant, ['name' => 'Smith Estate Retainer.pdf']);
+        $this->documentFor($this->tenant, ['name' => 'Jones NDA.pdf']);
+
+        $page = $this->repository->forProvider(
+            $this->tenant['provider']->id,
+            new DocumentFilters(search: 'smith'),
+            15,
+            1,
+        );
+
+        $this->assertSame([$wanted->id], $page->getCollection()->pluck('id')->all());
+    }
+
+    public function test_for_folders_combines_matter_file_type_and_date_filters_with_the_folder_scope(): void
+    {
+        $folder = $this->folderFor($this->tenant);
+        $matter = \PactTrackSDK\SharedResources\Modules\Matter\Models\Matter::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+        ]);
+
+        $wanted = $this->documentFor($this->tenant, [
+            'folder_id' => $folder->id,
+            'matter_id' => $matter->id,
+            'file_type' => 'pdf',
+            'created_at' => '2026-08-15 12:00:00',
+        ]);
+        // Wrong matter.
+        $this->documentFor($this->tenant, [
+            'folder_id' => $folder->id,
+            'file_type' => 'pdf',
+            'created_at' => '2026-08-15 12:00:00',
+        ]);
+        // Wrong file type.
+        $this->documentFor($this->tenant, [
+            'folder_id' => $folder->id,
+            'matter_id' => $matter->id,
+            'file_type' => 'txt',
+            'created_at' => '2026-08-15 12:00:00',
+        ]);
+        // Wrong date.
+        $this->documentFor($this->tenant, [
+            'folder_id' => $folder->id,
+            'matter_id' => $matter->id,
+            'file_type' => 'pdf',
+            'created_at' => '2026-07-01 12:00:00',
+        ]);
+        // Right everything, wrong folder.
+        $this->documentFor($this->tenant, [
+            'matter_id' => $matter->id,
+            'file_type' => 'pdf',
+            'created_at' => '2026-08-15 12:00:00',
+        ]);
+
+        $page = $this->repository->forFolders(
+            $this->tenant['provider']->id,
+            [$folder->id],
+            new DocumentFilters(matterId: $matter->id, fileTypes: ['pdf'], dateFrom: '2026-08-01', dateTo: '2026-08-31'),
+            15,
+            1,
+        );
+
+        $this->assertSame([$wanted->id], $page->getCollection()->pluck('id')->all());
     }
 
     public function test_total_size_sums_the_providers_documents(): void

@@ -117,4 +117,9 @@ class InMemoryDocumentStorage implements DocumentStorage
     {
         return $this->files[$path] ?? '';
     }
+
+    public function temporaryUrl(string $path, \DateTimeInterface $expiresAt): ?string
+    {
+        return null;
+    }
 }

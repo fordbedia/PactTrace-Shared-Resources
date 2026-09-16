@@ -61,4 +61,69 @@ class EloquentMattersRepositoryTest extends BaseTest
         $this->assertCount(1, $results);
         $this->assertSame($client->id, $results->first()->id);
     }
+
+    /**
+     * The "Sort" filter chip on /dashboard/matters — see
+     * .claude/rules/matter.md, "Sort". Each allow-listed key is exercised in
+     * both directions; an unrecognised key falls back to the pre-existing
+     * `latest()` order rather than throwing or being passed to raw SQL.
+     */
+    public function test_paginate_all_sorts_by_name(): void
+    {
+        $client = Client::factory()->create();
+        $b = Matter::factory()->create(['provider_id' => $client->provider_id, 'client_id' => $client->id, 'name' => 'Beta Matter']);
+        $a = Matter::factory()->create(['provider_id' => $client->provider_id, 'client_id' => $client->id, 'name' => 'Alpha Matter']);
+        $c = Matter::factory()->create(['provider_id' => $client->provider_id, 'client_id' => $client->id, 'name' => 'Charlie Matter']);
+
+        $repository = app(EloquentMattersRepository::class);
+
+        $asc = $repository->paginateAll($client->provider_id, 15, 1, sort: 'name', direction: 'asc');
+        $this->assertSame([$a->id, $b->id, $c->id], $asc->getCollection()->pluck('id')->all());
+
+        $desc = $repository->paginateAll($client->provider_id, 15, 1, sort: 'name', direction: 'desc');
+        $this->assertSame([$c->id, $b->id, $a->id], $desc->getCollection()->pluck('id')->all());
+    }
+
+    public function test_paginate_all_sorts_by_due_date_with_nulls_last(): void
+    {
+        $client = Client::factory()->create();
+        $noDate = Matter::factory()->create(['provider_id' => $client->provider_id, 'client_id' => $client->id, 'due_date' => null]);
+        $soon = Matter::factory()->create(['provider_id' => $client->provider_id, 'client_id' => $client->id, 'due_date' => '2026-10-01']);
+        $later = Matter::factory()->create(['provider_id' => $client->provider_id, 'client_id' => $client->id, 'due_date' => '2026-11-01']);
+
+        $repository = app(EloquentMattersRepository::class);
+
+        $ids = $repository->paginateAll($client->provider_id, 15, 1, sort: 'due_date', direction: 'asc')
+            ->getCollection()->pluck('id')->all();
+
+        $this->assertSame([$soon->id, $later->id, $noDate->id], $ids, 'Matters with no due date must sort last regardless of direction.');
+    }
+
+    public function test_paginate_all_sorts_by_status(): void
+    {
+        $client = Client::factory()->create();
+        $onHold = Matter::factory()->create(['provider_id' => $client->provider_id, 'client_id' => $client->id, 'status' => 'on_hold']);
+        $active = Matter::factory()->create(['provider_id' => $client->provider_id, 'client_id' => $client->id, 'status' => 'active']);
+
+        $repository = app(EloquentMattersRepository::class);
+
+        $ids = $repository->paginateAll($client->provider_id, 15, 1, sort: 'status', direction: 'asc')
+            ->getCollection()->pluck('id')->all();
+
+        $this->assertSame([$active->id, $onHold->id], $ids, '"active" sorts before "on_hold" alphabetically.');
+    }
+
+    public function test_an_unrecognised_sort_key_falls_back_to_the_default_order(): void
+    {
+        $client = Client::factory()->create();
+        Matter::factory()->count(2)->create(['provider_id' => $client->provider_id, 'client_id' => $client->id]);
+
+        $repository = app(EloquentMattersRepository::class);
+
+        // Would throw / 500 if the raw string reached orderBy()/orderByRaw()
+        // unguarded.
+        $page = $repository->paginateAll($client->provider_id, 15, 1, sort: "id; DROP TABLE matters", direction: 'asc');
+
+        $this->assertSame(2, $page->total());
+    }
 }

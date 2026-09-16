@@ -7,6 +7,7 @@ namespace PactTrackSDK\SharedResources\Modules\Document\Tests;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Folder;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
@@ -279,6 +280,238 @@ class DocumentControllerTest extends BaseTest
 
         $response->assertOk();
         $this->assertSame([$this->tenant['document']->id], $response->json('data.*.id'));
+    }
+
+    /* ── File Type / Date Range / search filters, combined with folder
+     * scope ── see .claude/rules/document.md, "File Type filter". */
+
+    public function test_filtering_by_file_type_narrows_within_the_current_folder(): void
+    {
+        $folder = $this->folder('Client Matters');
+        $pdf = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'folder_id' => $folder->id,
+            'name' => 'retainer.pdf',
+            'file_type' => 'pdf',
+        ]);
+        Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'folder_id' => $folder->id,
+            'name' => 'notes.txt',
+            'file_type' => 'txt',
+        ]);
+
+        $ids = $this->actingAs($this->tenant['owner'])
+            ->getJson("/api/documents?folder_id={$folder->id}&file_type[]=pdf")
+            ->assertOk()
+            ->json('data.*.id');
+
+        $this->assertSame([$pdf->id], $ids);
+    }
+
+    public function test_filtering_by_multiple_file_types(): void
+    {
+        $doc = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'file_type' => 'doc',
+        ]);
+        $txt = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'file_type' => 'txt',
+        ]);
+
+        $ids = $this->actingAs($this->tenant['owner'])
+            ->getJson('/api/documents?file_type[]=doc&file_type[]=txt')
+            ->assertOk()
+            ->json('data.*.id');
+
+        $this->assertEqualsCanonicalizing([$doc->id, $txt->id], $ids);
+    }
+
+    public function test_an_unrecognised_file_type_is_ignored_rather_than_erroring(): void
+    {
+        $this->actingAs($this->tenant['owner'])
+            ->getJson('/api/documents?file_type[]=exe')
+            ->assertOk();
+    }
+
+    public function test_filtering_by_date_range(): void
+    {
+        $inRange = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'created_at' => '2026-08-15 12:00:00',
+        ]);
+        $outOfRange = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'created_at' => '2026-07-01 12:00:00',
+        ]);
+
+        $ids = $this->actingAs($this->tenant['owner'])
+            ->getJson('/api/documents?date_from=2026-08-01&date_to=2026-08-31')
+            ->assertOk()
+            ->json('data.*.id');
+
+        $this->assertContains($inRange->id, $ids);
+        $this->assertNotContains($outOfRange->id, $ids);
+    }
+
+    public function test_an_invalid_date_is_ignored_rather_than_erroring(): void
+    {
+        $this->actingAs($this->tenant['owner'])
+            ->getJson('/api/documents?date_from=not-a-date')
+            ->assertOk();
+    }
+
+    public function test_filtering_by_name_search(): void
+    {
+        $wanted = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'name' => 'Smith Estate Retainer.pdf',
+        ]);
+        Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'name' => 'Jones NDA.pdf',
+        ]);
+
+        $ids = $this->actingAs($this->tenant['owner'])
+            ->getJson('/api/documents?search=smith')
+            ->assertOk()
+            ->json('data.*.id');
+
+        $this->assertSame([$wanted->id], $ids);
+    }
+
+    /**
+     * Every filter combines with folder scope and each other — the whole
+     * point of Part 1's refactor away from `matter_id` being a mutually
+     * exclusive alternate path. See ListDocumentsAction.
+     */
+    public function test_folder_matter_file_type_and_date_filters_all_combine(): void
+    {
+        $folder = $this->folder('Client Matters');
+        $matter = $this->tenant['matter'];
+
+        $wanted = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'folder_id' => $folder->id,
+            'matter_id' => $matter->id,
+            'file_type' => 'pdf',
+            'created_at' => '2026-08-15 12:00:00',
+        ]);
+
+        // Same folder and matter, wrong file type — excluded.
+        Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'folder_id' => $folder->id,
+            'matter_id' => $matter->id,
+            'file_type' => 'txt',
+            'created_at' => '2026-08-15 12:00:00',
+        ]);
+
+        // Right everything except it's in a different folder — excluded.
+        Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'matter_id' => $matter->id,
+            'file_type' => 'pdf',
+            'created_at' => '2026-08-15 12:00:00',
+        ]);
+
+        $params = http_build_query([
+            'folder_id' => $folder->id,
+            'matter_id' => $matter->id,
+            'file_type' => ['pdf'],
+            'date_from' => '2026-08-01',
+            'date_to' => '2026-08-31',
+        ]);
+
+        $ids = $this->actingAs($this->tenant['owner'])
+            ->getJson("/api/documents?{$params}")
+            ->assertOk()
+            ->json('data.*.id');
+
+        $this->assertSame([$wanted->id], $ids);
+    }
+
+    /**
+     * A `matter_id`-only request (no folder_id, no other new filter) must
+     * keep behaving exactly as it always has — the Matter Detail page's
+     * "Documents on this matter" section sends exactly this shape. See
+     * ListDocumentsAction's own docblock.
+     */
+    public function test_matter_id_alone_still_routes_to_the_legacy_flat_matter_listing(): void
+    {
+        $inMatter = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'matter_id' => $this->tenant['matter']->id,
+            'folder_id' => null,
+        ]);
+
+        $ids = $this->actingAs($this->tenant['owner'])
+            ->getJson("/api/documents?matter_id={$this->tenant['matter']->id}")
+            ->assertOk()
+            ->json('data.*.id');
+
+        $this->assertContains($inMatter->id, $ids);
+    }
+
+    /**
+     * An archived document only ever appears when `archived=1`, regardless
+     * of which other filters are combined with it.
+     */
+    public function test_archived_filter_still_applies_alongside_other_filters(): void
+    {
+        $folder = $this->folder('Client Matters');
+        $archived = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'folder_id' => $folder->id,
+            'file_type' => 'pdf',
+            'archived_at' => now(),
+        ]);
+        $active = Document::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'uploaded_by' => $this->tenant['owner']->id,
+            'folder_id' => $folder->id,
+            'file_type' => 'pdf',
+        ]);
+
+        $activeIds = $this->actingAs($this->tenant['owner'])
+            ->getJson("/api/documents?folder_id={$folder->id}&file_type[]=pdf")
+            ->assertOk()
+            ->json('data.*.id');
+        $this->assertSame([$active->id], $activeIds);
+
+        $archivedIds = $this->actingAs($this->tenant['owner'])
+            ->getJson("/api/documents?folder_id={$folder->id}&file_type[]=pdf&archived=1")
+            ->assertOk()
+            ->json('data.*.id');
+        $this->assertSame([$archived->id], $archivedIds);
     }
 
     public function test_a_document_with_an_envelope_exposes_its_public_id(): void
@@ -862,5 +1095,129 @@ class DocumentControllerTest extends BaseTest
             'uploaded_by' => $this->tenant['owner']->id,
             'folder_id' => $folder->id,
         ]);
+    }
+
+    /* ── show ──────────────────────────────────────────────────────────── */
+
+    public function test_showing_a_document_requires_being_signed_in(): void
+    {
+        $this->getJson("/api/documents/{$this->tenant['document']->id}")->assertStatus(401);
+    }
+
+    public function test_it_shows_a_documents_full_detail(): void
+    {
+        // ProviderTenantScenario's fixture document already has an envelope
+        // attached — asserting on it here proves show() actually eager-loads
+        // `envelopes` (envelope_public_id/envelope_status are whenLoaded on
+        // DocumentResource, see .claude/rules/document.md).
+        $document = $this->tenant['document'];
+        $envelope = $this->tenant['envelope'];
+
+        $response = $this->actingAs($this->tenant['owner'])
+            ->getJson("/api/documents/{$document->id}")
+            ->assertOk();
+
+        $response->assertJsonPath('data.id', $document->id)
+            ->assertJsonPath('data.matter_public_id', $document->matter->public_id)
+            ->assertJsonPath('data.client_name', $document->client?->name)
+            ->assertJsonPath('data.envelope_public_id', $envelope->public_id)
+            ->assertJsonPath('data.envelope_status', $envelope->status->value);
+    }
+
+    public function test_showing_another_tenants_document_is_refused(): void
+    {
+        $foreign = $this->documentWithStatus(DocumentStatus::Draft, $this->otherTenant);
+
+        $this->actingAs($this->tenant['owner'])
+            ->getJson("/api/documents/{$foreign->id}")
+            ->assertStatus(403);
+    }
+
+    /* ── download ──────────────────────────────────────────────────────── */
+
+    public function test_downloading_a_document_requires_being_signed_in(): void
+    {
+        $this->getJson("/api/documents/{$this->tenant['document']->id}/download")->assertStatus(401);
+    }
+
+    /**
+     * `Storage::fake()` deliberately wires a `buildTemporaryUrlsUsing`
+     * callback (Laravel's own testing convenience), so it produces a real
+     * (fabricated) temporary URL rather than throwing the way a genuine
+     * `local`-driver disk with no such callback configured would — the
+     * controller redirects to it, same as the real S3 adapter in
+     * production. See .claude/rules/document.md, "Document download".
+     */
+    public function test_a_completed_document_can_be_downloaded_via_a_presigned_redirect(): void
+    {
+        $document = $this->documentWithStatus(DocumentStatus::Completed);
+        Storage::disk(self::DISK)->put($document->s3_path, 'the-file-bytes');
+
+        $response = $this->actingAs($this->tenant['owner'])
+            ->get("/api/documents/{$document->id}/download");
+
+        $response->assertRedirect();
+        $this->assertStringContainsString($document->s3_path, (string) $response->headers->get('Location'));
+
+        $this->assertDatabaseHas('audit_logs', [
+            'provider_id' => $document->provider_id,
+            'user_id' => $this->tenant['owner']->id,
+            'action' => 'document.downloaded',
+            'auditable_type' => Document::class,
+            'auditable_id' => $document->id,
+        ]);
+    }
+
+    /**
+     * The `local` dev-disk fallback path — exercised here by rebinding
+     * `DocumentStorage` to a fake that has no temporary-URL support at all
+     * (mirrors a real `local`-driver disk with no `temporaryUrlCallback`
+     * configured), same "rebind the port locally to simulate a specific
+     * provider" pattern the Signature module's own tests use. See
+     * .claude/rules/document.md, "Document download".
+     */
+    public function test_download_falls_back_to_streaming_when_the_disk_has_no_temporary_url_support(): void
+    {
+        $document = $this->documentWithStatus(DocumentStatus::Completed);
+
+        $this->app->bind(DocumentStorage::class, fn () => new class implements DocumentStorage {
+            public function put(string $path, string $contents): void
+            {
+            }
+
+            public function delete(string $path): void
+            {
+            }
+
+            public function exists(string $path): bool
+            {
+                return true;
+            }
+
+            public function get(string $path): string
+            {
+                return 'the-file-bytes';
+            }
+
+            public function temporaryUrl(string $path, \DateTimeInterface $expiresAt): ?string
+            {
+                return null;
+            }
+        });
+
+        $response = $this->actingAs($this->tenant['owner'])
+            ->get("/api/documents/{$document->id}/download");
+
+        $response->assertOk();
+        $this->assertSame('the-file-bytes', $response->streamedContent());
+    }
+
+    public function test_downloading_another_tenants_document_is_refused(): void
+    {
+        $foreign = $this->documentWithStatus(DocumentStatus::Draft, $this->otherTenant);
+
+        $this->actingAs($this->tenant['owner'])
+            ->get("/api/documents/{$foreign->id}/download")
+            ->assertStatus(403);
     }
 }
