@@ -1055,6 +1055,88 @@ class DocumentControllerTest extends BaseTest
             ->assertStatus(422);
     }
 
+    /* ── reassign matter (pen icon) ───────────────────────────────────────
+     * The Documents page's per-row "Reassign Matter" action — see
+     * .claude/rules/document.md, "Reassign Matter from the Documents page".
+     * Changes only document.matter_id (and, whenever a real matter is
+     * given, the derived client_id/workspace_id) — never the Matter
+     * entity's own fields. */
+
+    public function test_reassigning_matter_requires_being_signed_in(): void
+    {
+        $this->patchJson("/api/documents/{$this->tenant['document']->id}/matter", ['matter_id' => $this->tenant['otherMatter']->id])
+            ->assertStatus(401);
+    }
+
+    public function test_it_reassigns_a_documents_matter_and_derives_the_new_matters_client(): void
+    {
+        $document = $this->tenant['document'];
+        $this->assertSame($this->tenant['matter']->id, $document->matter_id);
+        $this->assertSame($this->tenant['client']->id, $document->client_id);
+
+        $response = $this->actingAs($this->tenant['owner'])
+            ->patchJson("/api/documents/{$document->id}/matter", ['matter_id' => $this->tenant['otherMatter']->id])
+            ->assertOk();
+
+        $response->assertJsonPath('data.matter_id', $this->tenant['otherMatter']->id);
+        $response->assertJsonPath('data.client_id', $this->tenant['otherClient']->id);
+
+        $document->refresh();
+        $this->assertSame($this->tenant['otherMatter']->id, $document->matter_id);
+        // The client was never independently submitted — it's derived from
+        // the new matter, the same "never trust an independently-submitted
+        // value once a parent is present" rule upload already enforces.
+        $this->assertSame($this->tenant['otherClient']->id, $document->client_id);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'document.matter_reassigned',
+            'auditable_type' => Document::class,
+            'auditable_id' => $document->id,
+        ]);
+    }
+
+    public function test_it_unfiles_a_document_by_reassigning_to_no_matter(): void
+    {
+        $document = $this->tenant['document'];
+        $originalClientId = $document->client_id;
+
+        $this->actingAs($this->tenant['owner'])
+            ->patchJson("/api/documents/{$document->id}/matter", ['matter_id' => null])
+            ->assertOk()
+            ->assertJsonPath('data.matter_id', null);
+
+        $document->refresh();
+        $this->assertNull($document->matter_id);
+        // Unfiling leaves the client as-is — "client, no matter" is a real,
+        // supported state elsewhere in this module, and discarding a
+        // document's client just because its matter was cleared would be
+        // needlessly destructive.
+        $this->assertSame($originalClientId, $document->client_id);
+    }
+
+    public function test_reassigning_to_another_tenants_matter_is_rejected(): void
+    {
+        $document = $this->tenant['document'];
+
+        $this->actingAs($this->tenant['owner'])
+            ->patchJson("/api/documents/{$document->id}/matter", ['matter_id' => $this->otherTenant['matter']->id])
+            ->assertStatus(422);
+
+        $this->assertSame($this->tenant['matter']->id, $document->fresh()->matter_id);
+    }
+
+    public function test_reassigning_another_tenants_document_is_refused(): void
+    {
+        $foreign = $this->otherTenant['document'];
+
+        $this->actingAs($this->tenant['owner'])
+            ->patchJson("/api/documents/{$foreign->id}/matter", ['matter_id' => $this->tenant['otherMatter']->id])
+            ->assertStatus(403);
+
+        $this->assertNotNull($foreign->fresh()->matter_id);
+        $this->assertNotEquals($this->tenant['otherMatter']->id, $foreign->fresh()->matter_id);
+    }
+
     /**
      * @return array<string, array{DocumentStatus}>
      */

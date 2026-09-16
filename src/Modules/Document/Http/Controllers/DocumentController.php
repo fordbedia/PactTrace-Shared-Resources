@@ -22,6 +22,7 @@ use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\ArchiveDo
 use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\BulkArchiveDocumentsHandler;
 use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\DeleteDocumentHandler;
 use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\MoveDocumentsHandler;
+use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\ReassignDocumentMatterHandler;
 use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\UnarchiveDocumentHandler;
 use PactTrackSDK\SharedResources\Modules\Document\Application\UseCases\VoidDocumentHandler;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Exceptions\DocumentCannotBeDeletedException;
@@ -31,6 +32,7 @@ use PactTrackSDK\SharedResources\Modules\Document\Application\DTO\DocumentData;
 use PactTrackSDK\SharedResources\Modules\Document\Application\DTO\DocumentListData;
 use PactTrackSDK\SharedResources\Modules\Document\Http\Requests\BulkDocumentIdsRequest;
 use PactTrackSDK\SharedResources\Modules\Document\Http\Requests\MoveDocumentsRequest;
+use PactTrackSDK\SharedResources\Modules\Document\Http\Requests\ReassignDocumentMatterRequest;
 use PactTrackSDK\SharedResources\Modules\Document\Http\Requests\StoreDocumentRequest;
 use PactTrackSDK\SharedResources\Modules\Document\Http\Resources\DocumentResource;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
@@ -74,6 +76,7 @@ class DocumentController extends Controller
         private readonly MoveDocumentsHandler $moveDocuments,
         private readonly BulkArchiveDocumentsHandler $bulkArchiveDocuments,
         private readonly BuildDocumentsZipAction $buildDocumentsZip,
+        private readonly ReassignDocumentMatterHandler $reassignDocumentMatter,
     ) {
     }
 
@@ -391,6 +394,56 @@ class DocumentController extends Controller
         } catch (DocumentCannotBeVoidedException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * PATCH /api/documents/{document}/matter
+     *
+     * The Documents page's per-row "Reassign Matter" action (the pen icon —
+     * see .claude/rules/document.md, "Reassign Matter from the Documents
+     * page"). Changes only which Matter this one document is filed under;
+     * it is not a Matter-entity edit (that stays exclusively on the Matter
+     * module's own screens). Reuses the `update` gate, same as
+     * archive/unarchive/void above — this is the same class of
+     * document-field change those already cover.
+     *
+     * `matter_id` is resolved inside the acting provider itself, the same
+     * "the request rule can't express tenancy, the controller does"
+     * pattern moveMany() already applies to its own `folder_id` — a bare
+     * `exists:matters,id` says nothing about whose matter it is.
+     */
+    public function reassignMatter(ReassignDocumentMatterRequest $request, Document $document): DocumentResource|Response
+    {
+        $user = $this->resolveActingUser($request);
+
+        if ($user === null || $user->provider_id === null) {
+            return response()->json([
+                'message' => 'You must be signed in to a provider account to reassign documents.',
+            ], 401);
+        }
+
+        Gate::forUser($user)->authorize('update', $document);
+
+        $matter = null;
+
+        if ($request->filled('matter_id')) {
+            // acrossWorkspaces(): the destination matter may sit in a
+            // workspace other than whichever one is ambient for this
+            // request — see ReassignDocumentMatterHandler's own docblock
+            // for why the document's workspace_id is resynced from it.
+            $matter = Matter::query()
+                ->acrossWorkspaces()
+                ->where('provider_id', $user->provider_id)
+                ->find($request->integer('matter_id'));
+
+            if ($matter === null) {
+                return response()->json(['message' => 'That matter could not be found.'], 422);
+            }
+        }
+
+        $document = $this->reassignDocumentMatter->handle($document, $matter, $user);
+
+        return DocumentResource::make($document->load(['matter', 'client']));
     }
 
     /**

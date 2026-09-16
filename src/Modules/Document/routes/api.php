@@ -21,6 +21,7 @@ use PactTrackSDK\SharedResources\Modules\Document\Http\Controllers\FolderControl
 |     POST   /api/documents/{document}/archive
 |     POST   /api/documents/{document}/unarchive
 |     POST   /api/documents/{document}/void
+|     PATCH  /api/documents/{document}/matter
 |     GET    /api/folders
 |     POST   /api/folders
 |     DELETE /api/folders/{folder}
@@ -54,6 +55,9 @@ Route::delete('documents/{document}', [DocumentController::class, 'destroy']);
 Route::post('documents/{document}/archive', [DocumentController::class, 'archive']);
 Route::post('documents/{document}/unarchive', [DocumentController::class, 'unarchive']);
 Route::post('documents/{document}/void', [DocumentController::class, 'void']);
+// The Documents page's per-row "Reassign Matter" action (the pen icon) —
+// see .claude/rules/document.md, "Reassign Matter from the Documents page".
+Route::patch('documents/{document}/matter', [DocumentController::class, 'reassignMatter']);
 
 Route::get('folders', [FolderController::class, 'index']);
 Route::post('folders', [FolderController::class, 'store']);
