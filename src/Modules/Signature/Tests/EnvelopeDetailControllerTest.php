@@ -16,6 +16,8 @@ use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\SigningTo
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\WebhookEvent;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Signer;
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Role;
+use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use PactTrackSDK\SharedResources\TestCase\Extras\LoadsModuleApiRoutes;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
 use PactTrackSDK\SharedResources\TestCase\Scenario\ProviderTenantScenario;
@@ -177,6 +179,57 @@ class EnvelopeDetailControllerTest extends BaseTest
             'auditable_id' => $envelope->id,
             'action' => 'envelope.voided',
         ]);
+    }
+
+    /**
+     * Void is Owner + Admin only (Permission::EnvelopeVoid — Owner holds it
+     * via Permission::cases(), Admin gained it 2026-09-16 per Ed's explicit
+     * "only Owner and Admin should be able to void"). Staff, which holds
+     * every other Envelope permission (view/create/send), must still 403 —
+     * this is the pinning test for that role split. See
+     * .claude/rules/signature.md, "Envelope detail view".
+     */
+    public function test_void_succeeds_for_owner_and_admin_but_403s_for_staff(): void
+    {
+        $admin = User::factory()->create(['provider_id' => $this->tenant['provider']->id]);
+        $admin->assignRole(Role::Admin->value);
+
+        $cases = [
+            'owner' => $this->tenant['owner'],
+            'admin' => $admin,
+        ];
+
+        foreach ($cases as $label => $actor) {
+            Sanctum::actingAs($actor);
+
+            $envelope = Envelope::factory()->create([
+                'provider_id' => $this->tenant['provider']->id,
+                'workspace_id' => $this->tenant['workspace']->id,
+                'client_id' => $this->tenant['client']->id,
+                'document_id' => $this->tenant['document']->id,
+                'status' => EnvelopeStatus::Sent,
+            ]);
+
+            $response = $this->postJson("/api/v1/signature/envelopes/{$envelope->public_id}/void");
+
+            $response->assertOk("void should succeed for {$label}")
+                ->assertJsonPath('data.status', 'voided');
+        }
+
+        Sanctum::actingAs($this->tenant['staff']);
+
+        $staffEnvelope = Envelope::factory()->create([
+            'provider_id' => $this->tenant['provider']->id,
+            'workspace_id' => $this->tenant['workspace']->id,
+            'client_id' => $this->tenant['client']->id,
+            'document_id' => $this->tenant['document']->id,
+            'status' => EnvelopeStatus::Sent,
+        ]);
+
+        $response = $this->postJson("/api/v1/signature/envelopes/{$staffEnvelope->public_id}/void");
+
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('envelopes', ['id' => $staffEnvelope->id, 'status' => 'sent']);
     }
 
     public function test_void_refuses_a_terminal_envelope_with_a_409(): void
@@ -463,6 +516,11 @@ class EnvelopeDetailControllerTest extends BaseTest
                 }
 
                 public function normalizeWebhookEvent(array $payload): WebhookEvent
+                {
+                    throw new RuntimeException('unused');
+                }
+
+                public function fetchCompletedDocument(string $providerEnvelopeId): string
                 {
                     throw new RuntimeException('unused');
                 }

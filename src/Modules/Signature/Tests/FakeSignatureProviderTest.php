@@ -46,6 +46,16 @@ class FakeSignatureProviderTest extends BaseTest
         $this->assertSame('sent', $provider->fetchEnvelopeStatus('env-1'));
     }
 
+    public function test_fetch_completed_document_returns_deterministic_non_empty_bytes(): void
+    {
+        $provider = new FakeSignatureProvider();
+
+        $bytes = $provider->fetchCompletedDocument('env-1');
+
+        $this->assertNotEmpty($bytes);
+        $this->assertStringContainsString('env-1', $bytes);
+    }
+
     public function test_it_always_accepts_webhook_signatures(): void
     {
         $provider = new FakeSignatureProvider();

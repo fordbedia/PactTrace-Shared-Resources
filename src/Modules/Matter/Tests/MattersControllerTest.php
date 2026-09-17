@@ -149,4 +149,96 @@ class MattersControllerTest extends BaseTest
 
         $response->assertOk();
     }
+
+    /**
+     * Resolved bug, 2026-09-16 — reassigning a matter's client via
+     * PATCH /matters/{public_id} (the Edit Matter modal's Client field)
+     * previously left every document filed under that matter reporting the
+     * OLD client indefinitely (DocumentResource.client_id/client_name), and
+     * fed that stale client into the DocuSign Send flow
+     * (PrepareEnvelopeForSignature reads Document.client_id directly). See
+     * .claude/rules/matter.md, "Matter Type and Edit Matter", and
+     * .claude/rules/document.md, "Documents on this matter".
+     */
+    public function test_reassigning_a_matters_client_cascades_onto_its_documents(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $matter = $this->tenant['matter'];
+        $document = $this->tenant['document'];
+        $newClient = $this->tenant['otherClient'];
+
+        $this->assertNotSame($newClient->id, $document->client_id);
+
+        $response = $this->patchJson("/api/v1/matters/{$matter->public_id}", [
+            'client_id' => $newClient->id,
+        ]);
+
+        $response->assertOk()->assertJsonPath('data.client.id', $newClient->id);
+
+        $this->assertSame($newClient->id, $document->fresh()->client_id);
+    }
+
+    /**
+     * The cascade must never leak beyond the matter being edited — a
+     * document filed under a different matter of the same provider keeps
+     * its own client untouched.
+     */
+    public function test_reassigning_a_matters_client_does_not_touch_documents_on_another_matter(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $matter = $this->tenant['matter'];
+        $newClient = $this->tenant['otherClient'];
+        $unrelatedDocument = $this->tenant['otherDocument'];
+        $unrelatedClientId = $unrelatedDocument->client_id;
+
+        $this->patchJson("/api/v1/matters/{$matter->public_id}", [
+            'client_id' => $newClient->id,
+        ])->assertOk();
+
+        $this->assertSame($unrelatedClientId, $unrelatedDocument->fresh()->client_id);
+    }
+
+    /**
+     * An already-created Envelope must keep referring to whoever it was
+     * actually sent to — the cascade only corrects Document rows, never
+     * Envelope/Signer snapshots. See .claude/rules/matter.md.
+     */
+    public function test_reassigning_a_matters_client_does_not_touch_an_existing_envelope(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $matter = $this->tenant['matter'];
+        $envelope = $this->tenant['envelope'];
+        $originalEnvelopeClientId = $envelope->client_id;
+        $newClient = $this->tenant['otherClient'];
+
+        $this->patchJson("/api/v1/matters/{$matter->public_id}", [
+            'client_id' => $newClient->id,
+        ])->assertOk();
+
+        $this->assertSame($originalEnvelopeClientId, $envelope->fresh()->client_id);
+    }
+
+    /**
+     * A no-op PATCH (client unchanged) must not issue the cascade update at
+     * all — asserted indirectly via a same-value PATCH leaving the
+     * document's `updated_at` untouched.
+     */
+    public function test_a_matter_update_that_does_not_change_the_client_leaves_documents_untouched(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $matter = $this->tenant['matter'];
+        $document = $this->tenant['document'];
+        $originalUpdatedAt = $document->updated_at;
+
+        $this->patchJson("/api/v1/matters/{$matter->public_id}", [
+            'client_id' => $this->tenant['client']->id,
+            'name' => $matter->name,
+        ])->assertOk();
+
+        $this->assertTrue($originalUpdatedAt->eq($document->fresh()->updated_at));
+    }
 }

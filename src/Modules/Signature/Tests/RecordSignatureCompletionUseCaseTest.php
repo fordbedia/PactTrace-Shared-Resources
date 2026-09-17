@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PactTrackSDK\SharedResources\Modules\Signature\Tests;
 
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -19,6 +20,7 @@ use PactTrackSDK\SharedResources\Modules\Notification\Support\Notification;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\RecordSignatureCompletionUseCase;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Enums\EnvelopeStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\WebhookEvent;
+use PactTrackSDK\SharedResources\Modules\Signature\Jobs\StoreSignedDocumentCopy;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Signer;
 use PactTrackSDK\SharedResources\TestCase\Migrations\BaseTest;
@@ -31,6 +33,8 @@ use PactTrackSDK\SharedResources\TestCase\Scenario\TestScenarioCollection;
  */
 class RecordSignatureCompletionUseCaseTest extends BaseTest
 {
+    private const DISK = 'record-completion-test';
+
     private RecordSignatureCompletionUseCase $useCase;
 
     private TestScenarioCollection $tenant;
@@ -38,6 +42,16 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
     protected function setUp(): void
     {
         parent::setUp();
+
+        // A `completed` transition now dispatches StoreSignedDocumentCopy
+        // (see .claude/rules/signature.md, "Fetching the signed document
+        // after completion"), which — on the sync queue this test suite
+        // runs under — actually writes through the DocumentStorage port
+        // unless a test opts out with Bus::fake(). Faking the disk keeps
+        // every test in this class hermetic regardless of which path it
+        // takes.
+        Storage::fake(self::DISK);
+        config(['filesystems.document_disk' => self::DISK]);
 
         $this->useCase = app(RecordSignatureCompletionUseCase::class);
         $this->tenant = ProviderTenantScenario::make('record-completion');
@@ -576,6 +590,50 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
         $this->assertSame(EnvelopeStatus::Completed, $envelope->fresh()->status);
         $this->assertNotNull($envelope->fresh()->completed_at);
         $this->assertSame(DocumentStatus::Completed, $envelope->document->fresh()->status);
+    }
+
+    /**
+     * See .claude/rules/signature.md, "Fetching the signed document after
+     * completion" — the actual DocuSign fetch/store happens off a queued
+     * job, dispatched exactly once, only on the genuine draft/sent/viewed ->
+     * completed transition.
+     */
+    public function test_completed_event_dispatches_the_signed_document_copy_job(): void
+    {
+        Bus::fake();
+
+        $envelope = $this->envelope(EnvelopeStatus::Viewed, DocumentStatus::Sent);
+
+        $this->useCase->handle($this->event('completed', $envelope));
+
+        Bus::assertDispatched(
+            StoreSignedDocumentCopy::class,
+            fn (StoreSignedDocumentCopy $job): bool => $job->envelopeId === $envelope->id,
+        );
+    }
+
+    public function test_sent_event_never_dispatches_the_signed_document_copy_job(): void
+    {
+        Bus::fake();
+
+        $envelope = $this->envelope(EnvelopeStatus::Draft, DocumentStatus::Draft);
+
+        $this->useCase->handle($this->event('sent', $envelope));
+
+        Bus::assertNotDispatched(StoreSignedDocumentCopy::class);
+    }
+
+    public function test_a_redundant_completed_event_for_an_already_completed_envelope_does_not_redispatch_the_job(): void
+    {
+        $envelope = $this->envelope(EnvelopeStatus::Viewed, DocumentStatus::Sent);
+
+        $this->useCase->handle($this->event('completed', $envelope));
+
+        Bus::fake();
+
+        $this->useCase->handle($this->event('completed', $envelope));
+
+        Bus::assertNotDispatched(StoreSignedDocumentCopy::class);
     }
 
     /**

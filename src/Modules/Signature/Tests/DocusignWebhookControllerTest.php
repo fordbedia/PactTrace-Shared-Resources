@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PactTrackSDK\SharedResources\Modules\Signature\Tests;
 
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Enums\EnvelopeStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Ports\ESignatureProvider;
@@ -27,6 +28,8 @@ class DocusignWebhookControllerTest extends BaseTest
 {
     use LoadsModuleApiRoutes;
 
+    private const DISK = 'webhook-http-test';
+
     private TestScenarioCollection $tenant;
 
     private Envelope $envelope;
@@ -39,6 +42,13 @@ class DocusignWebhookControllerTest extends BaseTest
     protected function setUp(): void
     {
         parent::setUp();
+
+        // A `completed` payload dispatches StoreSignedDocumentCopy (see
+        // .claude/rules/signature.md), which writes through the
+        // DocumentStorage port on this suite's sync queue — fake the disk
+        // so that's hermetic here too.
+        Storage::fake(self::DISK);
+        config(['filesystems.document_disk' => self::DISK]);
 
         $this->tenant = ProviderTenantScenario::make('webhook-http');
 
@@ -110,6 +120,11 @@ class DocusignWebhookControllerTest extends BaseTest
                 public function normalizeWebhookEvent(array $payload): WebhookEvent
                 {
                     return WebhookEvent::fromDocusignPayload($payload);
+                }
+
+                public function fetchCompletedDocument(string $providerEnvelopeId): string
+                {
+                    return 'unused';
                 }
             };
         });

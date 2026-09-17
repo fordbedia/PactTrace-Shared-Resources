@@ -146,6 +146,67 @@ class MatterArchiveTest extends BaseTest
         $this->assertNull($this->tenant['matter']->fresh()->archived_at);
     }
 
+    /**
+     * Regression: an archived matter is fully queryable/detail-viewable per
+     * .claude/rules/matter.md ("the matter, its milestones, documents and
+     * messages remain fully intact and queryable"). Route-model binding
+     * must resolve it — the `exclude_archived` global scope on Matter is
+     * meant to keep it off the default listing/stat cards only, never to
+     * make the record unreachable by its own public_id.
+     */
+    public function test_show_resolves_an_already_archived_matter(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $matter = $this->tenant['matter'];
+        $matter->forceFill(['archived_at' => now()])->save();
+
+        $response = $this->getJson("/api/v1/matters/{$matter->public_id}");
+
+        $response->assertOk()
+            ->assertJsonPath('data.id', $matter->id)
+            ->assertJsonPath('data.archived_at', fn ($value) => $value !== null);
+    }
+
+    /**
+     * Regression: unarchiving is the one endpoint that MUST be able to
+     * resolve an already-archived matter — otherwise, once archived, a
+     * matter could never be restored (route binding would 404 before the
+     * controller/handler ever runs).
+     */
+    public function test_unarchive_endpoint_resolves_an_already_archived_matter_by_public_id(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $matter = $this->tenant['matter'];
+        $matter->forceFill(['archived_at' => now()])->save();
+
+        $response = $this->postJson("/api/v1/matters/{$matter->public_id}/unarchive");
+
+        $response->assertOk();
+        $this->assertNull($matter->fresh()->archived_at);
+    }
+
+    /**
+     * Route-model binding bypasses `exclude_archived` for resolution, but
+     * must still respect tenant isolation — an archived matter belonging to
+     * a different provider must not become viewable/restorable just because
+     * the scope bypass widened what the query itself can match.
+     */
+    public function test_unarchive_endpoint_still_rejects_an_archived_matter_of_a_different_provider(): void
+    {
+        $matter = $this->tenant['matter'];
+        $matter->forceFill(['archived_at' => now()])->save();
+
+        $other = ProviderTenantScenario::make('matter-archive-other-restore');
+        Sanctum::actingAs($other['owner']);
+
+        $this->postJson("/api/v1/matters/{$matter->public_id}/unarchive")
+            ->assertStatus(403);
+
+        $this->assertNotNull($matter->fresh()->archived_at);
+    }
+
     /* ── listing ─────────────────────────────────────────────────────── */
 
     public function test_the_default_listing_excludes_archived_matters(): void

@@ -148,6 +148,44 @@ class MatterTypeAndEditTest extends BaseTest
         $this->assertSame('2026-06-01', $fresh->due_date->toDateString());
     }
 
+    /**
+     * The Edit Matter modal's Client field — see .claude/rules/matter.md,
+     * "Edit Matter". `otherClient` is a second client of the SAME provider
+     * (see ProviderTenantScenario's own docblock) — exactly the case a
+     * reassignment picker needs to allow.
+     */
+    public function test_client_can_be_reassigned_on_update(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $matter = $this->tenant['matter'];
+        $otherClient = $this->tenant['otherClient'];
+
+        $this->patchJson("/api/v1/matters/{$matter->public_id}", [
+            'client_id' => $otherClient->id,
+        ])->assertSuccessful()
+            ->assertJsonPath('data.client_id', $otherClient->id)
+            ->assertJsonPath('data.client.id', $otherClient->id);
+
+        $this->assertSame($otherClient->id, $matter->fresh()->client_id);
+    }
+
+    public function test_reassigning_to_another_tenants_client_is_rejected(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $foreignTenant = ProviderTenantScenario::make('matter-type-edit-foreign');
+        $matter = $this->tenant['matter'];
+        $originalClientId = $matter->client_id;
+
+        $this->patchJson("/api/v1/matters/{$matter->public_id}", [
+            'client_id' => $foreignTenant['client']->id,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('client_id');
+
+        $this->assertSame($originalClientId, $matter->fresh()->client_id);
+    }
+
     public function test_a_client_role_user_cannot_edit_a_matter(): void
     {
         Sanctum::actingAs($this->tenant['clientUser']);

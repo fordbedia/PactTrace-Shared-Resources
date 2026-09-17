@@ -6,6 +6,7 @@ namespace PactTrackSDK\SharedResources\Modules\Signature\Tests;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\DocumentReadyForSignatureEmail;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\ReconcileStaleEnvelopes;
@@ -32,11 +33,20 @@ use RuntimeException;
  */
 class ReconcileStaleEnvelopesTest extends BaseTest
 {
+    private const DISK = 'reconcile-stale-test';
+
     private TestScenarioCollection $tenant;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        // A reconciled `completed` status is fed through
+        // RecordSignatureCompletionUseCase (see this class's own docblock),
+        // which dispatches StoreSignedDocumentCopy — fake the disk so that
+        // write is hermetic here too.
+        Storage::fake(self::DISK);
+        config(['filesystems.document_disk' => self::DISK]);
 
         $this->tenant = ProviderTenantScenario::make('reconcile-stale');
     }
@@ -320,6 +330,11 @@ class ReconcileStaleEnvelopesTest extends BaseTest
                 public function verifyWebhookSignature(string $rawPayload, ?string $signatureHeader): bool
                 {
                     return true;
+                }
+
+                public function fetchCompletedDocument(string $providerEnvelopeId): string
+                {
+                    return 'unused';
                 }
 
                 public function normalizeWebhookEvent(array $payload): WebhookEvent

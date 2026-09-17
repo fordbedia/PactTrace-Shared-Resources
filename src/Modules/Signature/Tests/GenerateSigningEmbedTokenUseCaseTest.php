@@ -127,6 +127,11 @@ class GenerateSigningEmbedTokenUseCaseTest extends BaseTest
                 {
                     return \PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\WebhookEvent::fromDocusignPayload($payload);
                 }
+
+                public function fetchCompletedDocument(string $providerEnvelopeId): string
+                {
+                    throw new RuntimeException('unused');
+                }
             };
         });
 

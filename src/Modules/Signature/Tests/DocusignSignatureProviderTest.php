@@ -185,6 +185,33 @@ class DocusignSignatureProviderTest extends BaseTest
         $this->assertSame('completed', $this->provider()->fetchEnvelopeStatus('env-1'));
     }
 
+    public function test_fetch_completed_document_requests_the_combined_document_with_certificate(): void
+    {
+        $this->fakeAuth();
+        Http::fake([
+            'na2.docusign.test/restapi/v2.1/accounts/acct-1/envelopes/env-1/documents/combined*' => Http::response('%PDF-1.4 fake bytes'),
+        ]);
+
+        $bytes = $this->provider()->fetchCompletedDocument('env-1');
+
+        $this->assertSame('%PDF-1.4 fake bytes', $bytes);
+        Http::assertSent(fn ($request) => $request->method() === 'GET'
+            && str_contains((string) $request->url(), '/documents/combined')
+            && $request['certificate'] === 'true');
+    }
+
+    public function test_fetch_completed_document_throws_on_failure(): void
+    {
+        $this->fakeAuth();
+        Http::fake([
+            'na2.docusign.test/restapi/v2.1/accounts/acct-1/envelopes/env-1/documents/combined*' => Http::response('nope', 500),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+
+        $this->provider()->fetchCompletedDocument('env-1');
+    }
+
     public function test_verify_webhook_signature_accepts_a_correctly_signed_payload(): void
     {
         $payload = '{"event":"envelope-completed"}';
