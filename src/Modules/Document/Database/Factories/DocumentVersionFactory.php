@@ -4,6 +4,7 @@ namespace PactTrackSDK\SharedResources\Modules\Document\Database\Factories;
 
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentVersionType;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Document\Models\DocumentVersion;
 
@@ -27,6 +28,7 @@ class DocumentVersionFactory extends Factory
             's3_path' => 'documents/' . fake()->uuid() . '.pdf',
             'version' => fake()->numberBetween(1, 5),
             'size' => fake()->numberBetween(1024, 5_000_000),
+            'type' => DocumentVersionType::Original,
         ];
     }
 }

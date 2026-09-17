@@ -71,4 +71,9 @@ class FakeSignatureProvider implements ESignatureProvider
     {
         return WebhookEvent::fromDocusignPayload($payload);
     }
+
+    public function fetchCompletedDocument(string $providerEnvelopeId): string
+    {
+        return "%FAKE-SIGNED-PDF%\ncontent-for-envelope:{$providerEnvelopeId}";
+    }
 }

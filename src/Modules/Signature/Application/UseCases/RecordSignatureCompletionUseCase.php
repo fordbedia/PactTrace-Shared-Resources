@@ -22,6 +22,7 @@ use PactTrackSDK\SharedResources\Modules\Signature\Application\Services\GuestSig
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Enums\EnvelopeStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Exceptions\EnvelopeCannotTransitionException;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\WebhookEvent;
+use PactTrackSDK\SharedResources\Modules\Signature\Jobs\StoreSignedDocumentCopy;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Signer;
 use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\ProviderLogoStorage;
@@ -32,7 +33,10 @@ use Throwable;
  * The webhook-side half of Flow B: turns a normalized WebhookEvent into an
  * Envelope status transition, keeps the linked Document's status in sync,
  * notifies the client (and any ad-hoc co-signers — see notifyCoSigners())
- * the first time an envelope reaches `sent`, and writes the audit trail
+ * the first time an envelope reaches `sent`, dispatches
+ * Jobs\StoreSignedDocumentCopy the first time it reaches `completed` (see
+ * that job and .claude/rules/signature.md, "Fetching the signed document
+ * after completion"), and writes the audit trail
  * entry — see .claude/rules/signature.md and .claude/rules/document.md,
  * "Audit trail".
  *
@@ -213,6 +217,14 @@ class RecordSignatureCompletionUseCase
 
         if ($previousStatus !== EnvelopeStatus::Completed && $envelope->status === EnvelopeStatus::Completed) {
             $this->notifyProviderSideOfCompletion($envelope);
+
+            // Fetches the actual signed document from DocuSign and makes it
+            // the Document's current content — queued, not run inline, so a
+            // slow DocuSign call/storage write never risks this webhook
+            // response missing DocuSign's own delivery timeout. See
+            // Jobs/StoreSignedDocumentCopy and .claude/rules/signature.md,
+            // "Fetching the signed document after completion".
+            StoreSignedDocumentCopy::dispatch($envelope->id);
         }
 
         AuditLog::create([

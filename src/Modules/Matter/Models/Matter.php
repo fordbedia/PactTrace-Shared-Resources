@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
@@ -51,6 +52,10 @@ class Matter extends Model
         static::creating(function (self $matter) {
             $matter->public_id ??= (string) Str::ulid();
         });
+
+		static::addGlobalScope('exclude_archived', function(Builder $query){
+			$query->whereNull('archived_at');
+		});
     }
 
     /**
@@ -67,6 +72,27 @@ class Matter extends Model
     public function getRouteKeyName(): string
     {
         return 'public_id';
+    }
+
+    /**
+     * Route-model binding (`{matter}` on every provider-side route —
+     * MattersController::show/update/archive/unarchive, and the Signature
+     * module's matter-scoped routes) must be able to resolve an archived
+     * matter, or two things break: the Matter Detail page 404s the moment a
+     * matter is archived (its "matter, milestones, documents and messages
+     * remain fully intact and queryable" guarantee — see
+     * .claude/rules/matter.md, "Matter Archive / Restore"), and archived
+     * matters become permanently stuck — the unarchive endpoint itself binds
+     * `{matter}` the same way, so it could never resolve the very record it
+     * exists to restore. The `exclude_archived` global scope added in
+     * booted() is otherwise correct (it's what keeps an archived matter off
+     * `/dashboard/matters` and the stat cards); this only lifts it for the
+     * one path — resolving a single record from a URL segment — where
+     * archived-ness must never be the reason a lookup fails.
+     */
+    public function resolveRouteBindingQuery($query, $value, $field = null)
+    {
+        return parent::resolveRouteBindingQuery($query->withoutGlobalScope('exclude_archived'), $value, $field);
     }
 
     public function provider(): BelongsTo

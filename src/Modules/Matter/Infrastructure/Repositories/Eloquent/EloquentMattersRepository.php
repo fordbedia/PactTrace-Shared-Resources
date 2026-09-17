@@ -35,6 +35,7 @@ class EloquentMattersRepository extends BaseRepository implements MattersReposit
 	public function updateMatter(Matter $matter, MattersData $data): Matter
 	{
 		$matter->fill([
+			'client_id' => $data->client_id,
 			'name' => $data->name,
 			'description' => $data->description,
 			'status' => $data->status,
@@ -132,7 +133,7 @@ class EloquentMattersRepository extends BaseRepository implements MattersReposit
 		$query = $this->model->newQuery()
 			->with(['client', 'milestones'])
 			->where('provider_id', $providerId)
-			->when($archived, fn ($q) => $q->whereNotNull('archived_at'), fn ($q) => $q->whereNull('archived_at'));
+			->when($archived, fn ($q) => $q->withoutGlobalScope('exclude_archived')->whereNotNull('archived_at'), fn ($q) => $q->withoutGlobalScope('exclude_archived')->whereNull('archived_at'));
 
 		match ($sort) {
 			'name' => $query->orderBy('name', $direction),

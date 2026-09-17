@@ -186,6 +186,32 @@ class DocusignSignatureProvider implements ESignatureProvider
     }
 
     /**
+     * DocuSign's `documents/combined` endpoint returns every document on the
+     * envelope merged into one PDF; `certificate=true` appends the
+     * Certificate of Completion to that same PDF, so one request produces
+     * the full, final record — no second call needed to fetch the
+     * certificate separately. This is the only ESignatureProvider method
+     * that returns raw binary (not JSON) — extractViewUrl()/json() are not
+     * used here, the response body is the file itself.
+     */
+    public function fetchCompletedDocument(string $providerEnvelopeId): string
+    {
+        $response = $this->client()->get(
+            $this->envelopesUrl("/{$providerEnvelopeId}/documents/combined"),
+            ['certificate' => 'true'],
+        );
+
+        if ($response->failed()) {
+            throw new RuntimeException(
+                "Fetching DocuSign combined document for envelope [{$providerEnvelopeId}] failed "
+                . "({$response->status()}): {$response->body()}"
+            );
+        }
+
+        return $response->body();
+    }
+
+    /**
      * `clientUserId` is only sent for an embedded/captive recipient
      * (EnvelopeRecipient::$clientUserId !== null) — omitting the key
      * entirely for a remote co-signer is what tells DocuSign to email them

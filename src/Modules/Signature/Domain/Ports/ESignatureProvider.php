@@ -122,4 +122,16 @@ interface ESignatureProvider
      * without touching RecordSignatureCompletionUseCase.
      */
     public function normalizeWebhookEvent(array $payload): WebhookEvent;
+
+    /**
+     * The finished document's actual bytes, once every required recipient
+     * has signed — the combined signed document plus the provider's own
+     * certificate of completion appended, as a single PDF. Called exactly
+     * once per envelope, by Jobs/StoreSignedDocumentCopy, after
+     * RecordSignatureCompletionUseCase has already recorded the envelope as
+     * `completed` — see .claude/rules/signature.md, "Fetching the signed
+     * document after completion". Not used for anything status-related;
+     * `fetchEnvelopeStatus()` above is what that reads.
+     */
+    public function fetchCompletedDocument(string $providerEnvelopeId): string;
 }

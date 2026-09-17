@@ -117,4 +117,25 @@ interface DocumentRepository
      * DocumentDeletionPolicy — this method enforces nothing about status.
      */
     public function delete(Document $document): void;
+
+    /**
+     * Re-stamps `client_id` onto every document currently filed under a
+     * matter, to the matter's own (just-changed) client — the cascade that
+     * keeps a document's `client_id` from disagreeing with its matter's
+     * *current* client once the matter itself is reassigned to a different
+     * client (see .claude/rules/matter.md, "The Client field reassigns
+     * which of the provider's clients owns the matter", and
+     * .claude/rules/document.md, "Documents on this matter"). The matter's
+     * `client_id` is the single source of truth for any document attached
+     * to it; this is the one place that source of truth is pushed onto the
+     * documents that denormalize it. Called from
+     * Matter\Application\Action\UpdateMattersHandler inside the same
+     * transaction as the matter's own client change — never as a
+     * follow-up job. `acrossWorkspaces()` because a document's workspace
+     * doesn't change here (only its matter's client does) and must not
+     * gate which rows get corrected.
+     *
+     * @return int number of document rows updated
+     */
+    public function reassignClientForMatter(int $matterId, int $newClientId): int;
 }

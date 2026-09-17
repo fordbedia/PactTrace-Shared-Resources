@@ -52,9 +52,16 @@ class MattersData
 	 * create-or-update path (`MattersRepository::upsert()`) rather than a
 	 * second write path — see .claude/rules/matter.md.
 	 *
-	 * `provider_id` / `workspace_id` / `client_id` are never taken from the
-	 * request here: they are the matter's own immutable scoping, and the
-	 * upsert key matches on them.
+	 * `provider_id` / `workspace_id` are never taken from the request here:
+	 * they are the matter's own immutable scoping. `client_id` IS overridable
+	 * — the Edit Matter modal's Client field reassigns which of the
+	 * provider's clients owns this matter — but only after
+	 * `MattersRequest::clientBelongsToTenant()` has already confirmed the
+	 * submitted id belongs to the acting provider; this DTO never re-checks
+	 * tenancy itself. Note this does NOT cascade onto documents/envelopes/
+	 * message threads already filed under the matter — those keep whichever
+	 * `client_id` they were given at their own creation time (see
+	 * .claude/rules/document.md, "Documents on this matter").
 	 *
 	 * @param array<string, mixed> $overrides the validated request body
 	 */
@@ -66,7 +73,7 @@ class MattersData
 			id: $matter->id,
 			provider_id: (int) $matter->provider_id,
 			workspace_id: $matter->workspace_id !== null ? (int) $matter->workspace_id : null,
-			client_id: (int) $matter->client_id,
+			client_id: $has('client_id') ? (int) $overrides['client_id'] : (int) $matter->client_id,
 			name: $has('name') ? $overrides['name'] : $matter->name,
 			description: $has('description') ? $overrides['description'] : $matter->description,
 			status: $has('status') ? $overrides['status'] : $matter->status,

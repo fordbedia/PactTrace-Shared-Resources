@@ -74,7 +74,11 @@ enum Role: string
             // drift. (WorkspaceCreate/Delete added 2026-09-01 per Ed;
             // WorkspaceUpdate added here explicitly once it was removed from
             // Staff's own list below — Staff may now only view and switch
-            // workspaces, so every structural change is an owner/admin action.)
+            // workspaces, so every structural change is an owner/admin action.
+            // EnvelopeVoid added 2026-09-16 per Ed — voiding an envelope is a
+            // higher-blast-radius action than Staff's own
+            // Envelope{View,Create,Send}, restricted to Owner + Admin only;
+            // see .claude/rules/signature.md, "Envelope detail view".)
             self::Admin => [
                 ...self::Staff->permissions(),
                 Permission::UserInvite,
@@ -83,6 +87,7 @@ enum Role: string
                 Permission::WorkspaceCreate,
                 Permission::WorkspaceUpdate,
                 Permission::WorkspaceDelete,
+                Permission::EnvelopeVoid,
             ],
 
             // Staff run the day-to-day engagement but do not administer the

@@ -5,6 +5,7 @@ namespace PactTrackSDK\SharedResources\Modules\Matter\Http\Requests;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Enum;
+use PactTrackSDK\SharedResources\Modules\Client\Models\Client;
 use PactTrackSDK\SharedResources\Modules\Matter\Application\Ports\Query\AssignableMatterStaff;
 use PactTrackSDK\SharedResources\Modules\Matter\Domain\Enums\MatterType;
 
@@ -41,7 +42,14 @@ class MattersRequest extends FormRequest
 			'id' => 'nullable|integer',
 			'provider_id' => 'nullable|exists:providers,id',
 			'workspace_id' => 'nullable|exists:workspaces,id',
-			'client_id' => [$required, 'exists:clients,id'],
+			// `exists:clients,id` alone would let another tenant's client id
+			// through (any row, not just the acting provider's) — the real
+			// check, `clientBelongsToTenant()`, is resolved server-side and
+			// never trusted from the request, same discipline as
+			// `assigned_staff_id` below. This also covers reassigning a
+			// matter's client on update (the Edit Matter modal's Client
+			// field) — see .claude/rules/matter.md, "Edit Matter".
+			'client_id' => [$required, 'exists:clients,id', $this->clientBelongsToTenant()],
 			'name' => [$required, 'string'],
 			'description' => 'nullable|string',
 			'status' => [$required],
@@ -58,6 +66,19 @@ class MattersRequest extends FormRequest
 			// trusted from the request. null clears the assignment.
 			'assigned_staff_id' => ['nullable', 'integer', $this->assignedStaffBelongsToTenant()],
         ];
+    }
+
+    private function clientBelongsToTenant(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            $providerId = $this->user()?->provider_id;
+
+            if ($providerId === null
+                || ! Client::query()->where('id', (int) $value)->where('provider_id', $providerId)->exists()
+            ) {
+                $fail('The selected client is not available on this account.');
+            }
+        };
     }
 
     private function assignedStaffBelongsToTenant(): Closure

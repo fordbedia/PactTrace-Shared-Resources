@@ -456,6 +456,45 @@ class EloquentDocumentRepositoryTest extends BaseTest
         );
     }
 
+    /**
+     * Backs the "Documents on this matter" cascade UpdateMattersHandler
+     * calls when a matter's own client changes — see
+     * .claude/rules/matter.md, "Matter Type and Edit Matter".
+     */
+    public function test_reassign_client_for_matter_updates_only_that_matters_documents(): void
+    {
+        $matter = $this->tenant['matter'];
+        $newClientId = $this->tenant['otherClient']->id;
+
+        $targeted = $this->documentFor($this->tenant, [
+            'matter_id' => $matter->id,
+            'client_id' => $this->tenant['client']->id,
+        ]);
+        $unrelated = $this->documentFor($this->tenant, [
+            'matter_id' => $this->tenant['otherMatter']->id,
+            'client_id' => $this->tenant['client']->id,
+        ]);
+
+        $updated = $this->repository->reassignClientForMatter($matter->id, $newClientId);
+
+        $this->assertSame(2, $updated); // the fixture's own $document, plus $targeted
+        $this->assertSame($newClientId, $targeted->fresh()->client_id);
+        $this->assertNotSame($newClientId, $unrelated->fresh()->client_id);
+    }
+
+    /**
+     * A document already at the new client is left alone — the `!=` guard
+     * in the repository, asserted here via the returned affected-row count.
+     */
+    public function test_reassign_client_for_matter_is_a_no_op_when_nothing_disagrees(): void
+    {
+        $matter = $this->tenant['matter'];
+
+        $updated = $this->repository->reassignClientForMatter($matter->id, $this->tenant['client']->id);
+
+        $this->assertSame(0, $updated);
+    }
+
     private function documentFor(TestScenarioCollection $tenant, array $attributes = []): Document
     {
         return Document::factory()->create(array_merge([

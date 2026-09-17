@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use PactTrackSDK\SharedResources\Modules\Document\Database\Factories\DocumentVersionFactory;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentVersionType;
 
 class DocumentVersion extends Model
 {
@@ -18,6 +19,11 @@ class DocumentVersion extends Model
         's3_path',
         'version',
         'size',
+        'type',
+    ];
+
+    protected $casts = [
+        'type' => DocumentVersionType::class,
     ];
 
     protected static function newFactory(): DocumentVersionFactory

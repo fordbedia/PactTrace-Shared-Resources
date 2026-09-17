@@ -135,6 +135,15 @@ class EloquentDocumentRepository extends BaseRepository implements DocumentRepos
 		$document->delete();
 	}
 
+	public function reassignClientForMatter(int $matterId, int $newClientId): int
+	{
+		return $this->model->newQuery()
+			->acrossWorkspaces()
+			->where('matter_id', $matterId)
+			->where('client_id', '!=', $newClientId)
+			->update(['client_id' => $newClientId]);
+	}
+
 	public function makeModel(): string
 	{
 		return Document::class;
