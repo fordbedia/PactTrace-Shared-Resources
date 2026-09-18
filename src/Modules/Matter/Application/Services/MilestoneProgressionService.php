@@ -23,10 +23,11 @@ use PactTrackSDK\SharedResources\Modules\Matter\Models\Milestone;
  * Matter needing to know about `Envelope`/`Document` internals.
  *
  * "Engagement" needs no call here — `DefaultMilestoneSeeder` seeds it already
- * `completed` at matter-creation time. "Discovery" has no automatic signal in
- * the current data model and is intentionally never advanced by this service
- * — see .claude/rules/matter.md for that open gap (no staff UI exists yet to
- * advance a milestone by hand).
+ * `completed` at matter-creation time. "Discovery" was removed from the
+ * default milestone set entirely (2026-09-17) — it had no real action behind
+ * it anywhere in the product, so it never advanced past `pending` and
+ * silently capped every matter's progress below 100%. See
+ * .claude/rules/matter.md, "Matter Progress timeline".
  *
  * When a milestone actually advances (a row was changed — not on a repeat
  * call that no-ops), the matter's assigned staff / owner is emailed via
