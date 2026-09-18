@@ -48,7 +48,7 @@ class CreateMattersHandlerTest extends BaseTest
         $milestones = $matter->milestones()->orderBy('position')->get();
 
         $this->assertSame(
-            ['Engagement', 'Discovery', 'Drafting', 'Review', 'Completed'],
+            ['Engagement', 'Drafting', 'Review', 'Completed'],
             $milestones->pluck('name')->all(),
         );
         $this->assertSame('Completed', $milestones->last()->name);
@@ -94,7 +94,7 @@ class CreateMattersHandlerTest extends BaseTest
         $this->assertFalse($updated->wasRecentlyCreated);
 
         $milestones = $updated->milestones()->get();
-        $this->assertCount(5, $milestones);
+        $this->assertCount(4, $milestones);
         $this->assertSame('completed', $milestones->firstWhere('id', $firstMilestone->id)->status);
     }
 }

@@ -25,10 +25,11 @@ class MatterProgressCalculatorTest extends BaseTest
 
         // The scenario's own auto-created milestone is a random-named
         // fixture row unrelated to the default set — replace it with the
-        // same five-milestone shape DefaultMilestoneSeeder produces, two of
-        // them completed.
+        // same four-milestone shape DefaultMilestoneSeeder produces (see
+        // Domain\ValueObjects\DefaultMilestone — "Discovery" was removed,
+        // see .claude/rules/matter.md), one of them completed.
         $matter->milestones()->delete();
-        foreach (['Engagement', 'Discovery', 'Drafting', 'Review', 'Completed'] as $position => $name) {
+        foreach (['Engagement', 'Drafting', 'Review', 'Completed'] as $position => $name) {
             Milestone::factory()->create([
                 'matter_id' => $matter->id,
                 'name' => $name,
@@ -40,7 +41,7 @@ class MatterProgressCalculatorTest extends BaseTest
 
         $percentage = app(MatterProgressCalculator::class)->calculate($matter->fresh());
 
-        $this->assertSame(40, $percentage);
+        $this->assertSame(50, $percentage);
         $this->assertNotSame(0, $percentage);
         $this->assertNotSame(100, $percentage);
     }

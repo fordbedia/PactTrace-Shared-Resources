@@ -94,6 +94,68 @@ class MattersControllerTest extends BaseTest
     }
 
     /**
+     * Investigated as "Owner and Admin/Staff teammates can't see each
+     * other's data" — see .claude/rules/matter.md, "Team-wide visibility".
+     * The index query itself only ever scopes on `provider_id` (+
+     * WorkspaceScope, which this fixture's owner/staff share one workspace
+     * for) — there is no `created_by`/`uploaded_by`/`assigned_staff_id`
+     * filter anywhere in this path. A matter one teammate creates must be
+     * visible to every other teammate of the same provider + workspace via
+     * the plain index listing, regardless of role or who created it.
+     */
+    public function test_a_matter_is_visible_to_every_teammate_on_the_same_provider_and_workspace_regardless_of_who_created_it(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $this->postJson('/api/v1/matters', $this->newMatterPayload(['name' => 'Owner-Created Matter']))
+            ->assertSuccessful();
+
+        // The Matter created above belongs to the acting owner's own
+        // provider/workspace — assert the STAFF teammate (a different role,
+        // never the creator) sees it via the plain index listing, with no
+        // filter of any kind.
+        Sanctum::actingAs($this->tenant['staff']);
+
+        $response = $this->getJson('/api/v1/matters');
+        $response->assertOk();
+
+        $names = collect($response->json('data'))->pluck('name');
+        $this->assertContains('Owner-Created Matter', $names);
+
+        // And the reverse: a matter created by the staff member is visible
+        // to the owner.
+        $this->postJson('/api/v1/matters', $this->newMatterPayload(['name' => 'Staff-Created Matter']))
+            ->assertSuccessful();
+
+        Sanctum::actingAs($this->tenant['owner']);
+        $response = $this->getJson('/api/v1/matters');
+        $response->assertOk();
+        $this->assertContains('Staff-Created Matter', collect($response->json('data'))->pluck('name'));
+    }
+
+    /**
+     * The regression guard for the fix above: shared visibility within one
+     * provider must never leak across two different providers — this is
+     * what proves the Problem 0 investigation's fix (there wasn't one; the
+     * query was already provider_id-scoped) didn't accidentally weaken
+     * tenant isolation while confirming the "no over-scoping" finding.
+     */
+    public function test_a_matter_is_never_visible_to_a_teammate_of_a_different_provider(): void
+    {
+        $otherTenant = ProviderTenantScenario::make('matters-controller-cross-tenant');
+
+        Sanctum::actingAs($this->tenant['owner']);
+        $this->postJson('/api/v1/matters', $this->newMatterPayload(['name' => 'Tenant-A-Only Matter']))
+            ->assertSuccessful();
+
+        Sanctum::actingAs($otherTenant['owner']);
+        $response = $this->getJson('/api/v1/matters');
+        $response->assertOk();
+
+        $this->assertNotContains('Tenant-A-Only Matter', collect($response->json('data'))->pluck('name'));
+    }
+
+    /**
      * `?client_id=` backs the Client Detail page's Matters tab (see
      * .claude/rules/client.md) — the same paginated `/matters` listing,
      * additionally narrowed to one client. It must never surface another
@@ -240,5 +302,25 @@ class MattersControllerTest extends BaseTest
         ])->assertOk();
 
         $this->assertTrue($originalUpdatedAt->eq($document->fresh()->updated_at));
+    }
+
+    /**
+     * The full field set `POST /matters` needs — `MattersData::fromRequest()`
+     * reads `id`/`description`/`start_date`/`due_date` straight off
+     * `$request->validated()` with no `?? null` fallback, so a caller that
+     * omits any of them 500s even though the FormRequest itself marks them
+     * `nullable`. Same shape MatterAssignedStaffTest's own helper uses.
+     */
+    private function newMatterPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'id' => null,
+            'client_id' => $this->tenant['client']->id,
+            'name' => 'New Matter',
+            'description' => null,
+            'status' => 'active',
+            'start_date' => null,
+            'due_date' => null,
+        ], $overrides);
     }
 }

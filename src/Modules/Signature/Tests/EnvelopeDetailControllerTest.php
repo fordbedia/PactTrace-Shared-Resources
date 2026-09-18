@@ -273,6 +273,61 @@ class EnvelopeDetailControllerTest extends BaseTest
     }
 
     /**
+     * Problem 2 regression: the envelope detail endpoint's
+     * `completion_percentage` and each signer's own `status` must reflect
+     * real, differing per-row DB state for a partially-signed multi-signer
+     * envelope — not one shared value copied across every signer, and not a
+     * static/stale figure. See .claude/rules/signature.md and
+     * EnvelopeDetailResource, which computes both directly off the
+     * `signers` relation.
+     */
+    public function test_completion_percentage_and_per_signer_status_reflect_a_partially_signed_multi_signer_envelope(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $this->tenant['envelope']->signers()->delete();
+
+        Signer::factory()->create([
+            'envelope_id' => $this->tenant['envelope']->id,
+            'name' => 'Primary Client',
+            'email' => $this->tenant['client']->email,
+            'provider_signer_id' => '1',
+            'status' => 'signed',
+            'signed_at' => now(),
+        ]);
+        Signer::factory()->create([
+            'envelope_id' => $this->tenant['envelope']->id,
+            'name' => 'Co-Signer One',
+            'email' => 'co-signer-one@example.com',
+            'provider_signer_id' => '2',
+            'status' => 'viewed',
+            'signed_at' => null,
+        ]);
+        Signer::factory()->create([
+            'envelope_id' => $this->tenant['envelope']->id,
+            'name' => 'Co-Signer Two',
+            'email' => 'co-signer-two@example.com',
+            'provider_signer_id' => '3',
+            'status' => 'pending',
+            'signed_at' => null,
+        ]);
+
+        $response = $this->getJson("/api/v1/signature/matters/{$this->tenant['matter']->public_id}/envelope");
+
+        $response->assertOk();
+        $response->assertJsonPath('data.completed_count', 1);
+        $response->assertJsonPath('data.total_count', 3);
+        // 1 of 3 signed, rounded — proves this is computed from the real
+        // row count, not a hardcoded/static figure.
+        $response->assertJsonPath('data.completion_percentage', 33);
+
+        $signers = collect($response->json('data.signers'))->keyBy('email');
+        $this->assertSame('signed', $signers[$this->tenant['client']->email]['status']);
+        $this->assertSame('viewed', $signers['co-signer-one@example.com']['status']);
+        $this->assertSame('pending', $signers['co-signer-two@example.com']['status']);
+    }
+
+    /**
      * "Prepare All for Signature" on the Matter Detail page — see
      * .claude/rules/matter.md. Uses a brand-new Matter/documents rather than
      * $this->tenant['matter'], whose own fixture document carries an

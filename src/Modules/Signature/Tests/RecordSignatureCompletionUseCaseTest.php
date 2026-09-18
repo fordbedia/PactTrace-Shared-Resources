@@ -814,9 +814,14 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
             'status' => 'pending',
             'completed_at' => null,
         ]);
-        $discovery = Milestone::factory()->create([
+        // A milestone name outside the default set (DefaultMilestone::ordered()
+        // no longer includes "Discovery" at all — see .claude/rules/matter.md,
+        // "Matter Progress timeline") — proves an envelope being sent only
+        // ever advances "Review" by name, never every pending milestone on
+        // the matter indiscriminately.
+        $other = Milestone::factory()->create([
             'matter_id' => $this->tenant['matter']->id,
-            'name' => DefaultMilestone::DISCOVERY,
+            'name' => 'Custom Provider Step',
             'status' => 'pending',
             'completed_at' => null,
         ]);
@@ -827,10 +832,7 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
         $this->assertSame('completed', $review->fresh()->status);
         $this->assertNotNull($review->fresh()->completed_at);
 
-        // Discovery has no automatic signal — see
-        // MilestoneProgressionService's own docblock — so it must stay
-        // untouched by an envelope being sent.
-        $this->assertSame('pending', $discovery->fresh()->status);
+        $this->assertSame('pending', $other->fresh()->status);
     }
 
     /**
@@ -932,6 +934,70 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
         $this->useCase->handle($this->event('completed', $envelope));
 
         $this->assertDatabaseCount('audit_logs', 0);
+    }
+
+    /**
+     * The matter's final milestone must wait on EVERY signer, not just the
+     * primary client — this is Problem 1's actual multi-signer requirement
+     * (.claude/rules/matter.md, "Matter Progress timeline"). Guarded here at
+     * the webhook-transition level (which is what actually drives the
+     * milestone, per advanceMatterMilestones()'s own docblock): a co-signer
+     * finishing while the primary client has not does NOT complete the
+     * milestone, because DocuSign itself would never report the envelope as
+     * `completed` in that state — `EnvelopeStatus::Completed` already
+     * encodes "every recipient signed" (see .claude/rules/signature.md,
+     * "Every recipient is a DocuSign Signer"), so this test proves the
+     * milestone rides that same fact rather than a naive "client signed"
+     * check.
+     */
+    public function test_completed_milestone_waits_for_every_signer_including_additional_co_signers(): void
+    {
+        $this->tenant['envelope']->delete();
+
+        $completedMilestone = Milestone::factory()->create([
+            'matter_id' => $this->tenant['matter']->id,
+            'name' => DefaultMilestone::COMPLETED,
+            'status' => 'pending',
+            'completed_at' => null,
+        ]);
+
+        $envelope = $this->envelope(EnvelopeStatus::Sent, DocumentStatus::Sent);
+
+        Signer::factory()->create([
+            'envelope_id' => $envelope->id,
+            'name' => $this->tenant['client']->name,
+            'email' => $this->tenant['client']->email,
+            'provider_signer_id' => '1',
+            'status' => 'pending',
+        ]);
+        Signer::factory()->create([
+            'envelope_id' => $envelope->id,
+            'name' => 'Co-Signer Jane',
+            'email' => 'co-signer@example.com',
+            'provider_signer_id' => '2',
+            'status' => 'pending',
+        ]);
+
+        // The co-signer finishes first — DocuSign reports this as a
+        // `delivered` (still in-flight) event carrying only the co-signer's
+        // email as completed. The envelope stays non-terminal, so the
+        // milestone must not advance yet.
+        $this->useCase->handle($this->event('delivered', $envelope, 'co-signer@example.com'));
+
+        $this->assertSame('signed', Signer::query()->where('email', 'co-signer@example.com')->first()->status);
+        $this->assertSame('pending', Signer::query()->where('email', $this->tenant['client']->email)->first()->status);
+        $this->assertSame('pending', $completedMilestone->fresh()->status);
+
+        // Now the primary client finishes too — DocuSign reports the
+        // envelope itself as `completed` (which, per signature.md, only
+        // ever happens once every Signer recipient is done). Only now does
+        // the final milestone advance.
+        $this->useCase->handle($this->event('completed', $envelope, $this->tenant['client']->email));
+
+        $this->assertSame('signed', Signer::query()->where('email', $this->tenant['client']->email)->first()->status);
+        $this->assertSame(EnvelopeStatus::Completed, $envelope->fresh()->status);
+        $this->assertSame('completed', $completedMilestone->fresh()->status);
+        $this->assertNotNull($completedMilestone->fresh()->completed_at);
     }
 
     private function envelope(EnvelopeStatus $envelopeStatus, DocumentStatus $documentStatus): Envelope
