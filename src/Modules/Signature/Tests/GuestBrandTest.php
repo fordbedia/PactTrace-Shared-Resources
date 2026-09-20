@@ -48,7 +48,7 @@ class GuestBrandTest extends BaseTest
     {
         $this->configure('starter', 'Doe Law', self::LOGO);
 
-        $this->brand()->assertOk()->assertExactJson(['name' => 'Doe Law', 'logo_url' => null]);
+        $this->brand()->assertOk()->assertExactJson(['name' => 'Doe Law', 'logo_url' => null, 'allows_custom_branding' => false]);
     }
 
     #[DataProvider('paidPlans')]
@@ -70,7 +70,7 @@ class GuestBrandTest extends BaseTest
     {
         $this->configure('professional', 'Doe Law', null);
 
-        $this->brand()->assertOk()->assertExactJson(['name' => 'Doe Law', 'logo_url' => null]);
+        $this->brand()->assertOk()->assertExactJson(['name' => 'Doe Law', 'logo_url' => null, 'allows_custom_branding' => true]);
     }
 
     public function test_an_empty_business_name_never_crashes_and_uses_the_fallback(): void

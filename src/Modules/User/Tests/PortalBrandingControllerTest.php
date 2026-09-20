@@ -115,7 +115,7 @@ class PortalBrandingControllerTest extends BaseTest
         $response->assertOk();
         $payload = $response->json('data');
 
-        $this->assertSame(['business_name', 'logo_url', 'primary_color'], array_keys($payload));
+        $this->assertSame(['business_name', 'logo_url', 'primary_color', 'allows_custom_branding'], array_keys($payload));
     }
 
     public function test_an_unknown_subdomain_still_404s_before_ever_reaching_the_controller(): void

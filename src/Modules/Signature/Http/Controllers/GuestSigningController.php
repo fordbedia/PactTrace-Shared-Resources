@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PactTrackSDK\SharedResources\Modules\Signature\Http\Controllers;
 
+use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -137,6 +138,13 @@ class GuestSigningController extends Controller
             return response()->json(['message' => 'This signing link is not valid.', 'reason' => 'invalid'], 404);
         }
 
-        return response()->json($this->brandResolver->forProvider($provider)->toArray());
+        $allowsCustomBranding = (Plan::tryFrom((string) $provider->plan) ?? Plan::default())
+            ->info()
+            ->allowsCustomBranding;
+
+        return response()->json(array_merge(
+            $this->brandResolver->forProvider($provider)->toArray(),
+            ['allows_custom_branding' => $allowsCustomBranding],
+        ));
     }
 }

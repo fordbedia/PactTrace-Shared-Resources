@@ -42,6 +42,7 @@ class PortalBrandingController extends Controller
                     'business_name' => null,
                     'logo_url' => null,
                     'primary_color' => null,
+                    'allows_custom_branding' => false,
                 ],
             ]);
         }

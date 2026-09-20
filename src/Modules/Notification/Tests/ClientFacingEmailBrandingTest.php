@@ -90,11 +90,10 @@ class ClientFacingEmailBrandingTest extends BaseTest
         }
     }
 
-    public function test_pacttrack_branding_is_visible_in_the_footer_on_every_plan_regardless_of_the_toggle(): void
+    public function test_pacttrack_footer_shows_on_starter_only_regardless_of_the_toggle(): void
     {
-        // 2026-09-19 rule: "Secured by PactTrack" is small and secondary but
-        // not removable on any plan; the old Email Branding toggle no longer
-        // changes it.
+        // 2026-09-20 rule: "Secured by PactTrack" shows on Starter only;
+        // Professional/Firm are white-labeled. The old toggle changes nothing.
         foreach (['starter', 'professional', 'firm'] as $plan) {
             foreach ([true, false] as $toggle) {
                 $html = (new DocumentReadyForSignatureEmail(
@@ -104,7 +103,11 @@ class ClientFacingEmailBrandingTest extends BaseTest
                     portalUrl: 'https://app.test/portal',
                 ))->render();
 
-                $this->assertStringContainsString('Secured by PactTrack', $html, "[{$plan}] footer lost PactTrack branding");
+                if ($plan === 'starter') {
+                    $this->assertStringContainsString('Secured by PactTrack', $html, "[{$plan}] footer lost PactTrack branding");
+                } else {
+                    $this->assertStringNotContainsString('PactTrack', $html, "[{$plan}] footer leaks PactTrack branding");
+                }
                 $this->assertStringContainsString('Doe Law', $html);
             }
         }

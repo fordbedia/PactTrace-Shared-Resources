@@ -41,6 +41,7 @@ class PortalLoginBrandResource extends JsonResource
             'business_name' => $brand->name,
             'logo_url' => $brand->logoUrl,
             'primary_color' => $allowsCustomBranding ? $this->primary_color : null,
+            'allows_custom_branding' => $allowsCustomBranding,
         ];
     }
 }

@@ -115,7 +115,7 @@ class GuestSigningInvitationEmailTest extends BaseTest
         $this->assertStringNotContainsString('#7C3AED', $html);
     }
 
-    public function test_a_professional_or_firm_tenant_gets_its_own_logo_with_a_small_pacttrack_footer(): void
+    public function test_a_professional_or_firm_tenant_gets_its_own_logo_with_no_pacttrack_footer(): void
     {
         foreach (['professional', 'firm'] as $plan) {
             $html = (new DocumentReadyForSignatureEmail(
@@ -125,8 +125,7 @@ class GuestSigningInvitationEmailTest extends BaseTest
                 portalUrl: 'https://app.test/portal/matter/01J000000000000000000000',
             ))->render();
 
-            // PactTrack stays visible but secondary — footer only, never the header.
-            $this->assertStringContainsString('Secured by PactTrack', $html, "[{$plan}] email lost the PactTrack footer");
+            $this->assertStringNotContainsString('Secured by PactTrack', $html, "[{$plan}] email leaks the PactTrack footer");
             $this->assertStringContainsString('https://cdn.test/doe-law.png', $html, "[{$plan}] email missing the provider logo");
             $this->assertStringContainsString('#7C3AED', $html, "[{$plan}] email missing the provider accent colour");
             $this->assertStringContainsString('Doe Law', $html);
