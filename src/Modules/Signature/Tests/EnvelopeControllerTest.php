@@ -6,6 +6,8 @@ namespace PactTrackSDK\SharedResources\Modules\Signature\Tests;
 
 use Illuminate\Support\Facades\Storage;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Signature\Domain\Ports\ESignatureProvider;
+use PactTrackSDK\SharedResources\Modules\Signature\Infrastructure\Fake\FakeSignatureProvider;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Signer;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan;
@@ -39,6 +41,11 @@ class EnvelopeControllerTest extends BaseTest
 
         Storage::fake(self::DISK);
         config(['filesystems.document_disk' => self::DISK]);
+
+        // One shared fake for the whole test: reopening a draft now refreshes
+        // its recipients from the provider (SyncEnvelopeRecipients), so the
+        // recipients created by an earlier request must still be there.
+        $this->app->instance(ESignatureProvider::class, new FakeSignatureProvider());
 
         $this->tenant = ProviderTenantScenario::make('envelope-controller');
     }

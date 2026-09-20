@@ -90,53 +90,28 @@ class ClientFacingEmailBrandingTest extends BaseTest
         }
     }
 
-    public function test_starter_email_footer_keeps_pacttrack_branding_regardless_of_the_toggle(): void
+    public function test_pacttrack_branding_is_visible_in_the_footer_on_every_plan_regardless_of_the_toggle(): void
     {
-        foreach ([true, false] as $toggle) {
-            $html = (new DocumentReadyForSignatureEmail(
-                providerData: $this->providerData(plan: 'starter', poweredByFooter: $toggle),
-                clientName: 'Alex Client',
-                documentName: 'NDA.pdf',
-                portalUrl: 'https://app.test/portal',
-            ))->render();
+        // 2026-09-19 rule: "Secured by PactTrack" is small and secondary but
+        // not removable on any plan; the old Email Branding toggle no longer
+        // changes it.
+        foreach (['starter', 'professional', 'firm'] as $plan) {
+            foreach ([true, false] as $toggle) {
+                $html = (new DocumentReadyForSignatureEmail(
+                    providerData: $this->providerData(plan: $plan, poweredByFooter: $toggle),
+                    clientName: 'Alex Client',
+                    documentName: 'NDA.pdf',
+                    portalUrl: 'https://app.test/portal',
+                ))->render();
 
-            $this->assertStringContainsString('PactTrack', $html);
+                $this->assertStringContainsString('Secured by PactTrack', $html, "[{$plan}] footer lost PactTrack branding");
+                $this->assertStringContainsString('Doe Law', $html);
+            }
         }
     }
 
-    public function test_professional_footer_has_no_pacttrack_branding_when_the_toggle_is_off(): void
+    public function test_the_footer_always_reports_pacttrack_branding_as_shown(): void
     {
-        $html = (new DocumentReadyForSignatureEmail(
-            providerData: $this->providerData(plan: 'professional', poweredByFooter: false),
-            clientName: 'Alex Client',
-            documentName: 'NDA.pdf',
-            portalUrl: 'https://app.test/portal',
-        ))->render();
-
-        $this->assertStringNotContainsString('PactTrack', $html);
-    }
-
-    public function test_professional_footer_adds_a_powered_by_line_when_the_toggle_is_on(): void
-    {
-        $html = (new DocumentReadyForSignatureEmail(
-            providerData: $this->providerData(plan: 'professional', poweredByFooter: true),
-            clientName: 'Alex Client',
-            documentName: 'NDA.pdf',
-            portalUrl: 'https://app.test/portal',
-        ))->render();
-
-        $this->assertStringContainsString('Powered by PactTrack', $html);
-        // Still the provider's own copyright line, not the full Starter footer.
-        $this->assertStringContainsString('Doe Law', $html);
-    }
-
-    public function test_the_powered_by_toggle_defaults_to_off_for_a_plan_that_allows_removing_it(): void
-    {
-        // Mirrors ProviderData::fromArray()'s own default, which is what
-        // every real Mailable dispatch site actually goes through
-        // (ProviderData::fromArray($provider->toArray())) — a provider row
-        // that has never touched this setting must not suddenly start
-        // showing PactTrack branding.
         $data = ProviderData::fromArray([
             'owner_user_id' => 1,
             'business_name' => 'Doe Law',
@@ -144,7 +119,7 @@ class ClientFacingEmailBrandingTest extends BaseTest
             'plan' => 'professional',
         ]);
 
-        $this->assertFalse($data->showsPoweredByFooter());
+        $this->assertTrue($data->showsPoweredByFooter());
     }
 
     public function test_internal_notification_emails_are_unaffected_by_any_of_this(): void

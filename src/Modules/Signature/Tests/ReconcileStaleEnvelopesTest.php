@@ -332,6 +332,36 @@ class ReconcileStaleEnvelopesTest extends BaseTest
                     return true;
                 }
 
+                public function addRecipient(string $providerEnvelopeId, EnvelopeRecipient $recipient, string $recipientId): void
+
+                {
+
+                }
+
+
+                public function removeRecipient(string $providerEnvelopeId, string $recipientId): void
+
+                {
+
+                }
+
+
+                public function fetchRecipients(string $providerEnvelopeId): array
+
+                {
+
+                    return [];
+
+                }
+
+
+                public function embedRecipients(string $providerEnvelopeId, array $clientUserIdsByRecipientId): void
+
+                {
+
+                }
+
+
                 public function fetchCompletedDocument(string $providerEnvelopeId): string
                 {
                     return 'unused';

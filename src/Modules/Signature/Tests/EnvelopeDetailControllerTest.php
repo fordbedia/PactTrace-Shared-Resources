@@ -391,6 +391,31 @@ class EnvelopeDetailControllerTest extends BaseTest
         $this->assertSame(1, Envelope::query()->where('document_id', $alreadyActive->id)->count());
     }
 
+    public function test_prepare_all_skips_a_signed_document_even_with_a_later_stray_draft(): void
+    {
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $matter = $this->freshMatter();
+        $signed = $this->freshPdfDocument($matter);
+        $signed->forceFill(['status' => 'completed'])->save();
+        foreach ([EnvelopeStatus::Completed, EnvelopeStatus::Draft] as $status) {
+            Envelope::factory()->create([
+                'provider_id' => $this->tenant['provider']->id,
+                'workspace_id' => $this->tenant['workspace']->id,
+                'client_id' => $this->tenant['client']->id,
+                'document_id' => $signed->id,
+                'status' => $status,
+            ]);
+        }
+
+        $response = $this->postJson("/api/v1/signature/matters/{$matter->public_id}/prepare-all-envelopes");
+
+        $response->assertOk();
+        $this->assertCount(0, $response->json('prepared'));
+        $this->assertSame($signed->id, $response->json('skipped.0.document_id'));
+        $this->assertSame(2, Envelope::query()->where('document_id', $signed->id)->count());
+    }
+
     /**
      * A document whose only envelope is voided is NOT "active" — re-preparing
      * after a void is an existing, supported flow on the single-document
@@ -574,6 +599,36 @@ class EnvelopeDetailControllerTest extends BaseTest
                 {
                     throw new RuntimeException('unused');
                 }
+
+                public function addRecipient(string $providerEnvelopeId, EnvelopeRecipient $recipient, string $recipientId): void
+
+                {
+
+                }
+
+
+                public function removeRecipient(string $providerEnvelopeId, string $recipientId): void
+
+                {
+
+                }
+
+
+                public function fetchRecipients(string $providerEnvelopeId): array
+
+                {
+
+                    return [];
+
+                }
+
+
+                public function embedRecipients(string $providerEnvelopeId, array $clientUserIdsByRecipientId): void
+
+                {
+
+                }
+
 
                 public function fetchCompletedDocument(string $providerEnvelopeId): string
                 {

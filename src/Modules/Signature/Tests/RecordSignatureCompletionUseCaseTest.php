@@ -543,6 +543,24 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
         ]);
     }
 
+    /**
+     * Reported 2026-09-20: a `completed` payload with no recipient list left
+     * every Signer `pending` on a completed envelope, so the envelope detail
+     * page read "Awaiting" / 0%. `completed` settles every signer.
+     */
+    public function test_a_completed_event_with_no_recipient_list_still_marks_every_signer_signed(): void
+    {
+        $envelope = $this->envelope(EnvelopeStatus::Sent, DocumentStatus::Sent);
+        $client = Signer::factory()->create(['envelope_id' => $envelope->id, 'email' => $this->tenant['client']->email, 'status' => 'pending']);
+        $guest = Signer::factory()->create(['envelope_id' => $envelope->id, 'email' => 'guest@example.com', 'status' => 'pending']);
+
+        $this->useCase->handle($this->event('completed', $envelope));
+
+        $this->assertSame('signed', $client->fresh()->status);
+        $this->assertSame('signed', $guest->fresh()->status);
+        $this->assertNotNull($guest->fresh()->signed_at);
+    }
+
     public function test_completed_event_updates_an_existing_signer_rather_than_duplicating(): void
     {
         $envelope = $this->envelope(EnvelopeStatus::Viewed, DocumentStatus::Sent);

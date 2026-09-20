@@ -132,4 +132,19 @@ class MatterActivityFeedBuilderTest extends BaseTest
 
         $this->assertContains('Retainer.pdf voided', $titles);
     }
+
+    public function test_the_terminal_completed_milestone_reads_progress_completed_not_completed_completed(): void
+    {
+        $matter = $this->tenant['matter'];
+        $matter->milestones()->delete();
+        $matter->milestones()->create(['name' => 'Completed', 'status' => 'completed', 'position' => 4, 'completed_at' => now()]);
+        $matter->milestones()->create(['name' => 'Review', 'status' => 'completed', 'position' => 3, 'completed_at' => now()->subMinute()]);
+
+        $matter->load(['provider', 'milestones', 'documents.uploader', 'documents.envelopes.signers']);
+        $titles = array_column($this->builder->build($matter), 'title');
+
+        $this->assertContains('Progress Completed', $titles);
+        $this->assertContains('Review completed', $titles);
+        $this->assertNotContains('Completed completed', $titles);
+    }
 }

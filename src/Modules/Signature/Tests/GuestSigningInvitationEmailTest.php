@@ -107,14 +107,15 @@ class GuestSigningInvitationEmailTest extends BaseTest
             portalUrl: 'https://app.test/portal/matter/01J000000000000000000000',
         ))->render();
 
-        // PactTrack wordmark in the footer, and the tenant's own logo/colour
-        // are NOT used (plan doesn't allow white-labeling).
-        $this->assertStringContainsString('PactTrack', $html);
+        // Business name as text only — the tenant's own logo/colour are NOT
+        // used (plan doesn't allow it) — plus PactTrack's mark in the footer.
+        $this->assertStringContainsString('Doe Law', $html);
+        $this->assertStringContainsString('Secured by PactTrack', $html);
         $this->assertStringNotContainsString('https://cdn.test/doe-law.png', $html);
         $this->assertStringNotContainsString('#7C3AED', $html);
     }
 
-    public function test_a_professional_or_firm_tenant_is_fully_white_labeled(): void
+    public function test_a_professional_or_firm_tenant_gets_its_own_logo_with_a_small_pacttrack_footer(): void
     {
         foreach (['professional', 'firm'] as $plan) {
             $html = (new DocumentReadyForSignatureEmail(
@@ -124,7 +125,8 @@ class GuestSigningInvitationEmailTest extends BaseTest
                 portalUrl: 'https://app.test/portal/matter/01J000000000000000000000',
             ))->render();
 
-            $this->assertStringNotContainsString('PactTrack', $html, "[{$plan}] email still mentions PactTrack");
+            // PactTrack stays visible but secondary — footer only, never the header.
+            $this->assertStringContainsString('Secured by PactTrack', $html, "[{$plan}] email lost the PactTrack footer");
             $this->assertStringContainsString('https://cdn.test/doe-law.png', $html, "[{$plan}] email missing the provider logo");
             $this->assertStringContainsString('#7C3AED', $html, "[{$plan}] email missing the provider accent colour");
             $this->assertStringContainsString('Doe Law', $html);
