@@ -13,6 +13,7 @@ use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Signer;
 use RuntimeException;
 use Throwable;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\Services\DocusignReturnUrls;
 
 /**
  * Mints the embedded signing view URL for a guest (no PactTrack account)
@@ -88,7 +89,6 @@ class GenerateGuestSigningEmbedTokenUseCase
      */
     private function returnUrl(Envelope $envelope): string
     {
-        return rtrim((string) config('app.frontend_url'), '/')
-            . '/docusign-return?flow=recipient&envelope=' . $envelope->public_id;
+        return app(DocusignReturnUrls::class)->recipient($envelope);
     }
 }

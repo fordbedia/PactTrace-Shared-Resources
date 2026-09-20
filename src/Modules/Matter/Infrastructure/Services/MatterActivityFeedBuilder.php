@@ -86,7 +86,11 @@ final class MatterActivityFeedBuilder
 
             $entries[] = [
                 'type' => 'milestone_completed',
-                'title' => "{$milestone->name} completed",
+                // The terminal milestone is itself named "Completed", which
+                // would read "Completed completed".
+                'title' => strcasecmp(trim($milestone->name), 'Completed') === 0
+                    ? 'Progress Completed'
+                    : "{$milestone->name} completed",
                 'actor' => $providerName,
                 'at' => Carbon::parse($milestone->completed_at)->toIso8601String(),
             ];

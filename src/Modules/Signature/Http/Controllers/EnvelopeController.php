@@ -14,7 +14,9 @@ use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\GatedAction;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\CheckEnvelopeProviderStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\GetDraftEnvelope;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\ManageDraftEnvelopeSigners;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\PrepareEnvelopeForSignature;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\SyncEnvelopeRecipients;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Exceptions\EnvelopeAlreadySentException;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Exceptions\UnsupportedDocumentFormatException;
 use PactTrackSDK\SharedResources\Modules\Signature\Http\Requests\PrepareEnvelopeRequest;
@@ -48,6 +50,8 @@ class EnvelopeController extends Controller
         private readonly PrepareEnvelopeForSignature $prepareEnvelopeForSignature,
         private readonly CheckEnvelopeProviderStatus $checkEnvelopeProviderStatus,
         private readonly GetDraftEnvelope $getDraftEnvelope,
+        private readonly SyncEnvelopeRecipients $syncEnvelopeRecipients,
+        private readonly ManageDraftEnvelopeSigners $manageDraftSigners,
     ) {
     }
 
@@ -73,13 +77,130 @@ class EnvelopeController extends Controller
         Gate::forUser($user)->authorize('create', [Envelope::class, $document]);
 
         $envelope = $this->getDraftEnvelope->handle($document);
+        $refreshFailed = false;
+
+        if ($envelope !== null) {
+            // DocuSign is the source of truth for recipients while the
+            // envelope is a draft (see SyncEnvelopeRecipients). A failed
+            // refresh degrades to the DB copy — never a 500.
+            try {
+                $this->syncEnvelopeRecipients->handle($envelope, $user);
+                $envelope->load('signers');
+            } catch (Throwable $e) {
+                report($e);
+                $refreshFailed = true;
+            }
+        }
 
         return response()->json([
             'envelope_id' => $envelope?->public_id,
+            'refresh_failed' => $refreshFailed,
             'signers' => $envelope === null ? [] : $envelope->signers->map(fn (Signer $signer) => [
                 'name' => $signer->name,
                 'email' => $signer->email,
+                'status' => $signer->status,
             ])->values(),
+        ]);
+    }
+
+    /**
+     * POST /api/signature/documents/{document}/sync-recipients
+     *
+     * Called by PrepareSignatureModal whenever the Sender View closes or
+     * returns — with ANY event, including cancel/exit/save — so signers the
+     * tenant added inside DocuSign are persisted even when they never
+     * pressed Send. Keyed by document (the modal knows it) rather than
+     * envelope. A DocuSign failure is a 200 with `refresh_failed: true`, not
+     * an error: the caller is a fire-and-forget UX hook.
+     */
+    public function syncRecipients(Request $request, Document $document): JsonResponse
+    {
+        $user = $this->resolveActingUser($request);
+
+        if ($user === null) {
+            return response()->json([
+                'message' => 'You must be signed in to a provider account to sync signers.',
+            ], 401);
+        }
+
+        Gate::forUser($user)->authorize('create', [Envelope::class, $document]);
+
+        $envelope = $this->getDraftEnvelope->handle($document);
+
+        if ($envelope === null) {
+            return response()->json(['synced' => false, 'refresh_failed' => false]);
+        }
+
+        try {
+            $result = $this->syncEnvelopeRecipients->handle($envelope, $user, force: true);
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json(['synced' => false, 'refresh_failed' => true]);
+        }
+
+        return response()->json($result + ['refresh_failed' => false]);
+    }
+
+    /**
+     * POST   /api/signature/documents/{document}/draft-signers  {name, email}
+     * DELETE /api/signature/documents/{document}/draft-signers  {email}
+     *
+     * Add/remove an additional signer — only while the document's envelope
+     * has NOT been submitted (409 otherwise; the UI hides the controls). Both
+     * return the resulting additional-signer list.
+     */
+    public function addDraftSigner(Request $request, Document $document): JsonResponse
+    {
+        $request->validate(['name' => ['required', 'string', 'max:255'], 'email' => ['required', 'email', 'max:255']]);
+
+        return $this->mutateDraftSigners($request, $document, fn (Envelope $envelope, $user) =>
+            $this->manageDraftSigners->add($envelope, $request->string('name')->toString(), $request->string('email')->toString(), $user));
+    }
+
+    public function removeDraftSigner(Request $request, Document $document): JsonResponse
+    {
+        $request->validate(['email' => ['required', 'email']]);
+
+        return $this->mutateDraftSigners($request, $document, fn (Envelope $envelope, $user) =>
+            $this->manageDraftSigners->remove($envelope, $request->string('email')->toString(), $user));
+    }
+
+    private function mutateDraftSigners(Request $request, Document $document, callable $mutation): JsonResponse
+    {
+        $user = $this->resolveActingUser($request);
+
+        if ($user === null) {
+            return response()->json(['message' => 'You must be signed in to a provider account to change signers.'], 401);
+        }
+
+        Gate::forUser($user)->authorize('create', [Envelope::class, $document]);
+
+        $envelope = $this->getDraftEnvelope->handle($document);
+
+        if ($envelope === null) {
+            return response()->json(['message' => 'This document has no open draft to change.'], 409);
+        }
+
+        try {
+            $mutation($envelope, $user);
+        } catch (EnvelopeAlreadySentException $e) {
+            return response()->json(['message' => 'This document was already submitted — signers can no longer be changed.', 'submitted' => true], 409);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json(['message' => 'DocuSign is unavailable right now. Please try again shortly.'], 502);
+        }
+
+        $clientEmail = strtolower((string) $document->client()->value('email'));
+
+        return response()->json([
+            'signers' => $envelope->signers()->get()
+                ->reject(fn (Signer $s) => $s->provider_signer_id === '1' || strtolower($s->email) === $clientEmail)
+                ->map(fn (Signer $s) => ['name' => $s->name, 'email' => $s->email, 'status' => $s->status])
+                ->values(),
         ]);
     }
 

@@ -13,6 +13,7 @@ use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\SigningTo
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Signer;
 use Throwable;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\Services\DocusignReturnUrls;
 
 /**
  * Mints the embedded signing view URL behind the client portal's signing
@@ -92,7 +93,6 @@ class GenerateSigningEmbedTokenUseCase
      */
     private function returnUrl(Envelope $envelope): string
     {
-        return rtrim((string) config('app.frontend_url'), '/')
-            . '/docusign-return?flow=recipient&envelope=' . $envelope->public_id;
+        return app(DocusignReturnUrls::class)->recipient($envelope);
     }
 }

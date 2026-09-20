@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Illuminate\Support\Str;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Ports\ESignatureProvider;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\EnvelopeRecipient;
+use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\ProviderRecipient;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\SigningToken;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\WebhookEvent;
 
@@ -20,6 +21,21 @@ use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\WebhookEv
  */
 class FakeSignatureProvider implements ESignatureProvider
 {
+    /**
+     * Recipients per provider envelope id. createDraftEnvelope() seeds it
+     * from the recipients it is given; tests mutate it directly to simulate
+     * signers added/removed inside DocuSign's own UI.
+     *
+     * @var array<string, ProviderRecipient[]>
+     */
+    public array $recipients = [];
+
+    /** When set, fetchRecipients() throws it — simulates a DocuSign outage. */
+    public ?\Throwable $recipientsFailure = null;
+
+    /** @var array<int, array<string, string>> */
+    public array $embedCalls = [];
+
     public function createDraftEnvelope(
         string $title,
         string $fileName,
@@ -27,7 +43,19 @@ class FakeSignatureProvider implements ESignatureProvider
         array $recipients,
         ?string $externalId = null,
     ): string {
-        return 'fake-envelope-' . Str::uuid();
+        $id = 'fake-envelope-' . Str::uuid();
+
+        foreach (array_values($recipients) as $index => $recipient) {
+            $this->recipients[$id][] = new ProviderRecipient(
+                recipientId: (string) ($index + 1),
+                name: $recipient->name,
+                email: $recipient->email,
+                status: 'pending',
+                clientUserId: $recipient->clientUserId,
+            );
+        }
+
+        return $id;
     }
 
     public function senderViewUrl(string $providerEnvelopeId, string $returnUrl): string
@@ -59,7 +87,7 @@ class FakeSignatureProvider implements ESignatureProvider
 
     public function fetchEnvelopeStatus(string $providerEnvelopeId): string
     {
-        return 'sent';
+        return $this->envelopeStatus;
     }
 
     public function verifyWebhookSignature(string $rawPayload, ?string $signatureHeader): bool
@@ -75,5 +103,46 @@ class FakeSignatureProvider implements ESignatureProvider
     public function fetchCompletedDocument(string $providerEnvelopeId): string
     {
         return "%FAKE-SIGNED-PDF%\ncontent-for-envelope:{$providerEnvelopeId}";
+    }
+
+    public function fetchRecipients(string $providerEnvelopeId): array
+    {
+        if ($this->recipientsFailure !== null) {
+            throw $this->recipientsFailure;
+        }
+
+        return $this->recipients[$providerEnvelopeId] ?? [];
+    }
+
+    public function embedRecipients(string $providerEnvelopeId, array $clientUserIdsByRecipientId): void
+    {
+        $this->embedCalls[] = $clientUserIdsByRecipientId;
+
+        foreach ($this->recipients[$providerEnvelopeId] ?? [] as $i => $recipient) {
+            if (isset($clientUserIdsByRecipientId[$recipient->recipientId])) {
+                $this->recipients[$providerEnvelopeId][$i] = new ProviderRecipient(
+                    $recipient->recipientId, $recipient->name, $recipient->email, $recipient->status,
+                    $clientUserIdsByRecipientId[$recipient->recipientId], $recipient->routingOrder,
+                );
+            }
+        }
+    }
+
+    /** Status fetchEnvelopeStatus() reports; tests set 'created' to simulate an unsent draft. */
+    public string $envelopeStatus = 'sent';
+
+    public function addRecipient(string $providerEnvelopeId, EnvelopeRecipient $recipient, string $recipientId): void
+    {
+        $this->recipients[$providerEnvelopeId][] = new ProviderRecipient(
+            $recipientId, $recipient->name, $recipient->email, 'pending', $recipient->clientUserId,
+        );
+    }
+
+    public function removeRecipient(string $providerEnvelopeId, string $recipientId): void
+    {
+        $this->recipients[$providerEnvelopeId] = array_values(array_filter(
+            $this->recipients[$providerEnvelopeId] ?? [],
+            fn (ProviderRecipient $r) => $r->recipientId !== $recipientId,
+        ));
     }
 }

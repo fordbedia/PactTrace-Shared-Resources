@@ -26,6 +26,9 @@ use PactTrackSDK\SharedResources\Modules\Signature\Http\Controllers\SigningContr
 // Flow A — tenant/staff embedded authoring (Sender View), see .claude/rules/signature.md.
 Route::get('signature/documents/{document}/prepare', [EnvelopeController::class, 'draftSigners']);
 Route::post('signature/documents/{document}/prepare', [EnvelopeController::class, 'prepare']);
+Route::post('signature/documents/{document}/draft-signers', [EnvelopeController::class, 'addDraftSigner']);
+Route::delete('signature/documents/{document}/draft-signers', [EnvelopeController::class, 'removeDraftSigner']);
+Route::post('signature/documents/{document}/sync-recipients', [EnvelopeController::class, 'syncRecipients']);
 Route::get('signature/envelopes/{envelope}/status', [EnvelopeController::class, 'status']);
 
 // Flow B — client-facing embedded signing (Recipient View).
@@ -40,6 +43,7 @@ Route::get('signature/envelopes/{envelope}/signer-status', [SigningController::c
 // itself is what scopes the request.
 Route::post('signature/envelopes/{envelope}/guest-signing-token', [GuestSigningController::class, 'signingToken']);
 Route::post('signature/envelopes/{envelope}/guest-signer-status', [GuestSigningController::class, 'signerStatus']);
+Route::post('signature/envelopes/{envelope}/guest-brand', [GuestSigningController::class, 'brand']);
 
 // Provider webhook — no auth middleware, verified via signature header.
 Route::post('signature/webhooks/docusign', DocusignWebhookController::class);
@@ -59,6 +63,8 @@ Route::post('signature/webhooks/docusign', DocusignWebhookController::class);
 // actual problem, not staff-only-ness.
 Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('signature/matters/{matter}/envelope', [EnvelopeDetailController::class, 'show']);
+    Route::get('signature/matters/{matter}/draft-signers', [EnvelopeDetailController::class, 'draftSigners']);
+    Route::post('signature/matters/{matter}/sync-draft-signers', [EnvelopeDetailController::class, 'syncDraftSigners']);
     Route::post('signature/matters/{matter}/prepare-all-envelopes', [EnvelopeDetailController::class, 'prepareAll']);
     Route::post('signature/envelopes/{envelope}/void', [EnvelopeDetailController::class, 'void']);
 });

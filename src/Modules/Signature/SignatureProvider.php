@@ -64,7 +64,7 @@ class SignatureProvider extends ServiceProvider
                 // (Settings > Apps and Keys) — DocuSign rejects any redirect_uri
                 // on the one-time consent grant that isn't pre-registered there,
                 // regardless of what domain it points to.
-                consentRedirectUri: rtrim((string) config('app.frontend_url'), '/') . '/docusign-return',
+                consentRedirectUri: $this->app->make(\PactTrackSDK\SharedResources\Modules\Signature\Application\Services\DocusignReturnUrls::class)->consentRedirect(),
             );
 
             return new DocusignSignatureProvider(

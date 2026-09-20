@@ -6,7 +6,7 @@ namespace PactTrackSDK\SharedResources\Modules\User\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use PactTrackSDK\SharedResources\Modules\User\Domain\Ports\ProviderLogoStorage;
+use PactTrackSDK\SharedResources\Modules\User\Application\Services\ProviderBrandResolver;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\Plan;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 
@@ -35,11 +35,11 @@ class PortalLoginBrandResource extends JsonResource
             ->info()
             ->allowsCustomBranding;
 
+        $brand = app(ProviderBrandResolver::class)->forProvider($this->resource);
+
         return [
-            'business_name' => $this->business_name,
-            'logo_url' => $allowsCustomBranding && $this->logo_path !== null
-                ? app(ProviderLogoStorage::class)->url($this->logo_path)
-                : null,
+            'business_name' => $brand->name,
+            'logo_url' => $brand->logoUrl,
             'primary_color' => $allowsCustomBranding ? $this->primary_color : null,
         ];
     }

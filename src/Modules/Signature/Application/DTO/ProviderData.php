@@ -57,17 +57,15 @@ class ProviderData
 	}
 
 	/**
-	 * Whether a client-facing email's footer should carry a "Powered by
-	 * PactTrack" line. A Starter tenant's footer is always PactTrack's own
-	 * in full (see the client-email-footer partial) regardless of this
-	 * toggle — the toggle only has an effect once a tenant's plan actually
-	 * allows removing PactTrack branding at all (Professional/Firm), where
-	 * it defaults to showing a small co-branding line and can be turned off
-	 * for a fully clean, white-labeled footer.
+	 * Whether a client-facing email's footer carries PactTrack's small "Secured
+	 * by PactTrack" mark. Always true since 2026-09-19: PactTrack branding is
+	 * visible on every plan and not removable. The `email_powered_by_footer`
+	 * column/toggle is now vestigial — kept so existing rows and the DTO shape
+	 * don't break, but it no longer changes anything.
 	 */
 	public function showsPoweredByFooter(): bool
 	{
-		return ! $this->allowsCustomBranding() || $this->email_powered_by_footer;
+		return true;
 	}
 
 	public static function fromArray(array $data): self

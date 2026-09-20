@@ -10,6 +10,7 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Ports\ESignatureProvider;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\EnvelopeRecipient;
+use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\ProviderRecipient;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\SigningToken;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\WebhookEvent;
 use RuntimeException;
@@ -209,6 +210,107 @@ class DocusignSignatureProvider implements ESignatureProvider
         }
 
         return $response->body();
+    }
+
+    public function fetchRecipients(string $providerEnvelopeId): array
+    {
+        $response = $this->client()->get($this->envelopesUrl("/{$providerEnvelopeId}/recipients"));
+
+        if ($response->failed()) {
+            throw new RuntimeException(
+                "Fetching DocuSign recipients for envelope [{$providerEnvelopeId}] failed "
+                . "({$response->status()}): {$response->body()}"
+            );
+        }
+
+        $recipients = [];
+
+        foreach ((array) $response->json('signers', []) as $signer) {
+            $recipientId = (string) ($signer['recipientId'] ?? '');
+            $email = (string) ($signer['email'] ?? '');
+
+            if ($recipientId === '' || $email === '') {
+                continue;
+            }
+
+            $clientUserId = $signer['clientUserId'] ?? null;
+
+            $recipients[] = new ProviderRecipient(
+                recipientId: $recipientId,
+                name: (string) ($signer['name'] ?? ''),
+                email: $email,
+                status: $this->normalizeRecipientStatus((string) ($signer['status'] ?? '')),
+                clientUserId: is_string($clientUserId) && $clientUserId !== '' ? $clientUserId : null,
+                routingOrder: (int) ($signer['routingOrder'] ?? 1) ?: 1,
+            );
+        }
+
+        return $recipients;
+    }
+
+    public function embedRecipients(string $providerEnvelopeId, array $clientUserIdsByRecipientId): void
+    {
+        if ($clientUserIdsByRecipientId === []) {
+            return;
+        }
+
+        $signers = [];
+
+        foreach ($clientUserIdsByRecipientId as $recipientId => $clientUserId) {
+            $signers[] = ['recipientId' => (string) $recipientId, 'clientUserId' => $clientUserId];
+        }
+
+        $response = $this->client()->put(
+            $this->envelopesUrl("/{$providerEnvelopeId}/recipients"),
+            ['signers' => $signers],
+        );
+
+        if ($response->failed()) {
+            throw new RuntimeException(
+                "Embedding DocuSign recipients on envelope [{$providerEnvelopeId}] failed "
+                . "({$response->status()}): {$response->body()}"
+            );
+        }
+    }
+
+    public function addRecipient(string $providerEnvelopeId, EnvelopeRecipient $recipient, string $recipientId): void
+    {
+        $response = $this->client()->post(
+            $this->envelopesUrl("/{$providerEnvelopeId}/recipients"),
+            ['signers' => [$this->signerPayload($recipient, $recipientId)]],
+        );
+
+        if ($response->failed()) {
+            throw new RuntimeException(
+                "Adding recipient to DocuSign envelope [{$providerEnvelopeId}] failed ({$response->status()}): {$response->body()}"
+            );
+        }
+    }
+
+    public function removeRecipient(string $providerEnvelopeId, string $recipientId): void
+    {
+        $response = $this->client()->delete(
+            $this->envelopesUrl("/{$providerEnvelopeId}/recipients"),
+            ['signers' => [['recipientId' => $recipientId]]],
+        );
+
+        if ($response->failed()) {
+            throw new RuntimeException(
+                "Removing recipient from DocuSign envelope [{$providerEnvelopeId}] failed ({$response->status()}): {$response->body()}"
+            );
+        }
+    }
+
+    /** DocuSign recipient status -> Signer::status vocabulary. */
+    private function normalizeRecipientStatus(string $status): string
+    {
+        return match (strtolower($status)) {
+            'completed', 'signed' => 'signed',
+            'delivered' => 'viewed',
+            'declined' => 'declined',
+            'sent' => 'sent',
+            default => 'pending',
+        };
     }
 
     /**

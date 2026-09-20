@@ -14,12 +14,15 @@ use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\GatedAction;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\GetMatterEnvelopeDetail;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\PrepareMatterEnvelopesForSignature;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\SyncEnvelopeRecipients;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\VoidEnvelopeHandler;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Exceptions\EnvelopeNotFoundForMatterException;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Exceptions\EnvelopeCannotTransitionException;
 use PactTrackSDK\SharedResources\Modules\Signature\Http\Requests\PrepareMatterEnvelopesRequest;
 use PactTrackSDK\SharedResources\Modules\Signature\Http\Resources\EnvelopeDetailResource;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
+use PactTrackSDK\SharedResources\Modules\Signature\Models\Signer;
+use Throwable;
 
 /**
  * Inbound adapter for the envelope detail view
@@ -42,6 +45,7 @@ class EnvelopeDetailController extends Controller
         private readonly VoidEnvelopeHandler $voidEnvelope,
         private readonly MatterActivityFeedBuilder $activityFeedBuilder,
         private readonly PrepareMatterEnvelopesForSignature $prepareMatterEnvelopes,
+        private readonly SyncEnvelopeRecipients $syncEnvelopeRecipients,
     ) {
     }
 
@@ -136,5 +140,68 @@ class EnvelopeDetailController extends Controller
         $result = $this->prepareMatterEnvelopes->handle($matter, $request->coSignersByDocumentId());
 
         return response()->json($result);
+    }
+
+    /**
+     * GET /api/v1/signature/matters/{matter}/draft-signers
+     * POST /api/v1/signature/matters/{matter}/sync-draft-signers  (forced)
+     *
+     * The bulk "Prepare All" modal's counterpart to EnvelopeController's
+     * per-document draftSigners()/syncRecipients(): for every document on the
+     * matter that has an open DocuSign draft, pull DocuSign's recipients into
+     * `signers` (see SyncEnvelopeRecipients) and return the additional
+     * signers per document id, so reopening the modal shows signers added
+     * inside DocuSign instead of "None". A DocuSign failure degrades to the
+     * saved copy with `refresh_failed: true` — never a 500.
+     */
+    public function draftSigners(Request $request, Matter $matter): JsonResponse
+    {
+        return $this->draftSignersResponse($request, $matter, force: false);
+    }
+
+    public function syncDraftSigners(Request $request, Matter $matter): JsonResponse
+    {
+        return $this->draftSignersResponse($request, $matter, force: true);
+    }
+
+    private function draftSignersResponse(Request $request, Matter $matter, bool $force): JsonResponse
+    {
+        Gate::authorize('view', $matter);
+        Gate::authorize('create', [Envelope::class]);
+
+        $documents = [];
+
+        foreach ($matter->documents()->get() as $document) {
+            $envelope = Envelope::query()->reusableDraftFor($document->id)->with('signers')->first();
+
+            if ($envelope === null) {
+                continue;
+            }
+
+            $refreshFailed = false;
+
+            try {
+                $this->syncEnvelopeRecipients->handle($envelope, $request->user(), $force);
+                $envelope->load('signers');
+            } catch (Throwable $e) {
+                report($e);
+                $refreshFailed = true;
+            }
+
+            $clientEmail = strtolower((string) $document->client()->value('email'));
+
+            $documents[$document->id] = [
+                'envelope_id' => $envelope->public_id,
+                'refresh_failed' => $refreshFailed,
+                // The primary signer is the document's own client — shown
+                // separately by the modal, never as an "additional" signer.
+                'signers' => $envelope->signers
+                    ->reject(fn (Signer $s) => $s->provider_signer_id === '1' || strtolower($s->email) === $clientEmail)
+                    ->map(fn (Signer $s) => ['name' => $s->name, 'email' => $s->email, 'status' => $s->status])
+                    ->values(),
+            ];
+        }
+
+        return response()->json(['documents' => $documents]);
     }
 }

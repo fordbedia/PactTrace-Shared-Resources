@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases;
 
 use Illuminate\Support\Str;
+use PactTrackSDK\SharedResources\Modules\Document\Domain\Enums\DocumentStatus;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Enums\EnvelopeStatus;
@@ -95,9 +96,10 @@ class PrepareMatterEnvelopesForSignature
     /**
      * A document already has an "active" envelope — one that must not be
      * touched again — whenever any of its envelopes is genuinely in flight
-     * on DocuSign's side: sent, viewed, or partially_signed. Terminal
-     * statuses (voided/declined/expired/completed) are *not* active and
-     * stay eligible: re-preparing after a void is an existing, supported
+     * on DocuSign's side (sent, viewed, partially_signed) **or already
+     * completed** — a signed document is finished and is never re-offered.
+     * The other terminal statuses (voided/declined/expired) are *not* active
+     * and stay eligible: re-preparing after a void is an existing, supported
      * flow on the single-document path — see .claude/rules/signature.md.
      *
      * **`draft` is deliberately excluded from "active" too**, even though
@@ -120,7 +122,17 @@ class PrepareMatterEnvelopesForSignature
      */
     private function hasActiveEnvelope(Document $document): bool
     {
-        $activeStatuses = [EnvelopeStatus::Sent, EnvelopeStatus::Viewed, EnvelopeStatus::PartiallySigned];
+        // A fully signed document is finished, whatever a later stray draft says.
+        if ($document->status === DocumentStatus::Completed) {
+            return true;
+        }
+
+        $activeStatuses = [
+            EnvelopeStatus::Sent,
+            EnvelopeStatus::Viewed,
+            EnvelopeStatus::PartiallySigned,
+            EnvelopeStatus::Completed,
+        ];
 
         return $document->envelopes->contains(fn ($envelope) => in_array($envelope->status, $activeStatuses, true));
     }

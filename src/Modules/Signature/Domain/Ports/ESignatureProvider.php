@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PactTrackSDK\SharedResources\Modules\Signature\Domain\Ports;
 
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\EnvelopeRecipient;
+use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\ProviderRecipient;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\SigningToken;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\WebhookEvent;
 
@@ -134,4 +135,32 @@ interface ESignatureProvider
      * `fetchEnvelopeStatus()` above is what that reads.
      */
     public function fetchCompletedDocument(string $providerEnvelopeId): string;
+
+    /**
+     * The envelope's signer recipients exactly as the provider has them right
+     * now. Used to sync recipients added/removed inside the provider's own
+     * Sender View back into PactTrack — see SyncEnvelopeRecipients.
+     *
+     * @return ProviderRecipient[]
+     */
+    public function fetchRecipients(string $providerEnvelopeId): array;
+
+    /**
+     * Turn provider-side "remote" recipients (added in the provider's own UI
+     * with no clientUserId) into embedded ones, so PactTrack's guest signing
+     * link can mint a recipient view for them. Keys are recipientIds, values
+     * the clientUserId to assign. Only valid while the envelope is a draft.
+     *
+     * @param array<string, string> $clientUserIdsByRecipientId
+     */
+    public function embedRecipients(string $providerEnvelopeId, array $clientUserIdsByRecipientId): void;
+
+    /**
+     * Add one signer to an envelope that is still a provider-side draft.
+     * `$recipientId` must be unused on the envelope. Only valid before send.
+     */
+    public function addRecipient(string $providerEnvelopeId, EnvelopeRecipient $recipient, string $recipientId): void;
+
+    /** Remove one signer from an envelope that is still a provider-side draft. */
+    public function removeRecipient(string $providerEnvelopeId, string $recipientId): void;
 }

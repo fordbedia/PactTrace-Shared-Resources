@@ -20,7 +20,7 @@
     <div style="background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(15,23,42,0.08); border:1px solid #E2E8F0;">
 
         @include('notification::emails.partials.client-email-header', [
-            'providerName' => $providerName ?? 'PactTrack',
+            'providerName' => $providerName ?? '',
             'logoUrl' => $logoUrl ?? null,
             'brandingEnabled' => $brandingEnabled,
         ])
@@ -105,7 +105,7 @@
         </table>
 
         @include('notification::emails.partials.client-email-footer', [
-            'providerName' => $providerName ?? 'PactTrack',
+            'providerName' => $providerName ?? '',
             'brandingEnabled' => $brandingEnabled,
             'poweredByFooter' => $poweredByFooter ?? true,
         ])

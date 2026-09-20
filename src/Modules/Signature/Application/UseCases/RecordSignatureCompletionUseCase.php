@@ -164,6 +164,18 @@ class RecordSignatureCompletionUseCase
         // no-op when completedSignerEmails is empty.
         $this->recordSignersCompleted($envelope, $event);
 
+        // Some Connect payloads carry no recipient list at all, which left
+        // every Signer `pending` on an envelope DocuSign already reported as
+        // completed. DocuSign cannot complete an envelope until every
+        // recipient (all blocking Signers, never CarbonCopy) has signed, so
+        // a `completed` event settles every signer — even a redelivered one
+        // for an already-terminal envelope.
+        if (in_array($event->eventType, self::COMPLETED_EVENTS, true)) {
+            $this->markAllSignersSigned($envelope);
+        } elseif ($event->completedSignerEmails === []) {
+            $this->syncSignerStatusesFromProvider($envelope);
+        }
+
         try {
             if (in_array($event->eventType, self::SENT_EVENTS, true)) {
                 $envelope->markSent();
@@ -278,6 +290,55 @@ class RecordSignatureCompletionUseCase
             }
 
             $signer->save();
+        }
+    }
+
+    private function markAllSignersSigned(Envelope $envelope): void
+    {
+        Signer::query()
+            ->where('envelope_id', $envelope->id)
+            ->where('status', '!=', 'signed')
+            ->get()
+            ->each(function (Signer $signer): void {
+                $signer->status = 'signed';
+                $signer->signed_at ??= now();
+
+                if ($signer->isGuest()) {
+                    $signer->signing_token_consumed_at ??= now();
+                }
+
+                $signer->save();
+            });
+    }
+
+    /**
+     * Best-effort: when a payload names no completed recipient, ask the
+     * provider which recipients have actually signed so one signer finishing
+     * (envelope still `sent`) is reflected instead of waiting for the whole
+     * envelope. A provider failure is swallowed — the webhook must still ack.
+     */
+    private function syncSignerStatusesFromProvider(Envelope $envelope): void
+    {
+        if ($envelope->provider_envelope_id === null) {
+            return;
+        }
+
+        try {
+            $signed = array_filter(
+                app(\PactTrackSDK\SharedResources\Modules\Signature\Domain\Ports\ESignatureProvider::class)->fetchRecipients($envelope->provider_envelope_id),
+                fn ($recipient) => $recipient->status === 'signed',
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Could not read recipient statuses from the e-signature provider.', [
+                'envelope_id' => $envelope->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return;
+        }
+
+        foreach ($signed as $recipient) {
+            $this->recordSignersCompleted($envelope, new WebhookEvent('recipients', null, [$recipient->email], []));
         }
     }
 

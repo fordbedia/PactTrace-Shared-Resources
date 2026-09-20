@@ -6,6 +6,7 @@ namespace PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases;
 
 use PactTrackSDK\SharedResources\Modules\Document\Domain\Ports\DocumentStorage;
 use PactTrackSDK\SharedResources\Modules\Document\Models\Document;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\Services\DocusignReturnUrls;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\Services\ResolveEnvelopeBrand;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Exceptions\EnvelopeAlreadySentException;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Exceptions\UnsupportedDocumentFormatException;
@@ -39,6 +40,7 @@ class PrepareEnvelopeForSignature
         private readonly ESignatureProvider $eSignatureProvider,
         private readonly DocumentStorage $documentStorage,
         private readonly ResolveEnvelopeBrand $resolveEnvelopeBrand,
+        private readonly DocusignReturnUrls $returnUrls,
     ) {
     }
 
@@ -215,7 +217,6 @@ class PrepareEnvelopeForSignature
      */
     private function returnUrl(Envelope $envelope): string
     {
-        return rtrim((string) config('app.frontend_url'), '/')
-            . '/docusign-return?flow=sender&envelope=' . $envelope->public_id;
+        return $this->returnUrls->sender($envelope);
     }
 }

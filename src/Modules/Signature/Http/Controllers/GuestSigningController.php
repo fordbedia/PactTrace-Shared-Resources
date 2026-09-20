@@ -13,6 +13,7 @@ use PactTrackSDK\SharedResources\Modules\Signature\Domain\Exceptions\EnvelopeNot
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Exceptions\EnvelopeSigningUnavailableException;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Exceptions\GuestSigningTokenUnavailableException;
 use PactTrackSDK\SharedResources\Modules\Signature\Models\Envelope;
+use PactTrackSDK\SharedResources\Modules\User\Application\Services\ProviderBrandResolver;
 
 /**
  * Inbound adapter for guest (no PactTrack account) signing — see
@@ -31,6 +32,7 @@ class GuestSigningController extends Controller
     public function __construct(
         private readonly GuestSigningTokenService $guestSigningTokenService,
         private readonly GenerateGuestSigningEmbedTokenUseCase $generateGuestSigningToken,
+        private readonly ProviderBrandResolver $brandResolver,
     ) {
     }
 
@@ -106,5 +108,35 @@ class GuestSigningController extends Controller
             'declined' => $signer->status === 'declined',
             'envelope_status' => $envelope->status->value,
         ]);
+    }
+
+    /**
+     * POST /api/signature/envelopes/{envelope}/guest-brand
+     *
+     * The provider identity a guest signer sees on the signing pages — a
+     * guest is unauthenticated, so there is no `user.provider` to read.
+     * Scoped by the same signingLinkToken as the other guest endpoints, and
+     * uses findByToken() (not resolve()) so the expired/consumed/"link
+     * unavailable" screens are branded too. Plan rules live in
+     * ProviderBrandResolver — never re-derived here. Only name + logo_url.
+     */
+    public function brand(Request $request, Envelope $envelope): JsonResponse
+    {
+        $request->validate([
+            'signingLinkToken' => ['required', 'string'],
+        ]);
+
+        $signer = $this->guestSigningTokenService->findByToken(
+            $envelope,
+            $request->string('signingLinkToken')->toString(),
+        );
+
+        $provider = $signer === null ? null : $envelope->provider()->first();
+
+        if ($provider === null) {
+            return response()->json(['message' => 'This signing link is not valid.', 'reason' => 'invalid'], 404);
+        }
+
+        return response()->json($this->brandResolver->forProvider($provider)->toArray());
     }
 }
