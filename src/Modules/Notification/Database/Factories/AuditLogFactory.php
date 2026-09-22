@@ -4,6 +4,7 @@ namespace PactTrackSDK\SharedResources\Modules\Notification\Database\Factories;
 
 use PactTrackSDK\SharedResources\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use PactTrackSDK\SharedResources\Modules\Notification\Domain\ValueObjects\ActorType;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTrackSDK\SharedResources\Modules\User\Models\Provider;
 
@@ -24,6 +25,7 @@ class AuditLogFactory extends Factory
         return [
             'provider_id' => Provider::factory(),
             'user_id' => User::factory(),
+            'actor_type' => ActorType::User->value,
             'action' => fake()->randomElement(['created', 'updated', 'deleted', 'viewed', 'signed']),
             'auditable_type' => null,
             'auditable_id' => null,
@@ -42,6 +44,7 @@ class AuditLogFactory extends Factory
         return $this->state(fn (): array => [
             'provider_id' => null,
             'user_id' => null,
+            'actor_type' => ActorType::System->value,
         ]);
     }
 
@@ -56,6 +59,21 @@ class AuditLogFactory extends Factory
     {
         return $this->state(fn (): array => [
             'user_id' => $user instanceof User ? $user->id : $user,
+            'actor_type' => $user === null ? ActorType::System->value : ActorType::User->value,
+        ]);
+    }
+
+    /**
+     * A guest (no-account) signer's own row — see Signer::isGuest() and
+     * .claude/rules/notification.md. `user_id` is always null; the guest's
+     * identity lives in `metadata.signer_name`/`signer_email`.
+     */
+    public function byGuestSigner(string $name, string $email): static
+    {
+        return $this->state(fn (): array => [
+            'user_id' => null,
+            'actor_type' => ActorType::GuestSigner->value,
+            'metadata' => ['signer_name' => $name, 'signer_email' => $email],
         ]);
     }
 

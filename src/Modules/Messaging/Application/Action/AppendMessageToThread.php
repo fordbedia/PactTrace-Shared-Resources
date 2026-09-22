@@ -14,7 +14,9 @@ use PactTrackSDK\SharedResources\Modules\Messaging\Infrastructure\Upload\Message
 use PactTrackSDK\SharedResources\Modules\Messaging\Jobs\SendStaffUnreadMessageReminder;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\Message;
 use PactTrackSDK\SharedResources\Modules\Messaging\Models\MessageThread;
+use PactTrackSDK\SharedResources\Modules\Notification\Domain\ValueObjects\ActorType;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\NewMessageFromClientEmail;
+use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTrackSDK\SharedResources\Modules\Notification\Support\Notification;
 use PactTrackSDK\SharedResources\Modules\User\Application\Services\ProviderStorageLedger;
 use Throwable;
@@ -79,6 +81,29 @@ class AppendMessageToThread
         }
 
         $thread->recordActivity($message->created_at ?? now());
+
+        // "Chat messages" belong in the audit trail too — see
+        // .claude/rules/notification.md, "Audit Log: Explicit Client &
+        // Guest Signer Activity". Both a staff and a client sender are real
+        // `users` rows (a thread is exactly one staff member + one client —
+        // there is no group-thread/guest-signer messaging entry point, see
+        // .claude/rules/messaging.md), so `actor_type` is always `user`
+        // here; the Staff-vs-Client label is derived at read time from
+        // `user.role` (see AuditLogResource::actorLabel()). `metadata`
+        // deliberately carries only `thread_id`/`matter_id` — never the
+        // message body, which already has its durable home in `messages`.
+        AuditLog::create([
+            'provider_id' => $thread->provider_id,
+            'user_id' => $senderId,
+            'actor_type' => ActorType::User->value,
+            'action' => 'message.sent',
+            'auditable_type' => Message::class,
+            'auditable_id' => $message->id,
+            'metadata' => [
+                'thread_id' => $thread->id,
+                'matter_id' => $thread->matter_id,
+            ],
+        ]);
 
         broadcast(new NewMessage($message))->toOthers();
         broadcast(new InboxUpdated((int) $thread->provider_id, $thread->id, (int) $thread->client_id));

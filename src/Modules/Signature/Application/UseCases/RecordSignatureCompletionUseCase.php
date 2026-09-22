@@ -14,6 +14,7 @@ use PactTrackSDK\SharedResources\Modules\Matter\Application\Services\MilestonePr
 use PactTrackSDK\SharedResources\Modules\Matter\Domain\ValueObjects\DefaultMilestone;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\DocumentReadyForSignatureEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\GuestSigningInvitationEmail;
+use PactTrackSDK\SharedResources\Modules\Notification\Domain\ValueObjects\ActorType;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\SignatureCompletedEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog;
 use PactTrackSDK\SharedResources\Modules\Notification\Support\Notification;
@@ -272,6 +273,8 @@ class RecordSignatureCompletionUseCase
                 'email' => $email,
             ]);
 
+            $alreadySigned = $signer->exists && $signer->status === 'signed';
+
             if (! $signer->exists) {
                 $signer->name = $email;
                 $signer->routing_order = 1;
@@ -290,6 +293,10 @@ class RecordSignatureCompletionUseCase
             }
 
             $signer->save();
+
+            if (! $alreadySigned) {
+                $this->logSignerCompletion($envelope, $signer);
+            }
         }
     }
 
@@ -299,7 +306,7 @@ class RecordSignatureCompletionUseCase
             ->where('envelope_id', $envelope->id)
             ->where('status', '!=', 'signed')
             ->get()
-            ->each(function (Signer $signer): void {
+            ->each(function (Signer $signer) use ($envelope): void {
                 $signer->status = 'signed';
                 $signer->signed_at ??= now();
 
@@ -308,7 +315,63 @@ class RecordSignatureCompletionUseCase
                 }
 
                 $signer->save();
+
+                $this->logSignerCompletion($envelope, $signer);
             });
+    }
+
+    /**
+     * The explicit "who actually signed" audit row a webhook-driven signer
+     * transition writes — one per Signer, the first time (and only the
+     * first time) it flips to `signed`. Distinct from the pre-existing
+     * envelope-level `envelope.{status}` row at the bottom of handle(),
+     * which records the envelope's own status transition and stays
+     * `actor_type = null` (renders as "System") since a "sent"/"voided"
+     * transition isn't attributable to one signer.
+     *
+     * A guest co-signer has no `users` row (see Signer::isGuest()), so
+     * their name/email are captured in `metadata` at write time rather than
+     * resolved through a `user_id` FK — see
+     * .claude/rules/notification.md and Domain\ValueObjects\ActorType.
+     * The primary, portal-authenticated client signer is the only
+     * non-guest `Signer` this codebase ever creates (every ad-hoc co-signer
+     * is issued a guest token — see .claude/rules/signature.md, "Guest
+     * signers"), so `! $signer->isGuest()` is a safe, sufficient check for
+     * "this is the client."
+     */
+    private function logSignerCompletion(Envelope $envelope, Signer $signer): void
+    {
+        $metadata = [
+            'signer_name' => $signer->name,
+            'signer_email' => $signer->email,
+            'provider_envelope_id' => $envelope->provider_envelope_id,
+        ];
+
+        if ($signer->isGuest()) {
+            AuditLog::create([
+                'provider_id' => $envelope->provider_id,
+                'user_id' => null,
+                'actor_type' => ActorType::GuestSigner->value,
+                'action' => 'envelope.signed_by_guest',
+                'auditable_type' => Envelope::class,
+                'auditable_id' => $envelope->id,
+                'metadata' => $metadata,
+            ]);
+
+            return;
+        }
+
+        $client = $envelope->client()->first();
+
+        AuditLog::create([
+            'provider_id' => $envelope->provider_id,
+            'user_id' => $client?->user_id,
+            'actor_type' => ActorType::User->value,
+            'action' => 'envelope.signed_by_client',
+            'auditable_type' => Envelope::class,
+            'auditable_id' => $envelope->id,
+            'metadata' => $metadata,
+        ]);
     }
 
     /**

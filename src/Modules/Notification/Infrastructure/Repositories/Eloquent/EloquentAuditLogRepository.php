@@ -27,7 +27,7 @@ class EloquentAuditLogRepository extends BaseRepository implements AuditLogRepos
     public function paginateFiltered(AuditLogListData $data, ?string $retentionCutoff = null): LengthAwarePaginator
     {
         $query = $this->applyListFilters(
-            $this->baseQuery($data->provider_id)->with('user')->latest()->latest('id'),
+            $this->baseQuery($data->provider_id)->with('user.roles')->latest()->latest('id'),
             $data,
             $retentionCutoff,
         );
@@ -41,7 +41,7 @@ class EloquentAuditLogRepository extends BaseRepository implements AuditLogRepos
     public function paginateForClient(int $providerId, int $clientId, AuditLogListData $data, ?string $retentionCutoff = null): LengthAwarePaginator
     {
         $query = $this->applyListFilters(
-            $this->clientScopedQuery($providerId, $clientId)->with('user')->latest()->latest('id'),
+            $this->clientScopedQuery($providerId, $clientId)->with('user.roles')->latest()->latest('id'),
             $data,
             $retentionCutoff,
         );
@@ -103,7 +103,7 @@ class EloquentAuditLogRepository extends BaseRepository implements AuditLogRepos
                     ->whereColumn('notification_reads.audit_log_id', 'audit_logs.id')
                     ->where('notification_reads.user_id', $userId);
             })
-            ->with('user')
+            ->with('user.roles')
             ->latest()
             ->latest('id')
             ->paginate($perPage, ['*'], 'page', $page);
@@ -112,7 +112,7 @@ class EloquentAuditLogRepository extends BaseRepository implements AuditLogRepos
     public function recentForProvider(int $providerId, int $limit): Collection
     {
         return $this->baseQuery($providerId)
-            ->with('user')
+            ->with('user.roles')
             ->latest()
             ->latest('id')
             ->limit($limit)
@@ -136,7 +136,7 @@ class EloquentAuditLogRepository extends BaseRepository implements AuditLogRepos
     public function recentForClient(int $providerId, int $clientId, int $limit): Collection
     {
         return $this->clientScopedQuery($providerId, $clientId)
-            ->with('user')
+            ->with('user.roles')
             ->latest()
             ->latest('id')
             ->limit($limit)

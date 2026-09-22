@@ -115,6 +115,47 @@ class AuditLogControllerTest extends BaseTest
         $this->assertSame('document.archived', $response->json('data.0.action'));
     }
 
+    /**
+     * The Audit Log's explicit actor labeling — see
+     * .claude/rules/notification.md, "Audit Log: Explicit Client & Guest
+     * Signer Activity". Four cases, one row each: Staff (owner), Client, a
+     * genuinely system-initiated row, and a guest signer.
+     */
+    public function test_actor_label_and_identity_are_explicit_per_row(): void
+    {
+        $this->log(['action' => 'document.archived']);
+        AuditLog::factory()
+            ->forProvider($this->tenant['provider'])
+            ->byUser($this->tenant['clientUser'])
+            ->create(['action' => 'message.sent']);
+        AuditLog::factory()
+            ->forProvider($this->tenant['provider'])
+            ->byGuestSigner('Jordan Ellis', 'jordan.ellis@example.com')
+            ->create(['action' => 'envelope.signed_by_guest']);
+        AuditLog::factory()->system()->forProvider($this->tenant['provider'])
+            ->create(['action' => 'subscription.trial_expired']);
+
+        Sanctum::actingAs($this->tenant['owner']);
+
+        $rows = $this->getJson('/api/v1/audit-logs')->assertOk()->json('data');
+        $byAction = collect($rows)->keyBy('action');
+
+        $this->assertSame('Staff', $byAction['document.archived']['actor_label']);
+        $this->assertFalse($byAction['document.archived']['is_system']);
+
+        $this->assertSame('Client', $byAction['message.sent']['actor_label']);
+        $this->assertSame($this->tenant['clientUser']->name, $byAction['message.sent']['actor_name']);
+        $this->assertSame($this->tenant['clientUser']->email, $byAction['message.sent']['actor_email']);
+
+        $this->assertSame('Guest Signer', $byAction['envelope.signed_by_guest']['actor_label']);
+        $this->assertSame('Jordan Ellis', $byAction['envelope.signed_by_guest']['actor_name']);
+        $this->assertSame('jordan.ellis@example.com', $byAction['envelope.signed_by_guest']['actor_email']);
+        $this->assertFalse($byAction['envelope.signed_by_guest']['is_system']);
+
+        $this->assertSame('System', $byAction['subscription.trial_expired']['actor_label']);
+        $this->assertTrue($byAction['subscription.trial_expired']['is_system']);
+    }
+
     public function test_pagination_meta_and_second_page_slice(): void
     {
         // Newest first — create in a known order so the slice is predictable.

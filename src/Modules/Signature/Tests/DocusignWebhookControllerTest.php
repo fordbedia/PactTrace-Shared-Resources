@@ -80,7 +80,14 @@ class DocusignWebhookControllerTest extends BaseTest
         $this->postJson('/api/signature/webhooks/docusign', $payload)->assertOk();
 
         $this->assertDatabaseCount('signature_webhook_events', 1);
-        $this->assertDatabaseCount('audit_logs', 1);
+
+        // Two rows from the FIRST (and only) processing — the existing
+        // envelope-level `envelope.completed` transition row, plus the new
+        // explicit `envelope.signed_by_client` row this payload's own
+        // completed signer now writes (see .claude/rules/notification.md,
+        // "Audit Log: Explicit Client & Guest Signer Activity"). The
+        // replay must not add a third/fourth.
+        $this->assertDatabaseCount('audit_logs', 2);
     }
 
     public function test_a_rejected_signature_never_touches_the_envelope(): void

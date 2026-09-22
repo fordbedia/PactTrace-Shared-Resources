@@ -144,6 +144,47 @@ class SendMessageActionTest extends BaseTest
                 && $event->broadcastOn()[0]->name === 'private-messages.thread.' . $message->thread_id;
         });
     }
+
+    /**
+     * "Chat messages" belong in the audit trail — see
+     * .claude/rules/notification.md, "Audit Log: Explicit Client & Guest
+     * Signer Activity". A staff sender's message writes a `message.sent`
+     * row with `actor_type = 'user'` and `user_id` resolving to the sender
+     * (labeled "Staff" by AuditLogResource, since this sender is the
+     * provider owner).
+     */
+    public function test_sending_a_message_writes_an_audit_log_row(): void
+    {
+        $message = $this->action->handle($this->data());
+
+        $this->assertDatabaseHas('audit_logs', [
+            'provider_id' => $this->tenant['matter']->provider_id,
+            'user_id' => $this->tenant['owner']->id,
+            'actor_type' => 'user',
+            'action' => 'message.sent',
+            'auditable_type' => Message::class,
+            'auditable_id' => $message->id,
+        ]);
+    }
+
+    /**
+     * A client-role sender's own message must resolve to their own
+     * `user_id` on the audit row too — this is what lets AuditLogResource
+     * label it "Client" rather than "Staff".
+     */
+    public function test_a_client_sent_message_records_the_clients_own_user_id(): void
+    {
+        $message = $this->action->handle($this->data([
+            'sender_id' => $this->tenant['clientUser']->id,
+        ]));
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $this->tenant['clientUser']->id,
+            'actor_type' => 'user',
+            'action' => 'message.sent',
+            'auditable_id' => $message->id,
+        ]);
+    }
 }
 
 /**

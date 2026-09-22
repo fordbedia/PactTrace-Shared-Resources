@@ -763,6 +763,100 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
         ]);
     }
 
+    /**
+     * The primary, portal-authenticated client signer's own completion
+     * writes an explicit `envelope.signed_by_client` audit row —
+     * `actor_type = 'user'`, `user_id` resolving to that client's own
+     * portal user. See .claude/rules/notification.md, "Audit Log:
+     * Explicit Client & Guest Signer Activity".
+     */
+    public function test_a_client_signing_writes_an_explicit_actor_audit_row(): void
+    {
+        $envelope = $this->envelope(EnvelopeStatus::Sent, DocumentStatus::Sent);
+        $client = $this->tenant['client'];
+        Signer::factory()->create([
+            'envelope_id' => $envelope->id,
+            'email' => $client->email,
+            'name' => $client->name,
+            'status' => 'pending',
+        ]);
+
+        $this->useCase->handle($this->event('delivered', $envelope, $client->email));
+
+        $this->assertDatabaseHas('audit_logs', [
+            'provider_id' => $envelope->provider_id,
+            'user_id' => $client->user_id,
+            'actor_type' => 'user',
+            'action' => 'envelope.signed_by_client',
+            'auditable_type' => Envelope::class,
+            'auditable_id' => $envelope->id,
+        ]);
+    }
+
+    /**
+     * A guest (no-account) co-signer's own completion writes an explicit
+     * `envelope.signed_by_guest` audit row — `actor_type = 'guest_signer'`,
+     * `user_id` null (a guest has no `users` row), name/email captured in
+     * `metadata` at write time since there is no FK to resolve them from
+     * later.
+     */
+    public function test_a_guest_signer_signing_writes_an_explicit_actor_audit_row_with_no_user_id(): void
+    {
+        $envelope = $this->envelope(EnvelopeStatus::Sent, DocumentStatus::Sent);
+        $guest = Signer::factory()->create([
+            'envelope_id' => $envelope->id,
+            'email' => 'jordan.ellis@example.com',
+            'name' => 'Jordan Ellis',
+            'status' => 'pending',
+            'signing_token_hash' => hash('sha256', 'a-guest-token'),
+        ]);
+
+        $this->useCase->handle($this->event('delivered', $envelope, $guest->email));
+
+        $this->assertDatabaseHas('audit_logs', [
+            'provider_id' => $envelope->provider_id,
+            'user_id' => null,
+            'actor_type' => 'guest_signer',
+            'action' => 'envelope.signed_by_guest',
+            'auditable_type' => Envelope::class,
+            'auditable_id' => $envelope->id,
+        ]);
+
+        $row = \PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog::query()
+            ->where('action', 'envelope.signed_by_guest')
+            ->latest('id')
+            ->first();
+
+        $this->assertSame('Jordan Ellis', $row->metadata['signer_name']);
+        $this->assertSame('jordan.ellis@example.com', $row->metadata['signer_email']);
+    }
+
+    /**
+     * A webhook redelivery of the same completed-signer email must not
+     * duplicate the audit row — only the first transition into `signed` is
+     * logged.
+     */
+    public function test_a_repeat_completion_event_for_an_already_signed_signer_does_not_duplicate_the_audit_row(): void
+    {
+        $envelope = $this->envelope(EnvelopeStatus::Sent, DocumentStatus::Sent);
+        $client = $this->tenant['client'];
+        Signer::factory()->create([
+            'envelope_id' => $envelope->id,
+            'email' => $client->email,
+            'status' => 'pending',
+        ]);
+
+        $this->useCase->handle($this->event('delivered', $envelope, $client->email));
+        $this->useCase->handle($this->event('delivered', $envelope, $client->email));
+
+        $this->assertSame(
+            1,
+            \PactTrackSDK\SharedResources\Modules\Notification\Models\AuditLog::query()
+                ->where('action', 'envelope.signed_by_client')
+                ->count(),
+        );
+    }
+
     public function test_a_redundant_event_for_an_already_terminal_envelope_is_a_silent_no_op(): void
     {
         $envelope = $this->envelope(EnvelopeStatus::Completed, DocumentStatus::Completed);
