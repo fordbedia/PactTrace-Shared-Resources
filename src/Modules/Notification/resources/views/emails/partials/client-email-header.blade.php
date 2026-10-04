@@ -15,15 +15,22 @@
     every plan, not here.
 --}}
 @php($displayName = trim((string) ($providerName ?? '')) !== '' ? trim($providerName) : 'Your Provider')
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#10162B;">
+@php($logoOnLight = $logoOnLight ?? true)
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="#10162B" style="background:#10162B;">
     <tr>
         <td style="padding:24px 32px;">
-            <table cellpadding="0" cellspacing="0">
+            <table cellpadding="0" cellspacing="0" role="presentation">
                 <tr>
                     @if($brandingEnabled && !empty($logoUrl))
-                        <td style="vertical-align:middle;">
-                            <img src="{{ $logoUrl }}" alt="{{ $displayName }}" height="28" style="display:block; height:28px; max-width:160px; object-fit:contain;">
-                        </td>
+                        @if($logoOnLight)
+                            <td bgcolor="#FFFFFF" style="vertical-align:middle; background:#FFFFFF; padding:6px 10px; border-radius:6px;">
+                                <img src="{{ $logoUrl }}" alt="{{ $displayName }}" height="28" style="display:block; height:28px; width:auto; max-width:160px; border:0;">
+                            </td>
+                        @else
+                            <td style="vertical-align:middle;">
+                                <img src="{{ $logoUrl }}" alt="{{ $displayName }}" height="28" style="display:block; height:28px; width:auto; max-width:160px; border:0;">
+                            </td>
+                        @endif
                     @else
                         <td style="vertical-align:middle;">
                             <span style="color:#ffffff; font-size:18px; font-weight:700; letter-spacing:-0.03em; font-family:'Inter',Arial,sans-serif;">{{ $displayName }}</span>
