@@ -51,7 +51,7 @@ class ResolveSignerForEnvelope
 		try {
 			if ($this->signer && $this->signer instanceof Signer) {
 				if ($this->signer->signing_token_hash) {
-					$this->notifier->notifyCoSigners($this->envelope);
+					$this->notifier->notifyCoSigner($this->signer, $this->envelope);
 				} else {
 					// It's a client
 					$this->notifier->notifyClient($this->envelope);
