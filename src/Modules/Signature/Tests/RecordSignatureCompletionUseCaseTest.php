@@ -17,6 +17,7 @@ use PactTrackSDK\SharedResources\Modules\Notification\Mail\DocumentReadyForSigna
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\GuestSigningInvitationEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Mail\SignatureCompletedEmail;
 use PactTrackSDK\SharedResources\Modules\Notification\Support\Notification;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\Services\EnvelopeNotifier;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\RecordSignatureCompletionUseCase;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\Enums\EnvelopeStatus;
 use PactTrackSDK\SharedResources\Modules\Signature\Domain\ValueObjects\WebhookEvent;
@@ -95,7 +96,8 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
      * `providerData->logo_path` — the raw `providers.logo_path` storage key
      * fed straight into the email's `<img src>` with no scheme or host, so
      * the logo rendered broken wherever the message was previewed.
-     * `RecordSignatureCompletionUseCase::providerDataArray()` now resolves
+     * `EnvelopeNotifier::providerDataArray()` (moved out of this use case)
+     * now resolves
      * it through `ProviderLogoStorage::url()` (the same port
      * `ProviderResource.logo_url` and `/dashboard/branding` use) before
      * building the DTO. See .claude/rules/branding.md and
@@ -1110,6 +1112,109 @@ class RecordSignatureCompletionUseCaseTest extends BaseTest
         $this->assertSame(EnvelopeStatus::Completed, $envelope->fresh()->status);
         $this->assertSame('completed', $completedMilestone->fresh()->status);
         $this->assertNotNull($completedMilestone->fresh()->completed_at);
+    }
+
+    /**
+     * Regression guard for the EnvelopeNotifier extraction: the notifier is
+     * a constructor dependency, so `handle()` stays single-argument and both
+     * real callers (DocusignWebhookController, ReconcileStaleEnvelopes) keep
+     * working unchanged. A previous version took the notifier as a second
+     * `handle()` argument, which neither caller passed — every webhook and
+     * every reconciliation run died with an ArgumentCountError.
+     */
+    public function test_sent_transition_delegates_client_and_co_signer_notifications_to_the_injected_notifier(): void
+    {
+        $spy = $this->spyNotifier();
+        $useCase = app(RecordSignatureCompletionUseCase::class);
+
+        $envelope = $this->envelope(EnvelopeStatus::Draft, DocumentStatus::Draft);
+
+        $useCase->handle($this->event('sent', $envelope));
+
+        $this->assertSame([$envelope->id], $spy->clientCalls);
+        $this->assertSame([$envelope->id], $spy->coSignerCalls);
+    }
+
+    public function test_a_redundant_sent_event_does_not_notify_through_the_notifier_again(): void
+    {
+        $spy = $this->spyNotifier();
+        $useCase = app(RecordSignatureCompletionUseCase::class);
+
+        $envelope = $this->envelope(EnvelopeStatus::Draft, DocumentStatus::Draft);
+
+        $useCase->handle($this->event('sent', $envelope));
+        $useCase->handle($this->event('sent', $envelope));
+
+        $this->assertCount(1, $spy->clientCalls);
+        $this->assertCount(1, $spy->coSignerCalls);
+    }
+
+    public function test_non_sent_transitions_never_reach_the_notifier(): void
+    {
+        Bus::fake([StoreSignedDocumentCopy::class]);
+        $spy = $this->spyNotifier();
+        $useCase = app(RecordSignatureCompletionUseCase::class);
+
+        $envelope = $this->envelope(EnvelopeStatus::Sent, DocumentStatus::Sent);
+
+        $useCase->handle($this->event('delivered', $envelope));
+        $useCase->handle($this->event('completed', $envelope));
+
+        $this->assertSame([], $spy->clientCalls);
+        $this->assertSame([], $spy->coSignerCalls);
+    }
+
+    /**
+     * Guards the imports `notifyProviderSideOfCompletion()` still needs
+     * (`Mail`, `Notification`, `SignatureCompletedEmail`) after the
+     * client/co-signer helpers moved to EnvelopeNotifier — losing any of
+     * them throws inside that method's best-effort try/catch, so the staff
+     * email silently stops while the transition itself still succeeds.
+     */
+    public function test_completed_transition_still_emails_the_provider_side_after_the_notifier_extraction(): void
+    {
+        Mail::fake();
+        Bus::fake([StoreSignedDocumentCopy::class]);
+
+        $envelope = $this->envelope(EnvelopeStatus::Sent, DocumentStatus::Sent);
+
+        $this->useCase->handle($this->event('completed', $envelope));
+
+        Mail::assertQueued(SignatureCompletedEmail::class);
+    }
+
+    /**
+     * Rebinds EnvelopeNotifier with a recording stand-in. Use cases are
+     * resolved fresh after this, since setUp()'s `$this->useCase` was
+     * already built with the real notifier.
+     */
+    private function spyNotifier(): EnvelopeNotifier
+    {
+        $spy = new class extends EnvelopeNotifier {
+            /** @var list<int> */
+            public array $clientCalls = [];
+
+            /** @var list<int> */
+            public array $coSignerCalls = [];
+
+            public function __construct()
+            {
+            }
+
+            public function notifyClient(Envelope $envelope): void
+            {
+                $this->clientCalls[] = $envelope->id;
+            }
+
+            public function notifyCoSigners(Envelope $envelope): void
+            {
+                $this->coSignerCalls[] = $envelope->id;
+            }
+        };
+
+        $this->app->instance(EnvelopeNotifier::class, $spy);
+
+        return $spy;
     }
 
     private function envelope(EnvelopeStatus $envelopeStatus, DocumentStatus $documentStatus): Envelope
