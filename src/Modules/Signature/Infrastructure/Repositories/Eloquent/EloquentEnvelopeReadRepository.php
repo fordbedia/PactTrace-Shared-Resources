@@ -41,4 +41,19 @@ class EloquentEnvelopeReadRepository implements EnvelopeReadRepository
             ->map(static fn ($total): int => (int) $total)
             ->all();
     }
+
+	public function getForMatter(
+		string $matterPublicId,
+		string $envelopePublicId
+	)
+	{
+		return Envelope::query()
+			->where('public_id', $envelopePublicId)
+			->whereHas('document', function($q1) use ($matterPublicId) {
+				$q1->whereHas('matter', function($q2) use ($matterPublicId) {
+					$q2->where('public_id', $matterPublicId);
+				});
+			})
+			->first();
+	}
 }

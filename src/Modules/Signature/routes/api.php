@@ -67,4 +67,5 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('signature/matters/{matter}/sync-draft-signers', [EnvelopeDetailController::class, 'syncDraftSigners']);
     Route::post('signature/matters/{matter}/prepare-all-envelopes', [EnvelopeDetailController::class, 'prepareAll']);
     Route::post('signature/envelopes/{envelope}/void', [EnvelopeDetailController::class, 'void']);
+	Route::post('signature/matter/{matter}/envelope/{envelope}/resend', [EnvelopeDetailController::class, 'resend']);
 });

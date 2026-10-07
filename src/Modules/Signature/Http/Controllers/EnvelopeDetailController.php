@@ -11,6 +11,8 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 use PactTrackSDK\SharedResources\Modules\Matter\Infrastructure\Services\MatterActivityFeedBuilder;
 use PactTrackSDK\SharedResources\Modules\Matter\Models\Matter;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\Port\Repository\EnvelopeReadRepository;
+use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\ResolveSignerForEnvelope;
 use PactTrackSDK\SharedResources\Modules\User\Domain\ValueObjects\GatedAction;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\GetMatterEnvelopeDetail;
 use PactTrackSDK\SharedResources\Modules\Signature\Application\UseCases\PrepareMatterEnvelopesForSignature;
@@ -204,4 +206,23 @@ class EnvelopeDetailController extends Controller
 
         return response()->json(['documents' => $documents]);
     }
+
+	public function resend(
+		Request $request,
+		Matter $matter,
+		Envelope $envelope,
+		ResolveSignerForEnvelope $envelopeResolver
+	) {
+		Gate::authorize('view', $matter);
+        Gate::authorize('send', $envelope);
+
+		$resolver = $envelopeResolver->handle($matter->public_id, $envelope->public_id);
+
+		$signerEmail = $resolver->filterByEmail($request->email);
+
+		// Notify once filtered
+		$resolver->notify();
+
+		return $signerEmail;
+	}
 }
