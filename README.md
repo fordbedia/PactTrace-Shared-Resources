@@ -52,6 +52,34 @@ ISOLATED=1 ./test.sh                             # one PHPUnit process per class
 `./test.sh` keeps the Mac awake (`caffeinate`), tees output to
 `test-run.log` at the repo root, and exits with PHPUnit's exit code.
 
+### Run a specific class or method
+
+By file path (most precise — runs exactly that one class):
+
+```shell
+./test.sh src/Modules/Signature/Tests/EnvelopeDetailControllerTest.php
+```
+
+By class name:
+
+```shell
+./test.sh --filter=EnvelopeDetailControllerTest
+```
+
+`--filter` is a pattern match, so it also runs any other class whose name
+*contains* that text (e.g. `--filter=ClientTest` matches `ClientTest` and
+`PortalClientTest`). Use the file path when you want exactly one class.
+
+One test method inside a class (keep the single quotes so the shell leaves the
+`::` alone):
+
+```shell
+./test.sh --filter='EnvelopeDetailControllerTest::test_it_rejects_a_matter_belonging_to_a_different_provider'
+```
+
+The same arguments work inside the container after `composer test --`, e.g.
+`composer test -- --filter=EnvelopeDetailControllerTest`.
+
 Inside the container:
 
 ```shell
