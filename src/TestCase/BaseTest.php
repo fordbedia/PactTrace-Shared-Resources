@@ -25,13 +25,21 @@ abstract class BaseTest extends Orchestra
 
     protected function setUp(): void
     {
-        parent::setUp();
-
-        // Restore the snapshot dump only when the test opts in with
-        // PactTrackSDK\SharedResources\TestCase\Extras\RefreshDatabase.
-        if (method_exists($this, 'refreshDatabase')) {
-            $this->refreshDatabase();
+        // Restore the snapshot dump (only for tests that opt in with
+        // PactTrackSDK\SharedResources\TestCase\Extras\RefreshDatabase —
+        // in practice every Migrations\BaseTest subclass). It restores once
+        // per PHP process, then each test runs inside a transaction that is
+        // rolled back afterwards.
+        //
+        // This must run BEFORE parent::setUp(): Testbench begins the per-test
+        // transaction inside parent::setUp(), and restoring (DROP/CREATE
+        // TABLE from a separate mysql client) after that would block on the
+        // open transaction's metadata locks.
+        if (method_exists(static::class, 'restoreSnapshotOnce')) {
+            static::restoreSnapshotOnce();
         }
+
+        parent::setUp();
 
         // Never let the test suite reach the real DocuSign API — see
         // .claude/rules/signature.md and the feature spec's NFR "Use the
@@ -54,7 +62,7 @@ abstract class BaseTest extends Orchestra
 		$testingDatabase = env('PACTTRACK_MYSQL_TEST_DB_DATABASE', 'pacttrack_test');
 		$applicationDatabase = env('DB_DATABASE');
 
-		$this->assertTestingDatabaseIsSafe($testingDatabase, $applicationDatabase);
+		static::assertTestingDatabaseIsSafe($testingDatabase, $applicationDatabase);
 
 		// Testbench's skeleton app leaves the auth defaults empty. spatie derives
 		// a model's guard from them, so without this every role assignment fails
@@ -72,11 +80,25 @@ abstract class BaseTest extends Orchestra
 		]);
 
 		$app['config']->set('database.default', 'testing');
-		$app['config']->set('database.connections.testing', [
+		$app['config']->set('database.connections.testing', static::connectionConfigForTesting());
+	}
+
+	/**
+	 * The `testing` connection config, built from the PACTTRACK_MYSQL_TEST_DB_*
+	 * env vars. Static because the snapshot restore
+	 * (Extras\RefreshDatabase::restoreSnapshotOnce()) needs it before the
+	 * Testbench application — and therefore `config()` — exists.
+	 *
+	 * Deliberately NOT named `testing...()`: PHPUnit collects every public
+	 * method whose name starts with `test` as a test case.
+	 */
+	public static function connectionConfigForTesting(): array
+	{
+		return [
 			'driver' => 'mysql',
 			'host' => env('PACTTRACK_MYSQL_TEST_DB_HOST', 'mysql'),
 			'port' => env('PACTTRACK_MYSQL_TEST_DB_PORT', '3306'),
-			'database' => $testingDatabase,
+			'database' => env('PACTTRACK_MYSQL_TEST_DB_DATABASE', 'pacttrack_test'),
 			'username' => env('PACTTRACK_MYSQL_TEST_DB_USERNAME', 'pacttrack_u'),
 			'password' => env('PACTTRACK_MYSQL_TEST_DB_PASSWORD', 'p4cttr4cekamikalara0213'),
 
@@ -87,13 +109,25 @@ abstract class BaseTest extends Orchestra
 			'strict' => true,
 			'engine' => 'InnoDB',
 			'options' => extension_loaded('pdo_mysql') ? array_filter([
-				// optional, prevents “server has gone away” for some dumps
-				\PDO::MYSQL_ATTR_INIT_COMMAND => "SET sql_mode='STRICT_TRANS_TABLES'",
+				// optional, prevents “server has gone away” for some dumps.
+				// lock_wait_timeout: the server default here is a full year,
+				// so a statement stuck on a metadata lock would otherwise
+				// hang the run instead of failing.
+				\PDO::MYSQL_ATTR_INIT_COMMAND => "SET sql_mode='STRICT_TRANS_TABLES', lock_wait_timeout=30",
+				// Connect timeout — fail fast when MySQL is unreachable
+				// (e.g. the Docker VM after a Mac sleep/wake).
+				\PDO::ATTR_TIMEOUT => 5,
 			]) : [],
-		]);
+		];
 	}
 
-	private function assertTestingDatabaseIsSafe(string $testingDatabase, ?string $applicationDatabase): void
+	/**
+	 * Public + static so Extras\RefreshDatabase::restoreSnapshotOnce() can run
+	 * the same guard BEFORE it restores — the restore now happens ahead of
+	 * getEnvironmentSetUp(), and must never be the first thing to touch a
+	 * misconfigured database.
+	 */
+	public static function assertTestingDatabaseIsSafe(string $testingDatabase, ?string $applicationDatabase): void
 	{
 		if ($testingDatabase === '') {
 			throw new \RuntimeException('PACTTRACK_MYSQL_TEST_DB_DATABASE must name a dedicated test database.');

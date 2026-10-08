@@ -38,23 +38,38 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T mysql \
 
 ## Run tests
 
-Run every module test class one class at a time:
+Tests run inside the `backend` container from `/var/www/shared-resources`
+(MySQL host `mysql`, database `pacttrack_test`). The easiest way is the
+repo-root helper, run from the host:
 
 ```shell
-composer test
+./test.sh                                        # whole suite
+./test.sh src/Modules/Signature                  # one module
+./test.sh --filter=EnvelopeDetailControllerTest  # one class / method
+ISOLATED=1 ./test.sh                             # one PHPUnit process per class
 ```
 
-Or:
+`./test.sh` keeps the Mac awake (`caffeinate`), tees output to
+`test-run.log` at the repo root, and exits with PHPUnit's exit code.
+
+Inside the container:
 
 ```shell
-./bin/phpunit-by-class
+composer test                              # whole suite, single PHPUnit process
+composer test -- src/Modules/Signature     # args after -- go to PHPUnit
+composer test -- --filter=SomeTest
+composer test:isolated                     # one process per test class (bin/phpunit-by-class)
+./vendor/bin/phpunit --filter=SomeTest     # plain PHPUnit works too
 ```
 
-Run a specific class through PHPUnit:
-
-```shell
-./vendor/bin/phpunit --filter=SomeTest
-```
+The snapshot dump (`src/TestCase/sqldumps/pacttrack.mysql.sql`) is restored
+once per PHP process; each test then runs in a transaction that is rolled
+back, so the database is clean after every test and after the run. Set
+`PACTTRACK_TEST_RESTORE_EACH_TEST=1` in the shell to restore before every test
+instead (slow, for chasing state leaks). A test running longer than 60s is
+aborted and fails the run. See the top-level `CLAUDE.md`, "Unit testing", for
+the rules this imposes on tests (no DDL, no second DB connection, no
+hard-coded auto-increment ids).
 ### Running Reconcile Stale Envelopes:
 ```shell
 docker compose -f docker-compose.yml -f                    
